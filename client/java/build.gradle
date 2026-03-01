@@ -1,0 +1,120 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.springframework.boot:spring-boot-gradle-plugin:3.2.3'
+        classpath 'io.spring.gradle:dependency-management-plugin:1.1.4'
+    }
+}
+
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+// Import Spring Boot and Dependency Management plugin from the root project
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+// Define dependency versions
+ext {
+    springBootVersion = '3.2.3'
+    lombokVersion = '1.18.30'
+    junitVersion = '5.10.2'
+    nimbusJoseVersion = '9.37.3'
+    jose4jVersion = '0.9.3'
+}
+
+// Define repositories
+repositories {
+    mavenCentral()
+}
+
+// Configure source sets
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+        resources {
+            srcDirs = ['src/main/resources']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+        resources {
+            srcDirs = ['src/test/resources']
+        }
+    }
+}
+
+dependencies {
+    // Common utils for HMAC verification
+    if (findProject(':lib:common-utils') != null) {
+        api project(':lib:common-utils')
+    } else {
+        api 'com.marketplace:common-utils'
+    }
+    
+    // Spring Web for RestTemplate
+    api 'org.springframework.boot:spring-boot-starter-web'
+    
+    // Jackson for JSON processing
+    api 'com.fasterxml.jackson.core:jackson-databind'
+    api 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    
+    // JWT libraries for verification
+    api "com.nimbusds:nimbus-jose-jwt:${nimbusJoseVersion}"
+    api "org.bitbucket.b_c:jose4j:${jose4jVersion}"
+    
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.mockito:mockito-junit-jupiter'
+}
+
+// Configure publishing
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+// Create a JAR with sources
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allJava
+    archiveClassifier = 'sources'
+}
+
+// Create a JAR with javadoc
+task javadocJar(type: Jar) {
+    from javadoc
+    archiveClassifier = 'javadoc'
+}
+
+// Add sources and javadoc JARs to the publication
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
+
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}
+
+test {
+    useJUnitPlatform()
+}
+
