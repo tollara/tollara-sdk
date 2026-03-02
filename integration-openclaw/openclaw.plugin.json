@@ -1,0 +1,38 @@
+{
+  "id": "marketplace",
+  "name": "Marketplace (Agent Hub)",
+  "version": "1.0.0",
+  "description": "Invoke agents on Agent Hub (caller) or act as backend with HMAC verification and usage reporting",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "mode": {
+        "type": "string",
+        "enum": ["caller", "backend"],
+        "default": "caller",
+        "description": "caller = invoke agents; backend = receive gateway requests, verify HMAC, report usage"
+      },
+      "gatewayUrl": {
+        "type": "string",
+        "description": "Gateway base URL (caller mode)"
+      },
+      "agentKey": {
+        "type": "string",
+        "description": "Agent key for invoke (caller mode)"
+      },
+      "coreServiceUrl": {
+        "type": "string",
+        "description": "Core service URL (optional, for validate key)"
+      },
+      "usageServiceUrl": {
+        "type": "string",
+        "description": "Usage service URL (caller: status/completion; backend: report usage)"
+      },
+      "agentSecret": {
+        "type": "string",
+        "description": "Agent secret for HMAC (backend mode)"
+      }
+    }
+  },
+  "skillPaths": ["skills/marketplace"]
+}
