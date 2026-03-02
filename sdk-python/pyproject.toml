@@ -12,7 +12,13 @@ dependencies = []
 
 [project.optional-dependencies]
 http = ["requests"]
-dev = ["pytest", "requests"]
+dev = ["pytest>=7.0", "requests", "responses>=0.24", "build"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

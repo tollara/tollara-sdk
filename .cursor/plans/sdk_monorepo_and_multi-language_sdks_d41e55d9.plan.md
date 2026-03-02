@@ -13,7 +13,7 @@ This plan is for the **SDK monorepo** (e.g. `agent-hub-sdk`). The **Java code im
 
 ## 1. Repository and naming
 
-- **Repo**: This is the SDK monorepo (e.g. `agent-hub-sdk` or `marketplace-sdks`). The Java code imported from Agent Hub lives in `**client/`** and `**lib/`**; both must be refactored into `**sdk-java/**`. There is no dependency on the Agent Hub repo.
+- **Repo**: This is the SDK monorepo (e.g. `agent-hub-sdk` or `marketplace-sdks`). The Java code imported from Agent Hub lives in `**client/`** and `**lib/`**; both must be refactored into `**sdk-java/`**. There is no dependency on the Agent Hub repo.
 - **Package/product name placeholder**: Use a single placeholder everywhere so you can find-replace when the product name is finalized. Suggested placeholder: `marketplace`. Replace with the final name (e.g. `agenthub`, `agent-hub`) in:
   - Package names (npm: `@marketplace/agent-sdk`, NuGet: `Marketplace.AgentSdk`, PyPI: `marketplace-agent-sdk`, Maven: `com.marketplace:agent-sdk`, etc.)
   - Namespaces, module paths, and human-facing labels in docs

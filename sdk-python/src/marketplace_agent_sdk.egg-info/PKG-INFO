@@ -1,3 +1,17 @@
+Metadata-Version: 2.4
+Name: marketplace-agent-sdk
+Version: 1.0.0
+Summary: Agent Hub SDK - verify HMAC, validate keys, report usage, progress, completion
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Provides-Extra: http
+Requires-Dist: requests; extra == "http"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: requests; extra == "dev"
+Requires-Dist: responses>=0.24; extra == "dev"
+Requires-Dist: build; extra == "dev"
+
 # Agent Hub SDK (Python)
 
 **Package:** `marketplace-agent-sdk` (PyPI)

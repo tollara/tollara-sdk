@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -41,7 +42,7 @@ def report_progress(
     base_url, timestamp = _parse_url_params(progress_url)
     if not timestamp:
         return False
-    body = {"stage": stage, "percentageComplete": percentage_complete, "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z"}
+    body = {"stage": stage, "percentageComplete": percentage_complete, "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
     if error_message is not None:
         body["errorMessage"] = error_message
     body_str = json.dumps(body)
@@ -70,7 +71,7 @@ def report_completion(
     base_url, timestamp = _parse_url_params(callback_url)
     if not timestamp:
         return False
-    body = {"status": status, "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z", "units": units or 0}
+    body = {"status": status, "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "units": units or 0}
     if result is not None:
         body["result"] = result
     if result_url is not None:
