@@ -1,0 +1,116 @@
+import json
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
+from urllib.parse import parse_qs, urlparse
+
+from .hmac_utils import calculate_hmac_with_timestamp
+
+
+@dataclass
+class UsageReportResponse:
+    status: Optional[str]
+    is_over_limit: bool
+    remaining_requests_per_period: int
+
+
+def _parse_url_params(url: str) -> tuple[str, Optional[str]]:
+    parsed = urlparse(url)
+    base = f"{parsed.scheme}://{parsed.netloc}{parsed.path}" if parsed.scheme else url.split("?")[0]
+    if not parsed.query:
+        return base, None
+    qs = parse_qs(parsed.query)
+    timestamp = (qs.get("timestamp") or [None])[0]
+    return base, timestamp
+
+
+def report_progress(
+    progress_url: str,
+    request_id: str,
+    stage: str,
+    percentage_complete: int,
+    agent_secret: str,
+    error_message: Optional[str] = None,
+    *,
+    session: Optional["requests.Session"] = None,
+) -> bool:
+    """POST progress to usage service. Requires 'requests'."""
+    try:
+        import requests
+    except ImportError:
+        raise ImportError("report_progress requires 'requests'. pip install requests")
+    base_url, timestamp = _parse_url_params(progress_url)
+    if not timestamp:
+        return False
+    body = {"stage": stage, "percentageComplete": percentage_complete, "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z"}
+    if error_message is not None:
+        body["errorMessage"] = error_message
+    body_str = json.dumps(body)
+    signature = calculate_hmac_with_timestamp(body_str, timestamp, agent_secret)
+    sess = session or __import__("requests").Session()
+    resp = sess.post(base_url, json=body, headers={"X-Marketplace-Signature": signature, "X-Marketplace-Timestamp": timestamp})
+    return resp.ok
+
+
+def report_completion(
+    callback_url: str,
+    request_id: str,
+    status: str,
+    agent_secret: str,
+    result: Optional[str] = None,
+    result_url: Optional[str] = None,
+    content_type: Optional[str] = None,
+    units: Optional[float] = None,
+    *,
+    session: Optional["requests.Session"] = None,
+) -> bool:
+    try:
+        import requests
+    except ImportError:
+        raise ImportError("report_completion requires 'requests'. pip install requests")
+    base_url, timestamp = _parse_url_params(callback_url)
+    if not timestamp:
+        return False
+    body = {"status": status, "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z", "units": units or 0}
+    if result is not None:
+        body["result"] = result
+    if result_url is not None:
+        body["resultUrl"] = result_url
+    if content_type is not None:
+        body["contentType"] = content_type
+    body_str = json.dumps(body)
+    signature = calculate_hmac_with_timestamp(body_str, timestamp, agent_secret)
+    sess = session or requests.Session()
+    resp = sess.post(base_url, json=body, headers={"X-Marketplace-Signature": signature, "X-Marketplace-Timestamp": timestamp})
+    return resp.ok
+
+
+def report_usage(
+    usage_service_url: str,
+    user_id: str,
+    agent_id: str,
+    units_used: float,
+    agent_secret: str,
+    timestamp: Optional[float] = None,
+    *,
+    session: Optional["requests.Session"] = None,
+) -> UsageReportResponse:
+    try:
+        import requests
+        import time
+    except ImportError:
+        raise ImportError("report_usage requires 'requests'. pip install requests")
+    ts_ms = int((timestamp or time.time()) * 1000)
+    body = {"userId": user_id, "agentId": agent_id, "unitsUsed": units_used, "timestamp": ts_ms}
+    body_str = json.dumps(body)
+    ts_str = str(ts_ms)
+    signature = calculate_hmac_with_timestamp(body_str, ts_str, agent_secret)
+    url = usage_service_url.rstrip("/") + "/api/usage/report"
+    sess = session or requests.Session()
+    resp = sess.post(url, json=body, headers={"X-Marketplace-Signature": signature, "X-Marketplace-Timestamp": ts_str})
+    resp.raise_for_status()
+    data = resp.json()
+    return UsageReportResponse(
+        status=data.get("status"),
+        is_over_limit=bool(data.get("isOverLimit")),
+        remaining_requests_per_period=int(data.get("remainingRequestsPerPeriod", 0)),
+    )

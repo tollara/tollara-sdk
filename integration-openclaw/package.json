@@ -1,0 +1,22 @@
+{
+  "name": "openclaw-marketplace",
+  "version": "1.0.0",
+  "description": "OpenClaw plugin for Agent Hub (Marketplace): Mode A = invoke agents, Mode B = backend (verify HMAC, report usage)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["openclaw", "marketplace", "agent-hub"],
+  "license": "MIT",
+  "dependencies": {
+    "@marketplace/agent-sdk": "file:../sdk-js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {},
+  "files": ["dist", "openclaw.plugin.json", "skills"]
+}

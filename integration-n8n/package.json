@@ -1,0 +1,51 @@
+{
+  "name": "n8n-nodes-marketplace",
+  "version": "1.0.0",
+  "description": "n8n community nodes for Agent Hub (Marketplace): Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Key",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "marketplace",
+    "agent-hub"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/your-org/agent-hub-sdk",
+  "author": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/agent-hub-sdk.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/MarketplaceApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/MarketplaceTrigger/MarketplaceTrigger.node.js",
+      "dist/nodes/MarketplaceInvoke/MarketplaceInvoke.node.js",
+      "dist/nodes/MarketplaceProgress/MarketplaceProgress.node.js",
+      "dist/nodes/MarketplaceComplete/MarketplaceComplete.node.js",
+      "dist/nodes/MarketplaceValidateKey/MarketplaceValidateKey.node.js"
+    ],
+    "packageId": "n8n-nodes-marketplace"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "n8n-workflow": "^1.0.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@marketplace/agent-sdk": "file:../sdk-js"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>Marketplace.AgentSdk</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Agent Hub</Authors>
+    <Description>Agent Hub SDK - verify HMAC, validate keys, report usage, progress, completion</Description>
+    <PackageTags>marketplace;agent-hub;sdk;hmac</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+</Project>
