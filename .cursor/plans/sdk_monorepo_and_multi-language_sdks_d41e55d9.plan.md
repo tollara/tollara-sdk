@@ -7,13 +7,13 @@ isProject: false
 
 # SDK Monorepo and Multi-Language SDKs Plan
 
-This plan is for the **SDK monorepo** (e.g. `agent-hub-sdk`). The **Java client and vendored lib** (HMAC, verifier, usage client, validation client) have been moved/copied into this repo and live under `sdk-java/` (or equivalent). The building agent should use the **Java code in this repo** as the reference for API surface, HMAC behavior, and HTTP contracts. This repo does not depend on the Agent Hub repo being open; see `docs/sdk-repo-project-context.md` for authoritative context (path prefixes, ECS vs local, etc.).
+This plan is for the **SDK monorepo** (e.g. `agent-hub-sdk`). The **Java code imported from Agent Hub** lives in this repo in two places: `**client/`** (marketplace client: verifier, usage client, validation client, models) and `**lib/`** (vendored common-utils, e.g. HmacUtils). Both `**client/`** and `**lib/`** must be refactored and consolidated into `**sdk-java/`** to form the single publishable Java SDK artifact. The building agent should use the existing Java code as the **reference** for API surface, HMAC behavior, and HTTP contracts. This repo does not depend on the Agent Hub repo being open; see `docs/sdk-repo-project-context.md` for authoritative context (path prefixes, ECS vs local, etc.).
 
 ---
 
 ## 1. Repository and naming
 
-- **Repo**: This is the SDK monorepo (e.g. `agent-hub-sdk` or `marketplace-sdks`). It may already contain the Java reference implementation (client + vendored lib); there is no dependency on the Agent Hub repo.
+- **Repo**: This is the SDK monorepo (e.g. `agent-hub-sdk` or `marketplace-sdks`). The Java code imported from Agent Hub lives in `**client/`** and `**lib/**`; both must be refactored into `**sdk-java/**`. There is no dependency on the Agent Hub repo.
 - **Package/product name placeholder**: Use a single placeholder everywhere so you can find-replace when the product name is finalized. Suggested placeholder: `marketplace`. Replace with the final name (e.g. `agenthub`, `agent-hub`) in:
   - Package names (npm: `@marketplace/agent-sdk`, NuGet: `Marketplace.AgentSdk`, PyPI: `marketplace-agent-sdk`, Maven: `com.marketplace:agent-sdk`, etc.)
   - Namespaces, module paths, and human-facing labels in docs
@@ -30,7 +30,9 @@ Use a flat layout with one directory per deliverable. CI and docs can live at ro
   README.md
   PACKAGE_NAME.md
   docs/                    # Optional: shared SDK docs (HMAC spec, API overview)
-  sdk-java/
+  client/                  # Java client from Agent Hub (reference); refactor into sdk-java/
+  lib/                     # Vendored common-utils from Agent Hub (e.g. HmacUtils); refactor into sdk-java/
+  sdk-java/                # Publishable Java SDK (consolidate client + lib here)
   sdk-js/
   sdk-dotnet/
   sdk-python/
@@ -127,7 +129,7 @@ Each language SDK must expose the same logical surface (names can follow languag
 - Structured errors: `SignatureError`, `QuotaExceededError`, `UpstreamUnavailableError`, etc.
 - Idempotency/correlation IDs where the platform supports them.
 
-**Java reference files (in this repo, under `sdk-java/` or equivalent; paths may vary by layout):**
+**Java reference files (in this repo):** client code in `**client/`** (e.g. `client/java/src/.../MarketplaceRequestVerifier`, `UsageServiceClient`, `AgentKeyValidationClient`, models); HMAC/util code in `**lib/`** (e.g. `lib/common-utils/.../HmacUtils`).
 
 - **MarketplaceRequestVerifier**: `verifyHmacSignature`, `buildUserContextString`, `extractUserContext`, `UserContext`.
 - **UsageServiceClient**: `sendProgressUpdate`, `sendCompletion`, `reportUsage`; progress/complete URL parsing and body signing.
@@ -141,7 +143,7 @@ Each language SDK must expose the same logical surface (names can follow languag
 
 **sdk-java**
 
-- The client and vendored lib are already in this repo. Remove any remaining dependency on the Agent Hub repo; ensure HMAC logic is self-contained (vendored or inlined). GroupId/artifactId use placeholder: e.g. `com.marketplace:agent-sdk`. Publish to Maven Central (or private Maven). Optional: `agent-sdk-spring-boot-starter` with filter for signature verification and context extraction.
+- The Java code from Agent Hub is already in this repo under `**client/`** and `**lib/`**. **Refactor both into `sdk-java/`**: consolidate client and vendored lib into a single publishable module. Remove any remaining dependency on the Agent Hub repo; ensure HMAC logic is self-contained (vendored or inlined). GroupId/artifactId use placeholder: e.g. `com.marketplace:agent-sdk`. Publish to Maven Central (or private Maven). Optional: `agent-sdk-spring-boot-starter` with filter for signature verification and context extraction.
 
 **sdk-js**
 
@@ -233,7 +235,7 @@ OpenClaw plugins are TypeScript modules, installed via `openclaw plugins install
 
 ## 10. Build and CI (minimal)
 
-- Each `sdk-`* and `integration-*` has its own build (Gradle, npm, pip, go build, cargo, gem, composer). Root README lists commands per folder.
+- Each `sdk-`* and `integration-`* has its own build (Gradle, npm, pip, go build, cargo, gem, composer). Root README lists commands per folder.
 - GitHub Actions: per-directory workflows (or matrix) to run tests and publish on tag or main. Publish to npm, NuGet, PyPI, Maven Central, crates.io, RubyGems, Packagist as appropriate. Java: can run `gradle publish` from `sdk-java` (with credentials from secrets).
 - No need to build all languages in one job; separate workflows per language are fine.
 
@@ -242,7 +244,7 @@ OpenClaw plugins are TypeScript modules, installed via `openclaw plugins install
 ## 11. Implementation order suggestion
 
 1. Add `docs/hmac-spec.md` and `docs/api-overview.md` (and test vectors) so all implementers share one spec.
-2. **sdk-java**: Client and vendored lib are already in this repo; remove any agent-hub dependency, publish under placeholder group/artifact.
+2. **sdk-java**: Refactor `**client/`** and `**lib/`** into `**sdk-java/`**; remove any agent-hub dependency; publish under placeholder group/artifact.
 3. **sdk-js**: Implement full surface + HMAC; then use it in n8n and OpenClaw.
 4. **integration-n8n**: Implement nodes; use JS SDK or reimplement HMAC in Node.
 5. **integration-openclaw**: Plugin with Mode A (tools + skill), then Mode B (handler or SDK-based backend).
@@ -254,7 +256,7 @@ OpenClaw plugins are TypeScript modules, installed via `openclaw plugins install
 
 - Ensure root README + PACKAGE_NAME.md exist.
 - Add `docs/hmac-spec.md` (and optional `api-overview.md`) with test vector(s).
-- sdk-java: client and vendored lib already in repo; remove any agent-hub dependency; publish with placeholder groupId/artifactId.
+- sdk-java: Refactor `**client/`** and `**lib/`** into `**sdk-java/**`; remove any agent-hub dependency; publish with placeholder groupId/artifactId.
 - Implement each of sdk-js, sdk-dotnet, sdk-python, sdk-go, sdk-rust, sdk-ruby, sdk-php with the unified API surface and HMAC spec.
 - Implement integration-n8n (nodes + credentials).
 - Implement integration-openclaw (Mode A: tools + skill; Mode B: backend handler or SDK usage).
