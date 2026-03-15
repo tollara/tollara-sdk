@@ -207,3 +207,6 @@ out-tsc/
 **/src/main/resources/truststore.jks
 
 mtcode/
+
+# Private / local notes (do not commit)
+**/NOTES-PRIVATE.md
