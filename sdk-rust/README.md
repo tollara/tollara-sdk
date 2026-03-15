@@ -12,6 +12,28 @@ marketplace-agent-sdk = "1.0"
 # marketplace-agent-sdk = { version = "1.0", features = ["http"] }
 ```
 
+## Build
+
+```bash
+cargo build                    # core only (HMAC, verifier)
+cargo build --features http   # with validation & usage HTTP clients
+```
+
+## Running tests
+
+Integration tests mock the Agent Hub Core and Usage APIs (see `docs/sdk-api-spec.md`). They require the `http` feature.
+
+```bash
+cd sdk-rust
+cargo test --features http
+```
+
+To run a single test by name:
+
+```bash
+cargo test --features http validate_agent_key_returns_result
+```
+
 ## Example
 
 ```rust
