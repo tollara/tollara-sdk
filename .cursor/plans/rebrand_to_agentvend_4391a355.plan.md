@@ -57,7 +57,7 @@ isProject: false
 
 - **Package/module name:** Rename directory `src/marketplace_agent_sdk` → `src/agentvend_agent_sdk`; update [pyproject.toml](sdk-python/pyproject.toml) `name = "agentvend-agent-sdk"` and package discovery.
 - **Imports:** In all Python files under `src/agentvend_agent_sdk/` and in `tests/`: replace `marketplace_agent_sdk` with `agentvend_agent_sdk`.
-- **Headers:** In [verifier.py](sdk-python/src/marketplace_agent_sdk/verifier.py), [usage_client.py](sdk-python/src/marketplace_agent_sdk/usage_client.py), [validation_client.py](sdk-python/src/marketplace_agent_sdk/validation_client.py): replace `X-Marketplace-`* with `X-AgentVend-`* (and lowercase variants for case-insensitive lookups: `x-agentvend-*`).
+- **Headers:** In [verifier.py](sdk-python/src/marketplace_agent_sdk/verifier.py), [usage_client.py](sdk-python/src/marketplace_agent_sdk/usage_client.py), [validation_client.py](sdk-python/src/marketplace_agent_sdk/validation_client.py): replace `X-Marketplace-`* with `X-AgentVend-`* (and lowercase variants for case-insensitive lookups: `x-agentvend-`*).
 - **Tests:** Update [test_usage_client_integration.py](sdk-python/tests/test_usage_client_integration.py), [test_validation_client_integration.py](sdk-python/tests/test_validation_client_integration.py), `tests/__init__.py` for new module name and header strings.
 - **CI:** [.github/workflows/ci.yml](.github/workflows/ci.yml): update `from marketplace_agent_sdk import ...` to `from agentvend_agent_sdk import ...`.
 - **README:** Update package name and install commands to `agentvend-agent-sdk`; remove egg-info from git or regenerate after rename.
@@ -157,7 +157,7 @@ isProject: false
 | Rust crate           | `marketplace-agent-sdk`                           | `agentvend-agent-sdk`                              |
 | Ruby gem             | `marketplace_agent_sdk`                           | `agentvend_agent_sdk`                              |
 | PHP package          | `marketplace/agent-sdk`, `Marketplace\AgentSdk`   | `agentvend/agent-sdk`, `AgentVend\AgentSdk`        |
-| n8n package/nodes    | `n8n-nodes-marketplace`, `Marketplace*`           | `n8n-nodes-agentvend`, `Agentvend*`                |
+| n8n package/nodes    | `n8n-nodes-marketplace`, `Marketplace`*           | `n8n-nodes-agentvend`, `Agentvend`*                |
 | OpenClaw package     | `openclaw-marketplace`                            | `openclaw-agentvend`                               |
 | HTTP headers         | `X-Marketplace-*`                                 | `X-AgentVend-*`                                    |
 

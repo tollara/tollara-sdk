@@ -1,28 +1,28 @@
-# Agent Hub SDK Monorepo
+# AgentVend SDK Monorepo
 
-Client SDKs and integrations for [Agent Hub](https://github.com/your-org/agent-hub) — a platform for marketing, monetizing, and managing AI Agents and MCP Servers.
+Client SDKs and integrations for **AgentVend** — a platform for marketing, monetizing, and managing AI Agents and MCP Servers.
 
 This monorepo provides:
 
 - **Caller SDKs**: Validate agent keys, invoke agents (sync/async) via the gateway.
 - **Backend support**: Verify HMAC on incoming gateway requests, extract user context, report usage and (for async) progress/completion.
 
-See [Package naming](PACKAGE_NAME.md) for the current placeholder. For API and HMAC details, see [docs/](docs/).
+For API and HMAC details, see [docs/](docs/).
 
 ## SDKs and integrations
 
 | Language / integration | Install | Description |
 |------------------------|--------|-------------|
-| **Java** | `sdk-java/` — see [sdk-java/README.md](sdk-java/README.md) | Maven: `com.marketplace:agent-sdk` |
-| **JavaScript/TypeScript** | `npm install @marketplace/agent-sdk` | [sdk-js/README.md](sdk-js/README.md) |
-| **C#** | `dotnet add package Marketplace.AgentSdk` | [sdk-dotnet/README.md](sdk-dotnet/README.md) |
-| **Python** | `pip install marketplace-agent-sdk` | [sdk-python/README.md](sdk-python/README.md) |
-| **Go** | `go get github.com/your-org/agent-sdk-go` | [sdk-go/README.md](sdk-go/README.md) |
-| **Rust** | `cargo add marketplace-agent-sdk` | [sdk-rust/README.md](sdk-rust/README.md) |
-| **Ruby** | `gem install marketplace_agent_sdk` | [sdk-ruby/README.md](sdk-ruby/README.md) |
-| **PHP** | `composer require marketplace/agent-sdk` | [sdk-php/README.md](sdk-php/README.md) |
+| **Java** | `sdk-java/` — see [sdk-java/README.md](sdk-java/README.md) | Maven: `com.agentvend:agent-sdk` |
+| **JavaScript/TypeScript** | `npm install @agentvend/agent-sdk` | [sdk-js/README.md](sdk-js/README.md) |
+| **C#** | `dotnet add package AgentVend.AgentSdk` | [sdk-dotnet/README.md](sdk-dotnet/README.md) |
+| **Python** | `pip install agentvend-agent-sdk` | [sdk-python/README.md](sdk-python/README.md) |
+| **Go** | `go get github.com/agentvend/agent-sdk-go` | [sdk-go/README.md](sdk-go/README.md) |
+| **Rust** | `cargo add agentvend-agent-sdk` | [sdk-rust/README.md](sdk-rust/README.md) |
+| **Ruby** | `gem install agentvend_agent_sdk` | [sdk-ruby/README.md](sdk-ruby/README.md) |
+| **PHP** | `composer require agentvend/agent-sdk` | [sdk-php/README.md](sdk-php/README.md) |
 | **n8n** | Install community node from `integration-n8n/` | [integration-n8n/README.md](integration-n8n/README.md) |
-| **OpenClaw** | `openclaw plugins install @marketplace/openclaw` | [integration-openclaw/README.md](integration-openclaw/README.md) |
+| **OpenClaw** | `openclaw plugins install openclaw-agentvend` | [integration-openclaw/README.md](integration-openclaw/README.md) |
 
 ## Documentation
 

@@ -1,6 +1,6 @@
-# Agent Hub SDK (Python)
+# AgentVend SDK (Python)
 
-**Package:** `marketplace-agent-sdk` (PyPI)
+**Package:** `agentvend-agent-sdk` (PyPI)
 
 Verify HMAC, validate agent keys, report usage, progress, and completion.
 
@@ -11,19 +11,19 @@ Verify HMAC, validate agent keys, report usage, progress, and completion.
 ## Install
 
 ```bash
-pip install marketplace-agent-sdk
+pip install agentvend-agent-sdk
 ```
 
 For HTTP features (validate key, report usage, progress, completion):
 
 ```bash
-pip install marketplace-agent-sdk requests
+pip install agentvend-agent-sdk requests
 ```
 
 Or install with optional dependencies in one go:
 
 ```bash
-pip install marketplace-agent-sdk[http]
+pip install agentvend-agent-sdk[http]
 ```
 
 ## Build (from source)
@@ -38,7 +38,7 @@ pip install build
 python -m build
 ```
 
-Artifacts appear in `dist/`: e.g. `marketplace_agent_sdk-1.0.0-py3-none-any.whl` and `marketplace-agent-sdk-1.0.0.tar.gz`.
+Artifacts appear in `dist/`: e.g. `agentvend_agent_sdk-1.0.0-py3-none-any.whl` and `agentvend-agent-sdk-1.0.0.tar.gz`.
 
 To install the package from source in editable mode (for development):
 
@@ -50,7 +50,7 @@ pip install -e ".[http]"
 
 ## Running tests
 
-Tests use **pytest** and **responses** to mock HTTP calls to the Agent Hub API (no real server required).
+Tests use **pytest** and **responses** to mock HTTP calls to the AgentVend API (no real server required).
 
 ### One-time setup
 
@@ -71,7 +71,7 @@ pytest
 pytest tests/ -v
 
 # With coverage (optional: pip install pytest-cov)
-pytest tests/ -v --cov=marketplace_agent_sdk --cov-report=term-missing
+pytest tests/ -v --cov=agentvend_agent_sdk --cov-report=term-missing
 ```
 
 ### Run a single test file
@@ -99,7 +99,7 @@ Integration tests in `tests/` mock the Core and Usage APIs as described in `docs
 ## Example
 
 ```python
-from marketplace_agent_sdk import verify_signature, get_user_context, validate_agent_key, report_usage
+from agentvend_agent_sdk import verify_signature, get_user_context, validate_agent_key, report_usage
 
 # Verify signature (backend)
 valid = verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining)

@@ -70,8 +70,8 @@ pub async fn report_usage(
     let resp = client
         .post(&url)
         .json(&body)
-        .header("X-Marketplace-Signature", &signature)
-        .header("X-Marketplace-Timestamp", &ts_str)
+        .header("X-AgentVend-Signature", &signature)
+        .header("X-AgentVend-Timestamp", &ts_str)
         .send()
         .await?;
     resp.error_for_status_ref()?;
@@ -115,8 +115,8 @@ pub async fn report_progress(
     let resp = client
         .post(&base_url)
         .json(&body)
-        .header("X-Marketplace-Signature", signature)
-        .header("X-Marketplace-Timestamp", &timestamp)
+        .header("X-AgentVend-Signature", signature)
+        .header("X-AgentVend-Timestamp", &timestamp)
         .send()
         .await;
     match resp {
@@ -165,8 +165,8 @@ pub async fn report_completion(
     let resp = client
         .post(&base_url)
         .json(&body)
-        .header("X-Marketplace-Signature", signature)
-        .header("X-Marketplace-Timestamp", &timestamp)
+        .header("X-AgentVend-Signature", signature)
+        .header("X-AgentVend-Timestamp", &timestamp)
         .send()
         .await;
     match resp {

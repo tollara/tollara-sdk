@@ -1,10 +1,10 @@
-# Package name placeholder
+# Package and product naming
 
-**Current package name placeholder:** `marketplace`.
+**Product name:** AgentVend (business name; capital V in "AgentVend").
 
-Replace with the final product name (e.g. `agenthub`, `agent-hub`) before the first public release. Update:
+**Package/artifact prefix:** `agentvend` (lowercase) — used for:
 
-- Package names (npm, NuGet, PyPI, Maven, crates.io, RubyGems, Packagist)
+- Package names (npm: `@agentvend/agent-sdk`, NuGet: `AgentVend.AgentSdk`, PyPI: `agentvend-agent-sdk`, Maven: `com.agentvend:agent-sdk`, etc.)
 - Namespaces, module paths, and human-facing labels in docs
 
-Use a single find-replace across the monorepo for consistency.
+**HTTP headers:** All request/response signatures and user context use the `X-AgentVend-*` header family (e.g. `X-AgentVend-Signature`, `X-AgentVend-Timestamp`, `X-AgentVend-User-ID`).

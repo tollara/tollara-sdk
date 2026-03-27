@@ -49,8 +49,8 @@ export async function validateAgentKey(
   if (!res.ok) return null;
 
   const responseText = await res.text();
-  const signature = res.headers.get('X-Marketplace-Signature');
-  const timestamp = res.headers.get('X-Marketplace-Timestamp');
+  const signature = res.headers.get('X-AgentVend-Signature');
+  const timestamp = res.headers.get('X-AgentVend-Timestamp');
   if (!signature || !timestamp) return null;
 
   const dataToVerify = responseText + timestamp;

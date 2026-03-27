@@ -69,11 +69,11 @@ pub async fn validate_agent_key(
     let response_text = resp.text().await.ok()?;
     let signature = resp
         .headers()
-        .get("x-marketplace-signature")
+        .get("x-agentvend-signature")
         .and_then(|v| v.to_str().ok())?;
     let timestamp = resp
         .headers()
-        .get("x-marketplace-timestamp")
+        .get("x-agentvend-timestamp")
         .and_then(|v| v.to_str().ok())?;
     if !validate_hmac_signature(signature, &format!("{}{}", response_text, timestamp), agent_secret)
     {

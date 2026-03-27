@@ -57,28 +57,28 @@ export function verifySignature(
 }
 
 /**
- * Parses X-Marketplace-* headers into UserContext.
+ * Parses X-AgentVend-* headers into UserContext.
  */
 export function getUserContext(headers: {
-  'X-Marketplace-User-ID'?: string | null;
-  'X-Marketplace-Plan'?: string | null;
-  'X-Marketplace-Roles'?: string | null;
-  'X-Marketplace-Quota-Remaining'?: string | null;
-  'X-Marketplace-Subscription-Active'?: string | null;
+  'X-AgentVend-User-ID'?: string | null;
+  'X-AgentVend-Plan'?: string | null;
+  'X-AgentVend-Roles'?: string | null;
+  'X-AgentVend-Quota-Remaining'?: string | null;
+  'X-AgentVend-Subscription-Active'?: string | null;
 }): UserContext {
-  const rolesHeader = headers['X-Marketplace-Roles'];
+  const rolesHeader = headers['X-AgentVend-Roles'];
   const roles = rolesHeader ? rolesHeader.split(',').map((s) => s.trim()).filter(Boolean) : [];
   let quotaRemaining: number | null = null;
-  const q = headers['X-Marketplace-Quota-Remaining'];
+  const q = headers['X-AgentVend-Quota-Remaining'];
   if (q != null && q !== '') {
     const n = Number(q);
     if (!Number.isNaN(n)) quotaRemaining = n;
   }
-  const sub = headers['X-Marketplace-Subscription-Active'];
+  const sub = headers['X-AgentVend-Subscription-Active'];
   const subscriptionActive = sub != null && (sub === 'true' || sub === '1');
   return {
-    userId: headers['X-Marketplace-User-ID'] ?? null,
-    plan: headers['X-Marketplace-Plan'] ?? null,
+    userId: headers['X-AgentVend-User-ID'] ?? null,
+    plan: headers['X-AgentVend-Plan'] ?? null,
     roles,
     quotaRemaining,
     subscriptionActive,

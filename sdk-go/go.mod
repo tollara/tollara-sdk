@@ -1,3 +1,3 @@
-module github.com/your-org/agent-sdk-go
+module github.com/agentvend/agent-sdk-go
 
 go 1.21

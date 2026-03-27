@@ -1,19 +1,19 @@
-# Agent Hub SDK (PHP)
+# AgentVend SDK (PHP)
 
-**Package:** `marketplace/agent-sdk` (Packagist)
+**Package:** `agentvend/agent-sdk` (Packagist)
 
 Verify HMAC, sign outbound requests. Add Guzzle for validate/report.
 
 ## Install
 
 ```bash
-composer require marketplace/agent-sdk
+composer require agentvend/agent-sdk
 ```
 
 ## Example
 
 ```php
-use Marketplace\AgentSdk\Hmac;
+use AgentVend\AgentSdk\Hmac;
 
 $sig = Hmac::calculateHmac($data, $key);
 $valid = Hmac::validateHmacSignature($signature, $payloadString, $key);

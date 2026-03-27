@@ -4,9 +4,9 @@
 
 #![cfg(feature = "http")]
 
-use marketplace_agent_sdk::hmac::calculate_hmac;
-use marketplace_agent_sdk::validation_client;
-use marketplace_agent_sdk::usage_client;
+use agentvend_agent_sdk::hmac::calculate_hmac;
+use agentvend_agent_sdk::validation_client;
+use agentvend_agent_sdk::usage_client;
 use reqwest::Client;
 
 const AGENT_SECRET: &str = "test-agent-secret";
@@ -29,8 +29,8 @@ async fn validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
         .mock("POST", "/api/v1/agent-keys/validate")
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_header("X-Marketplace-Signature", &signature)
-        .with_header("X-Marketplace-Timestamp", timestamp)
+        .with_header("X-AgentVend-Signature", &signature)
+        .with_header("X-AgentVend-Timestamp", timestamp)
         .with_body(&body_str)
         .create();
 
@@ -90,8 +90,8 @@ async fn validate_agent_key_returns_none_when_hmac_invalid() {
         .mock("POST", "/api/v1/agent-keys/validate")
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_header("X-Marketplace-Signature", "invalid-signature")
-        .with_header("X-Marketplace-Timestamp", "1700000000")
+        .with_header("X-AgentVend-Signature", "invalid-signature")
+        .with_header("X-AgentVend-Timestamp", "1700000000")
         .with_body(body_str)
         .create();
 

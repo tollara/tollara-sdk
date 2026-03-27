@@ -37,7 +37,7 @@ func ValidateHmacSignature(signature, payloadString, key string) bool {
 	return ConstantTimeEquals(expected, signature)
 }
 
-// UserContext from X-Marketplace-* headers.
+// UserContext from X-AgentVend-* headers.
 type UserContext struct {
 	UserID             string   `json:"userId"`
 	Plan               string   `json:"plan"`

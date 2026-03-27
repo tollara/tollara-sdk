@@ -1,19 +1,18 @@
 {
-  "name": "n8n-nodes-marketplace",
+  "name": "n8n-nodes-agentvend",
   "version": "1.0.0",
-  "description": "n8n community nodes for Agent Hub (Marketplace): Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Key",
+  "description": "n8n community nodes for AgentVend: Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Key",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
-    "marketplace",
-    "agent-hub"
+    "agentvend"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/your-org/agent-hub-sdk",
+  "homepage": "https://github.com/agentvend/agentvend-sdk",
   "author": {},
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/agent-hub-sdk.git"
+    "url": "https://github.com/agentvend/agentvend-sdk.git"
   },
   "main": "index.js",
   "scripts": {
@@ -26,16 +25,16 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
-      "dist/credentials/MarketplaceApi.credentials.js"
+      "dist/credentials/AgentvendApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/MarketplaceTrigger/MarketplaceTrigger.node.js",
-      "dist/nodes/MarketplaceInvoke/MarketplaceInvoke.node.js",
-      "dist/nodes/MarketplaceProgress/MarketplaceProgress.node.js",
-      "dist/nodes/MarketplaceComplete/MarketplaceComplete.node.js",
-      "dist/nodes/MarketplaceValidateKey/MarketplaceValidateKey.node.js"
+      "dist/nodes/AgentvendTrigger/AgentvendTrigger.node.js",
+      "dist/nodes/AgentvendInvoke/AgentvendInvoke.node.js",
+      "dist/nodes/AgentvendProgress/AgentvendProgress.node.js",
+      "dist/nodes/AgentvendComplete/AgentvendComplete.node.js",
+      "dist/nodes/AgentvendValidateKey/AgentvendValidateKey.node.js"
     ],
-    "packageId": "n8n-nodes-marketplace"
+    "packageId": "n8n-nodes-agentvend"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -43,7 +42,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@marketplace/agent-sdk": "file:../sdk-js"
+    "@agentvend/agent-sdk": "file:../sdk-js"
   },
   "peerDependencies": {
     "n8n-workflow": "*"

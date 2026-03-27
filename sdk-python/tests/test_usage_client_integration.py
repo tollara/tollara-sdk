@@ -7,7 +7,7 @@ import json
 import pytest
 import responses
 
-from marketplace_agent_sdk.usage_client import (
+from agentvend_agent_sdk.usage_client import (
     report_usage,
     report_progress,
     report_completion,
@@ -44,8 +44,8 @@ def test_report_usage_sends_signed_request_and_returns_response():
     assert len(responses.calls) == 1
     req = responses.calls[0].request
     assert req.headers.get("Content-Type", "").startswith("application/json")
-    assert "X-Marketplace-Signature" in req.headers
-    assert "X-Marketplace-Timestamp" in req.headers
+    assert "X-AgentVend-Signature" in req.headers
+    assert "X-AgentVend-Timestamp" in req.headers
     body = json.loads(req.body)
     assert body["userId"] == "user-1"
     assert body["agentId"] == "agent-1"
@@ -86,8 +86,8 @@ def test_report_progress_posts_to_progress_url_with_signature():
     assert ok is True
     assert len(responses.calls) == 1
     req = responses.calls[0].request
-    assert req.headers.get("X-Marketplace-Timestamp") == timestamp
-    assert "X-Marketplace-Signature" in req.headers
+    assert req.headers.get("X-AgentVend-Timestamp") == timestamp
+    assert "X-AgentVend-Signature" in req.headers
     body = json.loads(req.body)
     assert body["stage"] == "processing"
     assert body["percentageComplete"] == 50
@@ -118,8 +118,8 @@ def test_report_completion_posts_to_callback_url_with_signature():
     assert ok is True
     assert len(responses.calls) == 1
     req = responses.calls[0].request
-    assert req.headers.get("X-Marketplace-Timestamp") == timestamp
-    assert "X-Marketplace-Signature" in req.headers
+    assert req.headers.get("X-AgentVend-Timestamp") == timestamp
+    assert "X-AgentVend-Signature" in req.headers
     body = json.loads(req.body)
     assert body["status"] == "COMPLETED"
     assert body["result"] == "done"

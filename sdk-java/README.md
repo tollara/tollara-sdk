@@ -1,22 +1,22 @@
-# Agent Hub SDK (Java)
+# AgentVend SDK (Java)
 
-Client SDK for Agent Hub: verify HMAC on incoming gateway requests, validate agent keys, report usage, and send progress/completion for async flows.
+Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate agent keys, report usage, and send progress/completion for async flows.
 
-**Package (placeholder):** `com.marketplace:agent-sdk`
+**Package:** `com.agentvend:agent-sdk`
 
 ## Install
 
 **Gradle:**
 
 ```kotlin
-implementation("com.marketplace:agent-sdk:1.0.0")
+implementation("com.agentvend:agent-sdk:1.0.0")
 ```
 
 **Maven:**
 
 ```xml
 <dependency>
-  <groupId>com.marketplace</groupId>
+  <groupId>com.agentvend</groupId>
   <artifactId>agent-sdk</artifactId>
   <version>1.0.0</version>
 </dependency>
@@ -37,23 +37,23 @@ From this directory:
 ### Verify HMAC and get user context (backend)
 
 ```java
-import com.bugisiw.marketplace.client.MarketplaceRequestVerifier;
+import com.agentvend.client.AgentvendRequestVerifier;
 
 String agentSecret = "your-agent-secret";
-MarketplaceRequestVerifier verifier = new MarketplaceRequestVerifier(agentSecret);
+AgentvendRequestVerifier verifier = new AgentvendRequestVerifier(agentSecret);
 
 // From your HTTP request:
-String signature = request.getHeader("X-Marketplace-Signature");
-String timestamp = request.getHeader("X-Marketplace-Timestamp");
+String signature = request.getHeader("X-AgentVend-Signature");
+String timestamp = request.getHeader("X-AgentVend-Timestamp");
 String payload = requestBody; // raw body string
-String userId = request.getHeader("X-Marketplace-User-ID");
-String plan = request.getHeader("X-Marketplace-Plan");
-List<String> roles = Arrays.asList(request.getHeader("X-Marketplace-Roles").split(","));
-BigDecimal quotaRemaining = new BigDecimal(request.getHeader("X-Marketplace-Quota-Remaining"));
+String userId = request.getHeader("X-AgentVend-User-ID");
+String plan = request.getHeader("X-AgentVend-Plan");
+List<String> roles = Arrays.asList(request.getHeader("X-AgentVend-Roles").split(","));
+BigDecimal quotaRemaining = new BigDecimal(request.getHeader("X-AgentVend-Quota-Remaining"));
 
 boolean valid = verifier.verifyHmacSignature(signature, timestamp, payload, userId, plan, roles, quotaRemaining);
 if (valid) {
-    MarketplaceRequestVerifier.UserContext ctx = verifier.extractUserContext(userId, plan, ...);
+    AgentvendRequestVerifier.UserContext ctx = verifier.extractUserContext(userId, plan, ...);
     // use ctx.getUserId(), ctx.getPlan(), etc.
 }
 ```
@@ -61,7 +61,7 @@ if (valid) {
 ### Validate agent key (caller)
 
 ```java
-import com.bugisiw.marketplace.client.AgentKeyValidationClient;
+import com.agentvend.client.AgentKeyValidationClient;
 import org.springframework.web.client.RestTemplate;
 
 RestTemplate rest = new RestTemplate();
@@ -76,8 +76,8 @@ if (result != null) {
 ### Report usage (backend)
 
 ```java
-import com.bugisiw.marketplace.client.UsageServiceClient;
-import com.bugisiw.marketplace.client.model.UsageReportResponse;
+import com.agentvend.client.UsageServiceClient;
+import com.agentvend.client.model.UsageReportResponse;
 
 UsageServiceClient usage = new UsageServiceClient("https://usage.example.com", agentSecret, restTemplate);
 UsageReportResponse resp = usage.reportUsage(userId, agentId, BigDecimal.ONE, null);

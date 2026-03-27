@@ -47,8 +47,8 @@ export async function reportProgress(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Marketplace-Signature': signature,
-        'X-Marketplace-Timestamp': timestamp,
+        'X-AgentVend-Signature': signature,
+        'X-AgentVend-Timestamp': timestamp,
       },
       body: bodyString,
     });
@@ -95,8 +95,8 @@ export async function reportCompletion(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Marketplace-Signature': signature,
-        'X-Marketplace-Timestamp': timestamp,
+        'X-AgentVend-Signature': signature,
+        'X-AgentVend-Timestamp': timestamp,
       },
       body: bodyString,
     });
@@ -147,8 +147,8 @@ export async function reportUsage(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Marketplace-Signature': signature,
-      'X-Marketplace-Timestamp': timestampStr,
+      'X-AgentVend-Signature': signature,
+      'X-AgentVend-Timestamp': timestampStr,
     },
     body: bodyString,
   });

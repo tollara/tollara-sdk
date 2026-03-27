@@ -1,1 +1,1 @@
-# Tests for marketplace_agent_sdk
+# Tests for agentvend_agent_sdk

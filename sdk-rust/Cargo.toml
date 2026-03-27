@@ -1,8 +1,8 @@
 [package]
-name = "marketplace-agent-sdk"
+name = "agentvend-agent-sdk"
 version = "1.0.0"
 edition = "2021"
-description = "Agent Hub SDK - verify HMAC, validate keys, report usage"
+description = "AgentVend SDK - verify HMAC, validate keys, report usage"
 
 [dependencies]
 base64 = "0.21"

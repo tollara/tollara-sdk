@@ -1,11 +1,11 @@
 {
-  "name": "marketplace/agent-sdk",
-  "description": "Agent Hub SDK - verify HMAC, validate keys, report usage",
+  "name": "agentvend/agent-sdk",
+  "description": "AgentVend SDK - verify HMAC, validate keys, report usage",
   "type": "library",
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "Marketplace\\AgentSdk\\": "src/"
+      "AgentVend\\AgentSdk\\": "src/"
     }
   },
   "require": {

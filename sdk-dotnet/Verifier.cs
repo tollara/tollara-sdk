@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Text.Json;
 
-namespace Marketplace.AgentSdk;
+namespace AgentVend;
 
 public record UserContext(
     string? UserId,
@@ -31,14 +31,14 @@ public static class Verifier
 
     public static UserContext GetUserContext(IReadOnlyDictionary<string, string?> headers)
     {
-        headers.TryGetValue("X-Marketplace-User-ID", out var uid);
-        headers.TryGetValue("X-Marketplace-Plan", out var plan);
-        headers.TryGetValue("X-Marketplace-Roles", out var rolesHeader);
+        headers.TryGetValue("X-AgentVend-User-ID", out var uid);
+        headers.TryGetValue("X-AgentVend-Plan", out var plan);
+        headers.TryGetValue("X-AgentVend-Roles", out var rolesHeader);
         var roles = string.IsNullOrEmpty(rolesHeader) ? Array.Empty<string>() : rolesHeader.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
-        headers.TryGetValue("X-Marketplace-Quota-Remaining", out var q);
+        headers.TryGetValue("X-AgentVend-Quota-Remaining", out var q);
         decimal? quotaRemaining = null;
         if (!string.IsNullOrEmpty(q) && decimal.TryParse(q, out var qv)) quotaRemaining = qv;
-        headers.TryGetValue("X-Marketplace-Subscription-Active", out var sub);
+        headers.TryGetValue("X-AgentVend-Subscription-Active", out var sub);
         var subscriptionActive = sub == "true" || sub == "1";
         return new UserContext(uid, plan, roles, quotaRemaining, subscriptionActive);
     }

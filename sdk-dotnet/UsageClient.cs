@@ -2,7 +2,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 
-namespace Marketplace.AgentSdk;
+namespace AgentVend;
 
 public record UsageReportResponse(string? Status, bool IsOverLimit, long RemainingRequestsPerPeriod);
 
@@ -18,8 +18,8 @@ public static class UsageClient
         var bodyStr = JsonSerializer.Serialize(body);
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, agentSecret);
         var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
-        req.Headers.TryAddWithoutValidation("X-Marketplace-Signature", signature);
-        req.Headers.TryAddWithoutValidation("X-Marketplace-Timestamp", timestamp);
+        req.Headers.TryAddWithoutValidation("X-AgentVend-Signature", signature);
+        req.Headers.TryAddWithoutValidation("X-AgentVend-Timestamp", timestamp);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
         var res = await http.SendAsync(req, ct);
         return res.IsSuccessStatusCode;
@@ -37,8 +37,8 @@ public static class UsageClient
         var bodyStr = JsonSerializer.Serialize(body);
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, agentSecret);
         var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
-        req.Headers.TryAddWithoutValidation("X-Marketplace-Signature", signature);
-        req.Headers.TryAddWithoutValidation("X-Marketplace-Timestamp", timestamp);
+        req.Headers.TryAddWithoutValidation("X-AgentVend-Signature", signature);
+        req.Headers.TryAddWithoutValidation("X-AgentVend-Timestamp", timestamp);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
         var res = await http.SendAsync(req, ct);
         return res.IsSuccessStatusCode;
@@ -55,8 +55,8 @@ public static class UsageClient
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, tsStr, agentSecret);
         var baseUrl = usageServiceUrl.TrimEnd('/');
         var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/api/usage/report");
-        req.Headers.TryAddWithoutValidation("X-Marketplace-Signature", signature);
-        req.Headers.TryAddWithoutValidation("X-Marketplace-Timestamp", tsStr);
+        req.Headers.TryAddWithoutValidation("X-AgentVend-Signature", signature);
+        req.Headers.TryAddWithoutValidation("X-AgentVend-Timestamp", tsStr);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
         var res = await http.SendAsync(req, ct);
         res.EnsureSuccessStatusCode();

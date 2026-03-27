@@ -3,7 +3,7 @@
  * Use with your HTTP server: call verifyRequest, then your logic, then reportUsageIfNeeded.
  */
 
-import { verifySignature, getUserContext, reportUsage } from '@marketplace/agent-sdk';
+import { verifySignature, getUserContext, reportUsage } from '@agentvend/agent-sdk';
 import type { PluginConfig } from './types';
 
 export interface IncomingRequest {
@@ -29,28 +29,28 @@ export function verifyRequest(
     const v = req.headers[name.toLowerCase()] ?? req.headers[name];
     return Array.isArray(v) ? v[0] : v;
   };
-  const signature = get('x-marketplace-signature') ?? '';
-  const timestamp = get('x-marketplace-timestamp') ?? '';
+  const signature = get('x-agentvend-signature') ?? '';
+  const timestamp = get('x-agentvend-timestamp') ?? '';
   const payload =
     typeof req.body === 'string' ? req.body : req.body != null ? JSON.stringify(req.body) : '';
   const valid = verifySignature(secret, {
     signature,
     timestamp,
     payload,
-    userId: get('x-marketplace-user-id') ?? null,
-    plan: get('x-marketplace-plan') ?? null,
-    roles: (get('x-marketplace-roles') ?? '').split(',').filter(Boolean),
-    quotaRemaining: get('x-marketplace-quota-remaining') ?? null,
+    userId: get('x-agentvend-user-id') ?? null,
+    plan: get('x-agentvend-plan') ?? null,
+    roles: (get('x-agentvend-roles') ?? '').split(',').filter(Boolean),
+    quotaRemaining: get('x-agentvend-quota-remaining') ?? null,
   });
   if (!valid) {
     return { verified: false, error: 'Invalid HMAC signature' };
   }
   const userContext = getUserContext({
-    'X-Marketplace-User-ID': get('x-marketplace-user-id'),
-    'X-Marketplace-Plan': get('x-marketplace-plan'),
-    'X-Marketplace-Roles': get('x-marketplace-roles'),
-    'X-Marketplace-Quota-Remaining': get('x-marketplace-quota-remaining'),
-    'X-Marketplace-Subscription-Active': get('x-marketplace-subscription-active'),
+    'X-AgentVend-User-ID': get('x-agentvend-user-id'),
+    'X-AgentVend-Plan': get('x-agentvend-plan'),
+    'X-AgentVend-Roles': get('x-agentvend-roles'),
+    'X-AgentVend-Quota-Remaining': get('x-agentvend-quota-remaining'),
+    'X-AgentVend-Subscription-Active': get('x-agentvend-subscription-active'),
   });
   return { verified: true, userContext };
 }
