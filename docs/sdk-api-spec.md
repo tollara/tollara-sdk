@@ -1,6 +1,6 @@
-# Agent Hub SDK – API specification
+# AgentVend SDK – API specification
 
-This document specifies the exact HTTP APIs that the Agent Hub SDK calls. Use it in the **agent-hub-sdk** project to implement clients in any language. Base URLs for each service are configurable; path prefixes depend on deployment (default vs ECS).
+This document specifies the exact HTTP APIs that the AgentVend SDK calls. Use it in the **agentvend-sdk** project to implement clients in any language. Base URLs for each service are configurable; path prefixes depend on deployment (default vs ECS).
 
 **Services and path prefixes:**
 
@@ -101,8 +101,8 @@ Used by both callers and backends to validate an agent key and get user/plan/quo
 
 - **Status:** `200 OK`
 - **Headers:**
-  - `X-Marketplace-Signature`: HMAC-SHA256 (Base64) of `responseBody + timestamp` (timestamp as string, no separator), key = `agentSecret`.
-  - `X-Marketplace-Timestamp`: Numeric string (Unix epoch seconds).
+  - `X-AgentVend-Signature`: HMAC-SHA256 (Base64) of `responseBody + timestamp` (timestamp as string, no separator), key = `agentSecret`.
+  - `X-AgentVend-Timestamp`: Numeric string (Unix epoch seconds).
 - **Body (JSON):**
 
 | Field | Type | Description |
@@ -123,9 +123,9 @@ Used by both callers and backends to validate an agent key and get user/plan/quo
 
 **SDK must:**
 
-1. Compute `canonical = responseBodyJsonString + X-Marketplace-Timestamp` (string concatenation, no separator).
+1. Compute `canonical = responseBodyJsonString + X-AgentVend-Timestamp` (string concatenation, no separator).
 2. Compute `expectedSignature = Base64(HMAC-SHA256(canonical, agentSecret))`.
-3. Compare `expectedSignature` with `X-Marketplace-Signature` using **constant-time** comparison.
+3. Compare `expectedSignature` with `X-AgentVend-Signature` using **constant-time** comparison.
 4. If they differ, treat the response as invalid and do not trust the body.
 
 ---
@@ -137,8 +137,8 @@ All three endpoints require request body + timestamp signed with **agent secret*
 **Common headers for all three:**
 
 - `Content-Type: application/json`
-- `X-Marketplace-Signature`: signature as above
-- `X-Marketplace-Timestamp`: numeric string (Unix epoch seconds)
+- `X-AgentVend-Signature`: signature as above
+- `X-AgentVend-Timestamp`: numeric string (Unix epoch seconds)
 
 ### 3.1 Report usage (non-proxied agents)
 
@@ -226,13 +226,13 @@ When the SDK is used in an **agent backend** to verify incoming requests from th
 
 | Header | Description |
 |--------|-------------|
-| `X-Marketplace-Signature` | HMAC of `payload + timestamp + userContextString` (see HMAC spec in SDK repo). |
-| `X-Marketplace-Timestamp` | Numeric string. |
-| `X-Marketplace-User-ID` | User ID. |
-| `X-Marketplace-Plan` | Plan name. |
-| `X-Marketplace-Roles` | Comma-separated roles. |
-| `X-Marketplace-Quota-Remaining` | Remaining quota. |
-| `X-Marketplace-Subscription-Active` | `"true"` / `"false"`. |
+| `X-AgentVend-Signature` | HMAC of `payload + timestamp + userContextString` (see HMAC spec in SDK repo). |
+| `X-AgentVend-Timestamp` | Numeric string. |
+| `X-AgentVend-User-ID` | User ID. |
+| `X-AgentVend-Plan` | Plan name. |
+| `X-AgentVend-Roles` | Comma-separated roles. |
+| `X-AgentVend-Quota-Remaining` | Remaining quota. |
+| `X-AgentVend-Subscription-Active` | `"true"` / `"false"`. |
 
 Verification: canonical string = raw request body (string) + timestamp + userContextString, where userContextString = userId + plan + roles.join(',') + quotaRemaining (no separators; null/empty as ""). Signature = Base64(HMAC-SHA256(canonical, agentSecret)). Use constant-time compare. Full HMAC spec and test vectors belong in the SDK repo (e.g. `docs/hmac-spec.md`).
 
@@ -256,9 +256,9 @@ Verification: canonical string = raw request body (string) + timestamp + userCon
 ## 6. HMAC summary (outbound from SDK)
 
 - **Algorithm:** HMAC-SHA256; key = agent secret (UTF-8); output = Base64.
-- **Validate response (core → SDK):** Verify `X-Marketplace-Signature` = Base64(HMAC-SHA256(responseBody + X-Marketplace-Timestamp, agentSecret)). Constant-time compare.
-- **Report / progress / completion (SDK → usage):** Send `X-Marketplace-Signature` = Base64(HMAC-SHA256(bodyJsonString + timestamp, agentSecret)) and `X-Marketplace-Timestamp` = timestamp (numeric string).
+- **Validate response (core → SDK):** Verify `X-AgentVend-Signature` = Base64(HMAC-SHA256(responseBody + X-AgentVend-Timestamp, agentSecret)). Constant-time compare.
+- **Report / progress / completion (SDK → usage):** Send `X-AgentVend-Signature` = Base64(HMAC-SHA256(bodyJsonString + timestamp, agentSecret)) and `X-AgentVend-Timestamp` = timestamp (numeric string).
 
 ---
 
-*Source: Agent Hub platform (agent-hub repo). For use in agent-hub-sdk. Path prefixes and base URLs are configurable per environment.*
+*Source: AgentVend platform. For use in agentvend-sdk. Path prefixes and base URLs are configurable per environment.*

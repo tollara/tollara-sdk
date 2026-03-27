@@ -1,19 +1,19 @@
-# Agent Hub SDK (.NET)
+# AgentVend SDK (.NET)
 
-**Package:** `Marketplace.AgentSdk` (NuGet)
+**Package:** `AgentVend.AgentSdk` (NuGet)
 
 Verify HMAC, validate agent keys, report usage, progress, and completion.
 
 ## Install
 
 ```bash
-dotnet add package Marketplace.AgentSdk
+dotnet add package AgentVend.AgentSdk
 ```
 
 ## Example
 
 ```csharp
-using Marketplace.AgentSdk;
+using AgentVend;
 
 // Verify signature (backend)
 var valid = Verifier.VerifySignature(agentSecret, signature, timestamp, payload, userId, plan, roles, quotaRemaining);

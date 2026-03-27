@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Marketplace\AgentSdk;
+namespace AgentVend\AgentSdk;
 
 final class Hmac
 {

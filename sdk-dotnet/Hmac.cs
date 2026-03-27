@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Marketplace.AgentSdk;
+namespace AgentVend;
 
 public static class Hmac
 {

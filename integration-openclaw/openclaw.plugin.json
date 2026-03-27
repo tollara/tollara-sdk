@@ -1,8 +1,8 @@
 {
-  "id": "marketplace",
-  "name": "Marketplace (Agent Hub)",
+  "id": "agentvend",
+  "name": "AgentVend",
   "version": "1.0.0",
-  "description": "Invoke agents on Agent Hub (caller) or act as backend with HMAC verification and usage reporting",
+  "description": "Invoke agents on AgentVend (caller) or act as backend with HMAC verification and usage reporting",
   "configSchema": {
     "type": "object",
     "properties": {
@@ -34,5 +34,5 @@
       }
     }
   },
-  "skillPaths": ["skills/marketplace"]
+  "skillPaths": ["skills/agentvend"]
 }

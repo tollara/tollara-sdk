@@ -12,7 +12,7 @@ export async function callAgent(
   const gatewayUrl = (config.gatewayUrl || '').replace(/\/$/, '');
   const agentKey = config.agentKey;
   if (!gatewayUrl || !agentKey) {
-    throw new Error('Marketplace plugin: gatewayUrl and agentKey required for caller mode');
+    throw new Error('AgentVend plugin: gatewayUrl and agentKey required for caller mode');
   }
   const path = useAsync ? 'invoke/async' : 'invoke';
   const url = `${gatewayUrl}/api/agent/${agentId}/endpoint/${endpointId}/${path}`;

@@ -1,16 +1,16 @@
-# OpenClaw – Marketplace (Agent Hub) Plugin
+# OpenClaw – AgentVend Plugin
 
-OpenClaw plugin for Agent Hub with two modes:
+OpenClaw plugin for AgentVend with two modes:
 
-- **Mode A (caller):** Invoke agents on Agent Hub via the gateway. Use the `callAgent` tool and the skill in `skills/marketplace/SKILL.md`.
+- **Mode A (caller):** Invoke agents on AgentVend via the gateway. Use the `callAgent` tool and the skill in `skills/agentvend/SKILL.md`.
 - **Mode B (backend):** Act as the agent backend: verify HMAC on incoming gateway requests and report usage. Use `verifyRequest` and `reportUsageIfNeeded` with your HTTP server.
 
-**Package (placeholder):** `openclaw-marketplace`
+**Package:** `openclaw-agentvend`
 
 ## Install
 
 ```bash
-openclaw plugins install openclaw-marketplace
+openclaw plugins install openclaw-agentvend
 ```
 
 Or from local path after building:
@@ -29,7 +29,7 @@ openclaw plugins install ./integration-openclaw
 ## Mode A – Caller
 
 ```ts
-import { callAgent } from 'openclaw-marketplace';
+import { callAgent } from 'openclaw-agentvend';
 
 const result = await callAgent(
   { gatewayUrl: 'https://gateway.example.com', agentKey: '...' },
@@ -40,7 +40,7 @@ const result = await callAgent(
 ## Mode B – Backend
 
 ```ts
-import { verifyRequest, reportUsageIfNeeded } from 'openclaw-marketplace';
+import { verifyRequest, reportUsageIfNeeded } from 'openclaw-agentvend';
 
 // In your HTTP handler:
 const { verified, userContext, error } = verifyRequest(
@@ -59,4 +59,4 @@ await reportUsageIfNeeded(
 
 ## Skill
 
-The skill at `skills/marketplace/SKILL.md` teaches the OpenClaw agent when and how to use the `marketplace_call_agent` tool (Mode A).
+The skill at `skills/agentvend/SKILL.md` teaches the OpenClaw agent when and how to use the `agentvend_call_agent` tool (Mode A).

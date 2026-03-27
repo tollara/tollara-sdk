@@ -74,7 +74,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: cd sdk-python && pip install -e . && python -c "from marketplace_agent_sdk import calculate_hmac; assert calculate_hmac('1234567890','secret') == 'Bgs+chJF8gBA3xW2542Tm7B7l571zTPfLMBiCBwOp2c='"
+      - run: cd sdk-python && pip install -e . && python -c "from agentvend_agent_sdk import calculate_hmac; assert calculate_hmac('1234567890','secret') == 'Bgs+chJF8gBA3xW2542Tm7B7l571zTPfLMBiCBwOp2c='"
     continue-on-error: true
 
   sdk-go:

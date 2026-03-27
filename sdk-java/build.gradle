@@ -3,7 +3,7 @@ plugins {
     id 'maven-publish'
 }
 
-group = 'com.marketplace'
+group = 'com.agentvend'
 version = '1.0.0-SNAPSHOT'
 
 repositories {
@@ -58,13 +58,13 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
-            groupId = 'com.marketplace'
+            groupId = 'com.agentvend'
             artifactId = 'agent-sdk'
             version = version
             pom {
-                name = 'Agent Hub SDK (Java)'
-                description = 'Client SDK for Agent Hub - verify HMAC, validate keys, report usage, progress, completion'
-                url = 'https://github.com/your-org/agent-hub-sdk'
+                name = 'AgentVend SDK (Java)'
+                description = 'Client SDK for AgentVend - verify HMAC, validate keys, report usage, progress, completion'
+                url = 'https://github.com/agentvend/agentvend-sdk'
             }
         }
     }

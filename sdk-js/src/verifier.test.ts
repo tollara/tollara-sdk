@@ -38,11 +38,11 @@ describe('verifier', () => {
 
   it('getUserContext parses headers', () => {
     const ctx = getUserContext({
-      'X-Marketplace-User-ID': 'u1',
-      'X-Marketplace-Plan': 'p1',
-      'X-Marketplace-Roles': 'r1,r2',
-      'X-Marketplace-Quota-Remaining': '5',
-      'X-Marketplace-Subscription-Active': 'true',
+      'X-AgentVend-User-ID': 'u1',
+      'X-AgentVend-Plan': 'p1',
+      'X-AgentVend-Roles': 'r1,r2',
+      'X-AgentVend-Quota-Remaining': '5',
+      'X-AgentVend-Subscription-Active': 'true',
     });
     expect(ctx.userId).toBe('u1');
     expect(ctx.plan).toBe('p1');

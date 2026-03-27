@@ -1,6 +1,6 @@
 # HMAC specification (cross-language)
 
-All SDKs must implement the same HMAC behavior so verification matches the Agent Hub gateway and usage service.
+All SDKs must implement the same HMAC behavior so verification matches the AgentVend gateway and usage service.
 
 ## Algorithm
 
@@ -15,12 +15,12 @@ The gateway sends requests to agent backends with signed headers. The agent must
 **Canonical string to sign:** `payload + timestamp + userContextString` (concatenation, no separators).
 
 - **payload**: Raw request body as string. Use empty string if there is no body. If the platform serializes JSON, use the same byte-for-byte string (e.g. normalized JSON).
-- **timestamp**: Same value as `X-Marketplace-Timestamp` (numeric string).
+- **timestamp**: Same value as `X-AgentVend-Timestamp` (numeric string).
 - **userContextString**: `userId ?? ""` + `plan ?? ""` + `roles.join(",")` + `quotaRemaining.toString()` (no separators between; nulls as empty string).
 
 **Signature:** `Base64(HMAC-SHA256(canonicalString, agentSecret))`.
 
-Compare the computed signature with `X-Marketplace-Signature` using **constant-time comparison** to avoid timing attacks.
+Compare the computed signature with `X-AgentVend-Signature` using **constant-time comparison** to avoid timing attacks.
 
 ## Outbound (agent → usage service: report / progress / complete)
 
@@ -29,17 +29,17 @@ When the agent calls the usage service (report, progress, completion), it must s
 **Canonical string:** `bodyString + timestamp`
 
 - **bodyString**: JSON string of the request body (same serialization used in the HTTP body).
-- **timestamp**: Same value as the `X-Marketplace-Timestamp` header (string).
+- **timestamp**: Same value as the `X-AgentVend-Timestamp` header (string).
 
 **Signature:** `Base64(HMAC-SHA256(canonicalString, agentSecret))`.
 
-Set headers: `X-Marketplace-Signature`, `X-Marketplace-Timestamp`.
+Set headers: `X-AgentVend-Signature`, `X-AgentVend-Timestamp`.
 
 ## Validation response (core → client)
 
 When the client calls the core service to validate an agent key, the response is signed.
 
-**Verification:** Response body (raw JSON string) + timestamp (from response header `X-Marketplace-Timestamp`) concatenated; compute `HMAC(responseBody + timestamp, agentSecret)`; compare to `X-Marketplace-Signature` using constant-time comparison.
+**Verification:** Response body (raw JSON string) + timestamp (from response header `X-AgentVend-Timestamp`) concatenated; compute `HMAC(responseBody + timestamp, agentSecret)`; compare to `X-AgentVend-Signature` using constant-time comparison.
 
 ## Replay protection
 

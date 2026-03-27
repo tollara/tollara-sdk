@@ -7,8 +7,8 @@ import json
 import pytest
 import responses
 
-from marketplace_agent_sdk.validation_client import validate_agent_key, AgentKeyValidationResult
-from marketplace_agent_sdk.hmac_utils import calculate_hmac
+from agentvend_agent_sdk.validation_client import validate_agent_key, AgentKeyValidationResult
+from agentvend_agent_sdk.hmac_utils import calculate_hmac
 
 CORE_BASE = "http://core.test/api/v1"
 AGENT_SECRET = "test-agent-secret"
@@ -41,8 +41,8 @@ def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-Marketplace-Signature": signature,
-            "X-Marketplace-Timestamp": timestamp,
+            "X-AgentVend-Signature": signature,
+            "X-AgentVend-Timestamp": timestamp,
         },
     )
 
@@ -97,8 +97,8 @@ def test_validate_agent_key_returns_none_when_hmac_invalid():
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-Marketplace-Signature": "invalid-signature",
-            "X-Marketplace-Timestamp": "1700000000",
+            "X-AgentVend-Signature": "invalid-signature",
+            "X-AgentVend-Timestamp": "1700000000",
         },
     )
 
@@ -132,8 +132,8 @@ def test_validate_agent_key_returns_none_when_valid_false_in_body():
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-Marketplace-Signature": signature,
-            "X-Marketplace-Timestamp": timestamp,
+            "X-AgentVend-Signature": signature,
+            "X-AgentVend-Timestamp": timestamp,
         },
     )
 
@@ -166,8 +166,8 @@ def test_validate_agent_key_sends_agent_key_and_agent_id_in_body():
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-Marketplace-Signature": signature,
-            "X-Marketplace-Timestamp": "1700000000",
+            "X-AgentVend-Signature": signature,
+            "X-AgentVend-Timestamp": "1700000000",
         },
     )
 

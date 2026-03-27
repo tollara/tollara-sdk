@@ -1,4 +1,4 @@
-//! Agent Hub SDK: HMAC verification, user context, validate key, report usage (see docs/hmac-spec.md).
+//! AgentVend SDK: HMAC verification, user context, validate key, report usage (see docs/hmac-spec.md).
 
 mod hmac;
 
