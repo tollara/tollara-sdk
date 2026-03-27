@@ -159,7 +159,7 @@ isProject: false
 | PHP package          | `marketplace/agent-sdk`, `Marketplace\AgentSdk`   | `agentvend/agent-sdk`, `AgentVend\AgentSdk`        |
 | n8n package/nodes    | `n8n-nodes-marketplace`, `Marketplace`*           | `n8n-nodes-agentvend`, `Agentvend`*                |
 | OpenClaw package     | `openclaw-marketplace`                            | `openclaw-agentvend`                               |
-| HTTP headers         | `X-Marketplace-*`                                 | `X-AgentVend-*`                                    |
+| HTTP headers         | `X-Marketplace-`*                                 | `X-AgentVend-*`                                    |
 
 
 No open questions; proceed with implementation when you approve this plan.
