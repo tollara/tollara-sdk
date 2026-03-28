@@ -21,7 +21,7 @@ class AgentvendRequestVerifierTest {
 
     /** Extended canonical string: legacy user block + subscriptionActive + billing fields. */
     @Test
-    void verifyInboundHmac_acceptsHmacSpecVectorExtended() {
+    void verifyInboundHmac_acceptsHmacSpecVectorExtended() throws Exception {
         String payload = "";
         String timestamp = "1700000000";
         SignedUserContext signed = SignedUserContext.builder()
@@ -54,7 +54,7 @@ class AgentvendRequestVerifierTest {
     }
 
     @Test
-    void verifyInboundHmac_withHttpHeaders_succeeds() {
+    void verifyInboundHmac_withHttpHeaders_succeeds() throws Exception {
         String payload = "";
         String timestamp = "1700000000";
         SignedUserContext signed = SignedUserContext.builder()
@@ -90,7 +90,7 @@ class AgentvendRequestVerifierTest {
     }
 
     @Test
-    void verifyInboundHmac_withLowercaseHeaderMap_succeeds() {
+    void verifyInboundHmac_withLowercaseHeaderMap_succeeds() throws Exception {
         String payload = "";
         String timestamp = "1700000000";
         SignedUserContext signed = SignedUserContext.builder()
@@ -126,7 +126,7 @@ class AgentvendRequestVerifierTest {
     }
 
     @Test
-    void verify_matches_gateway_owner_like_context() {
+    void verify_matches_gateway_owner_like_context() throws Exception {
         String payload = "{\"hello\":1}";
         long ts = 1700000000L;
         String userId = "user-1";
@@ -156,7 +156,7 @@ class AgentvendRequestVerifierTest {
     }
 
     @Test
-    void verify_matches_gateway_subscriber_with_billing_headers() {
+    void verify_matches_gateway_subscriber_with_billing_headers() throws Exception {
         String payload = "";
         long ts = 1710000000L;
         String userId = "sub-user";
