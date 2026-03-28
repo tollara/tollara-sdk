@@ -76,4 +76,16 @@ jar {
 
 test {
     useJUnitPlatform()
+    // Default Gradle output does not list tests; this makes it obvious they ran.
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+        showStandardStreams = false
+    }
+    afterSuite { desc, result ->
+        if (!desc.parent) {
+            println()
+            println "Tests: ${result.testCount}, succeeded: ${result.successfulTestCount}, failed: ${result.failedTestCount}, skipped: ${result.skippedTestCount}"
+        }
+    }
 }
