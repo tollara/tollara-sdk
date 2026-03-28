@@ -42,8 +42,9 @@ class AgentKeyValidationClientIntegrationTest {
     @Test
     void validateAgentKey_returnsResult_whenCoreReturns200WithValidHmac() throws Exception {
         // Per API spec §2.1: response has X-AgentVend-Signature = HMAC(responseBody + timestamp, agentSecret)
+        // Must match ObjectMapper.writeValueAsString(ValidationResponse) after deserialize (includes null optional fields).
         String responseBody = """
-            {"valid":true,"userId":"user-123","agentId":"%s","plan":"basic","roles":["user"],"quotaRemaining":100,"subscriptionActive":true,"timestamp":1700000000,"error":null}
+            {"valid":true,"userId":"user-123","agentId":"%s","plan":"basic","roles":["user"],"quotaRemaining":100,"subscriptionActive":true,"billingModelType":null,"measurementType":null,"unitLabel":null,"timestamp":1700000000,"error":null}
             """.formatted(AGENT_ID).trim();
         String timestamp = "1700000000";
         String canonical = responseBody + timestamp;
@@ -110,7 +111,7 @@ class AgentKeyValidationClientIntegrationTest {
 
     @Test
     void validateAgentKey_returnsNull_whenValidFalseInBody() throws Exception {
-        String responseBody = "{\"valid\":false,\"userId\":null,\"agentId\":null,\"plan\":null,\"roles\":[],\"quotaRemaining\":null,\"subscriptionActive\":false,\"timestamp\":1700000000,\"error\":\"Key expired\"}";
+        String responseBody = "{\"valid\":false,\"userId\":null,\"agentId\":null,\"plan\":null,\"roles\":[],\"quotaRemaining\":null,\"subscriptionActive\":false,\"billingModelType\":null,\"measurementType\":null,\"unitLabel\":null,\"timestamp\":1700000000,\"error\":\"Key expired\"}";
         String timestamp = "1700000000";
         String signature = HmacUtils.calculateHmac(responseBody + timestamp, AGENT_SECRET);
 
