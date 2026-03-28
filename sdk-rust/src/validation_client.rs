@@ -14,6 +14,9 @@ pub struct AgentKeyValidationResult {
     pub roles: Vec<String>,
     pub quota_remaining: Option<f64>,
     pub subscription_active: bool,
+    pub billing_model_type: Option<String>,
+    pub measurement_type: Option<String>,
+    pub unit_label: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -35,6 +38,9 @@ struct ValidationResponse {
     roles: Option<Vec<String>>,
     quota_remaining: Option<f64>,
     subscription_active: bool,
+    billing_model_type: Option<String>,
+    measurement_type: Option<String>,
+    unit_label: Option<String>,
     #[allow(dead_code)]
     timestamp: Option<i64>,
     error: Option<String>,
@@ -92,5 +98,8 @@ pub async fn validate_agent_key(
         roles,
         quota_remaining: data.quota_remaining,
         subscription_active: data.subscription_active,
+        billing_model_type: data.billing_model_type,
+        measurement_type: data.measurement_type,
+        unit_label: data.unit_label,
     })
 }

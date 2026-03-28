@@ -16,7 +16,15 @@ The gateway sends requests to agent backends with signed headers. The agent must
 
 - **payload**: Raw request body as string. Use empty string if there is no body. If the platform serializes JSON, use the same byte-for-byte string (e.g. normalized JSON).
 - **timestamp**: Same value as `X-AgentVend-Timestamp` (numeric string).
-- **userContextString**: `userId ?? ""` + `plan ?? ""` + `roles.join(",")` + `quotaRemaining.toString()` (no separators between; nulls as empty string).
+- **userContextString** (exact order, no extra separators):
+  1. `userId` or `""`
+  2. `plan` or `""`
+  3. Comma-joined roles (omit the comma list entirely when there are no roles — i.e. contribute `""`)
+  4. `quotaRemaining` string: if the quota header/value is present, append its canonical decimal string (e.g. `10`, `50.5`; match your language’s agreement with the gateway — typically no unnecessary trailing zeros). If absent/null, append `""`.
+  5. `subscriptionActive` as exactly `"true"` or `"false"` (from `X-AgentVend-Subscription-Active`; treat missing header as inactive → `"false"`).
+  6. `billingModelType` or `""`
+  7. `measurementType` or `""`
+  8. `unitLabel` or `""`
 
 **Signature:** `Base64(HMAC-SHA256(canonicalString, agentSecret))`.
 
@@ -67,16 +75,34 @@ Bgs+chJF8gBA3xW2542Tm7B7l571zTPfLMBiCBwOp2c=
 
 **Verification:** `HMAC-SHA256("1234567890", "secret")` then Base64-encode the result. Must equal the expected signature above.
 
-### Inbound style (payload + timestamp + userContextString)
+### Inbound style (extended userContextString)
 
-**Inputs:**
+**Vector A — subscriber with roles, quota, active subscription, no billing strings:**
 
-- **payload:** `` (empty string)
+- **payload:** `""`
 - **timestamp:** `1700000000`
-- **userContextString:** `user1plan1role1,role210` (userId=user1, plan=plan1, roles=role1,role2, quotaRemaining=10)
-- **canonical string:** `` + `1700000000` + `user1plan1role1,role210` = `1700000000user1plan1role1,role210`
+- **userContextString:** `user1` + `plan1` + `role1,role2` + `10` + `false` + `` + `` + `` = `user1plan1role1,role210false`
+- **canonical:** `1700000000user1plan1role1,role210false`
 - **key:** `my-agent-secret`
 
-**Computation:** Implement `HMAC-SHA256(canonicalString, key)` with UTF-8, then Base64. Each language can verify by comparing against its own HMAC implementation; no precomputed value given here to avoid copy-paste errors — derive from the algorithm.
+Compute `HMAC-SHA256(canonical, key)`, Base64; each SDK’s verifier should accept this when headers/context match.
 
-For a second vector with non-empty payload: **payload** = `{"foo":"bar"}`, **timestamp** = `1700000001`, **userContextString** = `` (all empty). **canonical string** = `{"foo":"bar"}1700000001`. **key** = `k`. Implementations should unit test with these inputs and assert the signature is consistent across runs.
+**Vector B — owner-like (empty roles, large quota, subscription true):**
+
+- **payload:** `{"hello":1}` (exact string)
+- **timestamp:** `1700000000`
+- **userContextString:** `user-1` + `owner` + `` + `9223372036854775807` + `true` + `` + `` + ``
+- **key:** `test-agent-secret`
+
+**Vector C — billing headers set:**
+
+- **payload:** `""`
+- **timestamp:** `1710000000`
+- **userContextString:** `sub-user` + `basic` + `roleA,roleB` + `50` + `true` + `SUBSCRIPTION` + `PER_REQUEST` + `request`
+- **key:** `test-agent-secret`
+
+---
+
+## Older canonical form (deprecated)
+
+An earlier draft used `userContextString` = `userId + plan + roles + quota` only (no subscription or billing suffix). The **current** spec is the extended string above; gateways and agents must agree on `X-AgentVend-Subscription-Active` and the optional billing headers. See [sdk-api-spec.md](sdk-api-spec.md) §4.

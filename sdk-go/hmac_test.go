@@ -5,20 +5,21 @@ import (
 	"testing"
 )
 
-func TestVerifyInboundHMAC_hmacSpecVector(t *testing.T) {
+func TestVerifyInboundHMAC_extendedVector(t *testing.T) {
 	secret := "my-agent-secret"
 	payload := ""
 	ts := "1700000000"
-	userCtx := "user1plan1role1,role210"
+	userCtx := BuildGatewayUserContextString("user1", "plan1", []string{"role1", "role2"}, "10", false, "", "", "")
 	sig := CalculateHmac(payload+ts+userCtx, secret)
 	req := &InboundHmacRequest{
-		Signature:      sig,
-		Timestamp:      ts,
-		Payload:        payload,
-		UserID:         "user1",
-		Plan:           "plan1",
-		Roles:          []string{"role1", "role2"},
-		QuotaRemaining: "10",
+		Signature:          sig,
+		Timestamp:          ts,
+		Payload:            payload,
+		UserID:             "user1",
+		Plan:               "plan1",
+		Roles:              []string{"role1", "role2"},
+		QuotaRemaining:     "10",
+		SubscriptionActive: false,
 	}
 	if !VerifyInboundHMAC(secret, req) {
 		t.Fatal("expected valid HMAC")
@@ -29,7 +30,8 @@ func TestVerifyInboundHMACFromHeaders(t *testing.T) {
 	secret := "my-agent-secret"
 	payload := ""
 	ts := "1700000000"
-	sig := CalculateHmac(payload+ts+"user1plan1role1,role210", secret)
+	userCtx := BuildGatewayUserContextString("user1", "plan1", []string{"role1", "role2"}, "10", false, "", "", "")
+	sig := CalculateHmac(payload+ts+userCtx, secret)
 	h := http.Header{}
 	h.Set("x-agentvend-signature", sig)
 	h.Set("x-agentvend-timestamp", ts)
@@ -37,7 +39,32 @@ func TestVerifyInboundHMACFromHeaders(t *testing.T) {
 	h.Set("x-agentvend-plan", "plan1")
 	h.Set("x-agentvend-roles", "role1,role2")
 	h.Set("x-agentvend-quota-remaining", "10")
+	h.Set("x-agentvend-subscription-active", "false")
 	if !VerifyInboundHMACFromHeaders(secret, h, payload) {
 		t.Fatal("expected valid HMAC from headers")
+	}
+}
+
+func TestSubscriberWithBilling(t *testing.T) {
+	secret := "test-agent-secret"
+	payload := ""
+	ts := "1710000000"
+	userCtx := BuildGatewayUserContextString("sub-user", "basic", []string{"roleA", "roleB"}, "50", true, "SUBSCRIPTION", "PER_REQUEST", "request")
+	sig := CalculateHmac(payload+ts+userCtx, secret)
+	req := &InboundHmacRequest{
+		Signature:          sig,
+		Timestamp:          ts,
+		Payload:            payload,
+		UserID:             "sub-user",
+		Plan:               "basic",
+		Roles:              []string{"roleA", "roleB"},
+		QuotaRemaining:     "50",
+		SubscriptionActive:   true,
+		BillingModelType:     "SUBSCRIPTION",
+		MeasurementType:      "PER_REQUEST",
+		UnitLabel:            "request",
+	}
+	if !VerifyInboundHMAC(secret, req) {
+		t.Fatal("expected valid HMAC")
 	}
 }

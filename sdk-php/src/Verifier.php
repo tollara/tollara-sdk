@@ -17,12 +17,31 @@ final class InboundHmacRequest
         public string $plan,
         public array $roles,
         public string $quotaRemaining,
+        public bool $subscriptionActive = false,
+        public string $billingModelType = '',
+        public string $measurementType = '',
+        public string $unitLabel = '',
     ) {
     }
 }
 
 final class Verifier
 {
+    public static function buildGatewayUserContextString(
+        string $userId,
+        string $plan,
+        array $roles,
+        string $quotaRemaining,
+        bool $subscriptionActive,
+        string $billingModelType,
+        string $measurementType,
+        string $unitLabel
+    ): string {
+        return $userId . $plan . implode(',', $roles) . $quotaRemaining
+            . ($subscriptionActive ? 'true' : 'false')
+            . $billingModelType . $measurementType . $unitLabel;
+    }
+
     private static function headerGetCi(array $headers, string $canonical): string
     {
         foreach ($headers as $k => $v) {
@@ -47,6 +66,11 @@ final class Verifier
         return $raw;
     }
 
+    private static function parseSubscriptionActive(string $raw): bool
+    {
+        return $raw === 'true' || $raw === '1';
+    }
+
     public static function verifyInboundHmac(string $agentSecret, InboundHmacRequest $req): bool
     {
         return self::verifySignature(
@@ -57,7 +81,11 @@ final class Verifier
             $req->userId,
             $req->plan,
             $req->roles,
-            $req->quotaRemaining
+            $req->quotaRemaining,
+            $req->subscriptionActive,
+            $req->billingModelType,
+            $req->measurementType,
+            $req->unitLabel
         );
     }
 
@@ -74,6 +102,10 @@ final class Verifier
         $rolesCsv = self::headerGetCi($headers, AgentVendHeaders::ROLES);
         $roles = $rolesCsv === '' ? [] : array_values(array_filter(array_map('trim', explode(',', $rolesCsv))));
         $quotaRaw = self::headerGetCi($headers, AgentVendHeaders::QUOTA_REMAINING);
+        $subRaw = self::headerGetCi($headers, AgentVendHeaders::SUBSCRIPTION_ACTIVE);
+        $bm = self::headerGetCi($headers, AgentVendHeaders::BILLING_MODEL);
+        $mt = self::headerGetCi($headers, AgentVendHeaders::MEASUREMENT_TYPE);
+        $ul = self::headerGetCi($headers, AgentVendHeaders::UNIT_LABEL);
         $req = new InboundHmacRequest(
             $sig,
             $ts,
@@ -81,7 +113,11 @@ final class Verifier
             self::headerGetCi($headers, AgentVendHeaders::USER_ID),
             self::headerGetCi($headers, AgentVendHeaders::PLAN),
             $roles,
-            self::formatQuota($quotaRaw)
+            self::formatQuota($quotaRaw),
+            self::parseSubscriptionActive($subRaw),
+            $bm,
+            $mt,
+            $ul
         );
         return self::verifyInboundHmac($agentSecret, $req);
     }
@@ -97,12 +133,25 @@ final class Verifier
         string $userId,
         string $plan,
         array $roles,
-        string $quotaRemaining
+        string $quotaRemaining,
+        bool $subscriptionActive,
+        string $billingModelType = '',
+        string $measurementType = '',
+        string $unitLabel = ''
     ): bool {
         if ($signature === '' || $timestamp === '' || $agentSecret === '') {
             return false;
         }
-        $userContextString = $userId . $plan . implode(',', $roles) . $quotaRemaining;
+        $userContextString = self::buildGatewayUserContextString(
+            $userId,
+            $plan,
+            $roles,
+            $quotaRemaining,
+            $subscriptionActive,
+            $billingModelType,
+            $measurementType,
+            $unitLabel
+        );
         $dataToSign = $payload . $timestamp . $userContextString;
         $expected = Hmac::calculateHmac($dataToSign, $agentSecret);
         return Hmac::constantTimeEquals($expected, $signature);
@@ -118,13 +167,19 @@ final class Verifier
         $qRaw = self::headerGetCi($headers, AgentVendHeaders::QUOTA_REMAINING);
         $quota = $qRaw !== '' && is_numeric($qRaw) ? (float) $qRaw : null;
         $sub = self::headerGetCi($headers, AgentVendHeaders::SUBSCRIPTION_ACTIVE);
-        $subActive = $sub === 'true' || $sub === '1';
+        $subActive = self::parseSubscriptionActive($sub);
+        $bm = self::headerGetCi($headers, AgentVendHeaders::BILLING_MODEL);
+        $mt = self::headerGetCi($headers, AgentVendHeaders::MEASUREMENT_TYPE);
+        $ul = self::headerGetCi($headers, AgentVendHeaders::UNIT_LABEL);
         return new UserContext(
             self::headerGetCi($headers, AgentVendHeaders::USER_ID),
             self::headerGetCi($headers, AgentVendHeaders::PLAN),
             $roles,
             $quota,
-            $subActive
+            $subActive,
+            $bm,
+            $mt,
+            $ul
         );
     }
 }
@@ -140,6 +195,9 @@ final class UserContext
         public array $roles,
         public ?float $quotaRemaining,
         public bool $subscriptionActive,
+        public string $billingModelType = '',
+        public string $measurementType = '',
+        public string $unitLabel = '',
     ) {
     }
 }

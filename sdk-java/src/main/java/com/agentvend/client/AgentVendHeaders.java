@@ -14,4 +14,7 @@ public final class AgentVendHeaders {
     public static final String ROLES = "X-AgentVend-Roles";
     public static final String QUOTA_REMAINING = "X-AgentVend-Quota-Remaining";
     public static final String SUBSCRIPTION_ACTIVE = "X-AgentVend-Subscription-Active";
+    public static final String BILLING_MODEL = "X-AgentVend-Billing-Model";
+    public static final String MEASUREMENT_TYPE = "X-AgentVend-Measurement-Type";
+    public static final String UNIT_LABEL = "X-AgentVend-Unit-Label";
 }

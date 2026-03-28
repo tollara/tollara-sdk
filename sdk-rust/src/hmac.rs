@@ -39,6 +39,9 @@ pub struct UserContext {
     pub roles: Vec<String>,
     pub quota_remaining: Option<f64>,
     pub subscription_active: bool,
+    pub billing_model_type: Option<String>,
+    pub measurement_type: Option<String>,
+    pub unit_label: Option<String>,
 }
 
 /// User fields in inbound HMAC `user_context_string` (hmac-spec.md).
@@ -48,6 +51,10 @@ pub struct SignedUserContext {
     pub plan: Option<String>,
     pub roles: Vec<String>,
     pub quota_remaining: Option<f64>,
+    pub subscription_active: bool,
+    pub billing_model_type: Option<String>,
+    pub measurement_type: Option<String>,
+    pub unit_label: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,44 +73,28 @@ fn format_quota(q: Option<f64>) -> String {
     }
 }
 
-/// Verify inbound gateway request HMAC. Canonical: payload + timestamp + user_context_string.
-pub fn verify_signature(
-    agent_secret: &str,
-    signature: &str,
-    timestamp: &str,
-    payload: &str,
-    user_id: &str,
-    plan: &str,
-    roles: &[String],
-    quota_remaining: &str,
-) -> bool {
-    if signature.is_empty() || timestamp.is_empty() || agent_secret.is_empty() {
-        return false;
-    }
-    let user_context_string = format!(
-        "{}{}{}{}",
-        user_id,
-        plan,
-        roles.join(","),
-        quota_remaining
-    );
-    let data_to_sign = format!("{}{}{}", payload, timestamp, user_context_string);
-    let expected = calculate_hmac(&data_to_sign, agent_secret);
-    constant_time_equals(&expected, signature)
+/// Builds gateway inbound HMAC suffix (after `payload` + `timestamp`).
+pub fn build_gateway_user_context_string(s: &SignedUserContext) -> String {
+    let u = s.user_id.as_deref().unwrap_or("");
+    let p = s.plan.as_deref().unwrap_or("");
+    let r = s.roles.join(",");
+    let q = format_quota(s.quota_remaining);
+    let sub = if s.subscription_active { "true" } else { "false" };
+    let b = s.billing_model_type.as_deref().unwrap_or("");
+    let m = s.measurement_type.as_deref().unwrap_or("");
+    let ul = s.unit_label.as_deref().unwrap_or("");
+    format!("{u}{p}{r}{q}{sub}{b}{m}{ul}")
 }
 
+/// Verify inbound gateway request HMAC. Canonical: payload + timestamp + user_context_string.
 pub fn verify_inbound_hmac(agent_secret: &str, req: &InboundHmacVerify) -> bool {
-    let q = format_quota(req.signed.quota_remaining);
-    verify_signature(
-        agent_secret,
-        &req.signature,
-        &req.timestamp,
-        &req.payload,
-        req.signed.user_id.as_deref().unwrap_or(""),
-        req.signed.plan.as_deref().unwrap_or(""),
-        &req.signed.roles,
-        &q,
-    )
+    if req.signature.is_empty() || req.timestamp.is_empty() || agent_secret.is_empty() {
+        return false;
+    }
+    let user_context_string = build_gateway_user_context_string(&req.signed);
+    let data_to_sign = format!("{}{}{}", req.payload, req.timestamp, user_context_string);
+    let expected = calculate_hmac(&data_to_sign, agent_secret);
+    constant_time_equals(&expected, &req.signature)
 }
 
 fn header_get_ci(headers: &HashMap<String, String>, canonical: &str) -> Option<String> {
@@ -111,6 +102,16 @@ fn header_get_ci(headers: &HashMap<String, String>, canonical: &str) -> Option<S
         .iter()
         .find(|(k, _)| k.eq_ignore_ascii_case(canonical))
         .map(|(_, v)| v.clone())
+}
+
+fn parse_subscription_active(raw: Option<&str>) -> bool {
+    match raw {
+        None => false,
+        Some(s) => {
+            let t = s.trim();
+            t.eq_ignore_ascii_case("true") || t == "1"
+        }
+    }
 }
 
 pub fn verify_signature_from_headers(
@@ -134,11 +135,20 @@ pub fn verify_signature_from_headers(
         .collect();
     let quota = header_get_ci(headers_map, headers::QUOTA_REMAINING)
         .and_then(|s| s.parse::<f64>().ok());
+    let sub = header_get_ci(headers_map, headers::SUBSCRIPTION_ACTIVE);
+    let subscription_active = parse_subscription_active(sub.as_deref());
+    let bm = header_get_ci(headers_map, headers::BILLING_MODEL).filter(|s| !s.is_empty());
+    let mt = header_get_ci(headers_map, headers::MEASUREMENT_TYPE).filter(|s| !s.is_empty());
+    let ul = header_get_ci(headers_map, headers::UNIT_LABEL).filter(|s| !s.is_empty());
     let signed = SignedUserContext {
         user_id: header_get_ci(headers_map, headers::USER_ID),
         plan: header_get_ci(headers_map, headers::PLAN),
         roles,
         quota_remaining: quota,
+        subscription_active,
+        billing_model_type: bm,
+        measurement_type: mt,
+        unit_label: ul,
     };
     let req = InboundHmacVerify {
         signature,
@@ -159,13 +169,19 @@ pub fn parse_user_context(headers_map: &HashMap<String, String>) -> UserContext 
     let quota_remaining = header_get_ci(headers_map, headers::QUOTA_REMAINING)
         .and_then(|s| s.parse::<f64>().ok());
     let sub = header_get_ci(headers_map, headers::SUBSCRIPTION_ACTIVE);
-    let subscription_active = sub.as_deref() == Some("true") || sub.as_deref() == Some("1");
+    let subscription_active = parse_subscription_active(sub.as_deref());
+    let bm = header_get_ci(headers_map, headers::BILLING_MODEL).filter(|s| !s.is_empty());
+    let mt = header_get_ci(headers_map, headers::MEASUREMENT_TYPE).filter(|s| !s.is_empty());
+    let ul = header_get_ci(headers_map, headers::UNIT_LABEL).filter(|s| !s.is_empty());
     UserContext {
         user_id: header_get_ci(headers_map, headers::USER_ID),
         plan: header_get_ci(headers_map, headers::PLAN),
         roles,
         quota_remaining,
         subscription_active,
+        billing_model_type: bm,
+        measurement_type: mt,
+        unit_label: ul,
     }
 }
 
@@ -174,22 +190,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn verify_inbound_hmac_hmac_spec_vector() {
+    fn verify_inbound_hmac_extended_vector() {
         let secret = "my-agent-secret";
         let payload = "";
         let ts = "1700000000";
-        let ucs = "user1plan1role1,role210";
+        let signed = SignedUserContext {
+            user_id: Some("user1".into()),
+            plan: Some("plan1".into()),
+            roles: vec!["role1".into(), "role2".into()],
+            quota_remaining: Some(10.0),
+            subscription_active: false,
+            billing_model_type: None,
+            measurement_type: None,
+            unit_label: None,
+        };
+        let ucs = build_gateway_user_context_string(&signed);
         let sig = calculate_hmac(&format!("{}{}{}", payload, ts, ucs), secret);
         let req = InboundHmacVerify {
             signature: sig,
             timestamp: ts.to_string(),
             payload: payload.to_string(),
-            signed: SignedUserContext {
-                user_id: Some("user1".into()),
-                plan: Some("plan1".into()),
-                roles: vec!["role1".into(), "role2".into()],
-                quota_remaining: Some(10.0),
-            },
+            signed,
         };
         assert!(verify_inbound_hmac(secret, &req));
     }
@@ -200,16 +221,51 @@ mod tests {
         let mut m = HashMap::new();
         let payload = "";
         let ts = "1700000000";
-        let sig = calculate_hmac(
-            &format!("{}{}{}", payload, ts, "user1plan1role1,role210"),
-            secret,
-        );
+        let signed = SignedUserContext {
+            user_id: Some("user1".into()),
+            plan: Some("plan1".into()),
+            roles: vec!["role1".into(), "role2".into()],
+            quota_remaining: Some(10.0),
+            subscription_active: false,
+            billing_model_type: None,
+            measurement_type: None,
+            unit_label: None,
+        };
+        let ucs = build_gateway_user_context_string(&signed);
+        let sig = calculate_hmac(&format!("{}{}{}", payload, ts, ucs), secret);
         m.insert("x-agentvend-signature".into(), sig);
         m.insert("x-agentvend-timestamp".into(), ts.into());
         m.insert("x-agentvend-user-id".into(), "user1".into());
         m.insert("x-agentvend-plan".into(), "plan1".into());
         m.insert("x-agentvend-roles".into(), "role1,role2".into());
         m.insert("x-agentvend-quota-remaining".into(), "10".into());
+        m.insert("x-agentvend-subscription-active".into(), "false".into());
         assert!(verify_signature_from_headers(secret, &m, payload));
+    }
+
+    #[test]
+    fn subscriber_with_billing_matches() {
+        let secret = "test-agent-secret";
+        let signed = SignedUserContext {
+            user_id: Some("sub-user".into()),
+            plan: Some("basic".into()),
+            roles: vec!["roleA".into(), "roleB".into()],
+            quota_remaining: Some(50.0),
+            subscription_active: true,
+            billing_model_type: Some("SUBSCRIPTION".into()),
+            measurement_type: Some("PER_REQUEST".into()),
+            unit_label: Some("request".into()),
+        };
+        let payload = "";
+        let ts = "1710000000";
+        let ucs = build_gateway_user_context_string(&signed);
+        let sig = calculate_hmac(&format!("{}{}{}", payload, ts, ucs), secret);
+        let req = InboundHmacVerify {
+            signature: sig,
+            timestamp: ts.into(),
+            payload: payload.into(),
+            signed,
+        };
+        assert!(verify_inbound_hmac(secret, &req));
     }
 }

@@ -110,10 +110,13 @@ Used by both callers and backends to validate an agent key and get user/plan/quo
 | `valid` | boolean | `true` if key is valid. |
 | `userId` | string | External user ID. |
 | `agentId` | string | Agent UUID. |
-| `plan` | string | Plan/tier (e.g. `"basic"`, `"owner"`). |
+| `plan` | string | Plan name (lowercase subscription plan for subscribers; e.g. `"basic"`, `"owner"`). Aligned with gateway invoke-context. |
 | `roles` | string[] | User roles (may be empty). |
-| `quotaRemaining` | number | Remaining quota (e.g. requests or units). |
+| `quotaRemaining` | number | Remaining quota. Aligned with subscription DTO / invoke-context (not legacy tier-as-plan). |
 | `subscriptionActive` | boolean | Whether subscription is active. |
+| `billingModelType` | string | Optional. `SUBSCRIPTION`, `USAGE_POSTPAID`, `USAGE_INSTANT`, `PREPAID`, or absent/null (e.g. agent owner). |
+| `measurementType` | string | Optional. `PER_REQUEST`, `PER_TIME_UNIT`, `PER_TOKEN`, `PER_BYTE`, or absent/null. |
+| `unitLabel` | string | Optional human/config label (e.g. `request`, `token`), or absent/null. |
 | `timestamp` | number | Unix epoch seconds (same as header). |
 | `error` | string | Present only on error (e.g. invalid key). |
 
@@ -232,9 +235,12 @@ When the SDK is used in an **agent backend** to verify incoming requests from th
 | `X-AgentVend-Plan` | Plan name. |
 | `X-AgentVend-Roles` | Comma-separated roles. |
 | `X-AgentVend-Quota-Remaining` | Remaining quota. |
-| `X-AgentVend-Subscription-Active` | `"true"` / `"false"`. |
+| `X-AgentVend-Subscription-Active` | `"true"` / `"false"` (included in HMAC material). |
+| `X-AgentVend-Billing-Model` | Optional. Billing model enum string; omitted or empty when N/A. |
+| `X-AgentVend-Measurement-Type` | Optional. Measurement enum string; omitted or empty when N/A. |
+| `X-AgentVend-Unit-Label` | Optional. Human/config unit label; omitted or empty when N/A. |
 
-Verification: canonical string = raw request body (string) + timestamp + userContextString, where userContextString = userId + plan + roles.join(',') + quotaRemaining (no separators; null/empty as ""). Signature = Base64(HMAC-SHA256(canonical, agentSecret)). Use constant-time compare. Full HMAC spec and test vectors belong in the SDK repo (e.g. `docs/hmac-spec.md`).
+Verification: canonical string = raw request body (string) + timestamp + **extended** `userContextString` per [hmac-spec.md](hmac-spec.md) (userId, plan, roles CSV, quota string, `subscriptionActive` as `"true"`/`"false"`, then billing / measurement / unit labels; missing string parts use `""`). Signature = Base64(HMAC-SHA256(canonical, agentSecret)). Use constant-time compare.
 
 ---
 

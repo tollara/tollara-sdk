@@ -2,6 +2,7 @@ package com.agentvend.client;
 
 import com.agentvend.client.model.InboundHmacRequest;
 import com.agentvend.client.model.SignedUserContext;
+import com.agentvend.common.util.GatewayHmacUserContext;
 import com.agentvend.common.util.HmacUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -47,7 +48,11 @@ public class AgentvendRequestVerifier {
                 s.getUserId(),
                 s.getPlan(),
                 s.getRoles(),
-                s.getQuotaRemaining());
+                s.getQuotaRemaining(),
+                s.isSubscriptionActive(),
+                s.getBillingModelType(),
+                s.getMeasurementType(),
+                s.getUnitLabel());
     }
 
     /**
@@ -81,10 +86,15 @@ public class AgentvendRequestVerifier {
     private boolean verifyInboundHmac(
             String signature, String timestamp, String payload, HttpHeaders headers) {
         SignedUserContext signed =
-                parseSignedUserContext(headers.getFirst(AgentVendHeaders.USER_ID),
+                parseSignedUserContext(
+                        headers.getFirst(AgentVendHeaders.USER_ID),
                         headers.getFirst(AgentVendHeaders.PLAN),
                         headers.getFirst(AgentVendHeaders.ROLES),
-                        headers.getFirst(AgentVendHeaders.QUOTA_REMAINING));
+                        headers.getFirst(AgentVendHeaders.QUOTA_REMAINING),
+                        headers.getFirst(AgentVendHeaders.SUBSCRIPTION_ACTIVE),
+                        headers.getFirst(AgentVendHeaders.BILLING_MODEL),
+                        headers.getFirst(AgentVendHeaders.MEASUREMENT_TYPE),
+                        headers.getFirst(AgentVendHeaders.UNIT_LABEL));
         return verifyInboundHmac(InboundHmacRequest.builder()
                 .signature(signature)
                 .timestamp(timestamp)
@@ -100,7 +110,11 @@ public class AgentvendRequestVerifier {
                         getHeaderIgnoreCase(headers, AgentVendHeaders.USER_ID),
                         getHeaderIgnoreCase(headers, AgentVendHeaders.PLAN),
                         getHeaderIgnoreCase(headers, AgentVendHeaders.ROLES),
-                        getHeaderIgnoreCase(headers, AgentVendHeaders.QUOTA_REMAINING));
+                        getHeaderIgnoreCase(headers, AgentVendHeaders.QUOTA_REMAINING),
+                        getHeaderIgnoreCase(headers, AgentVendHeaders.SUBSCRIPTION_ACTIVE),
+                        getHeaderIgnoreCase(headers, AgentVendHeaders.BILLING_MODEL),
+                        getHeaderIgnoreCase(headers, AgentVendHeaders.MEASUREMENT_TYPE),
+                        getHeaderIgnoreCase(headers, AgentVendHeaders.UNIT_LABEL));
         return verifyInboundHmac(InboundHmacRequest.builder()
                 .signature(signature)
                 .timestamp(timestamp)
@@ -110,10 +124,40 @@ public class AgentvendRequestVerifier {
     }
 
     private static SignedUserContext parseSignedUserContext(
-            String userId, String plan, String rolesHeader, String quotaHeader) {
+            String userId,
+            String plan,
+            String rolesHeader,
+            String quotaHeader,
+            String subscriptionActiveHeader,
+            String billingModelHeader,
+            String measurementTypeHeader,
+            String unitLabelHeader) {
         List<String> roles = parseRolesList(rolesHeader);
         BigDecimal quota = parseQuota(quotaHeader);
-        return SignedUserContext.builder().userId(userId).plan(plan).roles(roles).quotaRemaining(quota).build();
+        return SignedUserContext.builder()
+                .userId(userId)
+                .plan(plan)
+                .roles(roles)
+                .quotaRemaining(quota)
+                .subscriptionActive(parseSubscriptionActiveFlag(subscriptionActiveHeader))
+                .billingModelType(emptyToNull(billingModelHeader))
+                .measurementType(emptyToNull(measurementTypeHeader))
+                .unitLabel(emptyToNull(unitLabelHeader))
+                .build();
+    }
+
+    private static String emptyToNull(String s) {
+        if (s == null || s.isEmpty()) {
+            return null;
+        }
+        return s;
+    }
+
+    private static boolean parseSubscriptionActiveFlag(String header) {
+        if (header == null || header.isEmpty()) {
+            return false;
+        }
+        return Boolean.parseBoolean(header.trim()) || "1".equals(header.trim());
     }
 
     /**
@@ -131,7 +175,10 @@ public class AgentvendRequestVerifier {
                 headers.getFirst(AgentVendHeaders.PLAN),
                 headers.getFirst(AgentVendHeaders.ROLES),
                 headers.getFirst(AgentVendHeaders.QUOTA_REMAINING),
-                headers.getFirst(AgentVendHeaders.SUBSCRIPTION_ACTIVE));
+                headers.getFirst(AgentVendHeaders.SUBSCRIPTION_ACTIVE),
+                headers.getFirst(AgentVendHeaders.BILLING_MODEL),
+                headers.getFirst(AgentVendHeaders.MEASUREMENT_TYPE),
+                headers.getFirst(AgentVendHeaders.UNIT_LABEL));
     }
 
     /**
@@ -149,7 +196,10 @@ public class AgentvendRequestVerifier {
                 getHeaderIgnoreCase(headers, AgentVendHeaders.PLAN),
                 getHeaderIgnoreCase(headers, AgentVendHeaders.ROLES),
                 getHeaderIgnoreCase(headers, AgentVendHeaders.QUOTA_REMAINING),
-                getHeaderIgnoreCase(headers, AgentVendHeaders.SUBSCRIPTION_ACTIVE));
+                getHeaderIgnoreCase(headers, AgentVendHeaders.SUBSCRIPTION_ACTIVE),
+                getHeaderIgnoreCase(headers, AgentVendHeaders.BILLING_MODEL),
+                getHeaderIgnoreCase(headers, AgentVendHeaders.MEASUREMENT_TYPE),
+                getHeaderIgnoreCase(headers, AgentVendHeaders.UNIT_LABEL));
     }
 
     private static String getHeaderIgnoreCase(Map<String, String> headers, String canonicalName) {
@@ -162,13 +212,15 @@ public class AgentvendRequestVerifier {
     }
 
     /**
-     * Verifies the HMAC signature. Prefer {@link #verifyInboundHmac(InboundHmacRequest)}.
+     * Verifies the HMAC signature with the extended gateway user-context string (see {@link GatewayHmacUserContext}).
+     * Prefer {@link #verifyInboundHmac(InboundHmacRequest)}.
      *
      * @deprecated Use {@link #verifyInboundHmac(InboundHmacRequest)} or {@link #verifyInboundHmac(HttpHeaders, String)}.
      */
     @Deprecated
     public boolean verifyHmacSignature(String signature, String timestamp, Object payload,
-            String userId, String plan, List<String> roles, BigDecimal quotaRemaining) {
+            String userId, String plan, List<String> roles, BigDecimal quotaRemaining,
+            boolean subscriptionActive, String billingModelType, String measurementType, String unitLabel) {
         if (signature == null || timestamp == null || agentSecret == null || agentSecret.isEmpty()) {
             log.warn("Missing required parameters for HMAC verification");
             return false;
@@ -178,7 +230,9 @@ public class AgentvendRequestVerifier {
             String payloadString = payloadToString(payload);
 
             long timestampLong = Long.parseLong(timestamp);
-            String userContextString = buildUserContextString(userId, plan, roles, quotaRemaining);
+            String userContextString = GatewayHmacUserContext.build(
+                    userId, plan, roles, quotaRemaining, subscriptionActive,
+                    billingModelType, measurementType, unitLabel);
             String dataToSign = payloadString + timestampLong + userContextString;
 
             String expectedSignature = HmacUtils.calculateHmac(dataToSign, agentSecret);
@@ -203,19 +257,6 @@ public class AgentvendRequestVerifier {
         return objectMapper.writeValueAsString(payload);
     }
 
-    private static String buildUserContextString(String userId, String plan, List<String> roles, BigDecimal quotaRemaining) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(userId != null ? userId : "");
-        sb.append(plan != null ? plan : "");
-        if (roles != null && !roles.isEmpty()) {
-            sb.append(String.join(",", roles));
-        }
-        if (quotaRemaining != null) {
-            sb.append(quotaRemaining.toString());
-        }
-        return sb.toString();
-    }
-
     /**
      * Extracts user context from individual header values.
      *
@@ -223,17 +264,13 @@ public class AgentvendRequestVerifier {
      */
     @Deprecated
     public UserContext extractUserContext(String userIdHeader, String planHeader, String rolesHeader,
-            String quotaHeader, String subscriptionActiveHeader) {
+            String quotaHeader, String subscriptionActiveHeader,
+            String billingModelHeader, String measurementTypeHeader, String unitLabelHeader) {
         List<String> roles = parseRolesList(rolesHeader);
 
         BigDecimal quotaRemaining = parseQuota(quotaHeader);
 
-        boolean subscriptionActive = false;
-        if (subscriptionActiveHeader != null) {
-            subscriptionActive =
-                    Boolean.parseBoolean(subscriptionActiveHeader)
-                            || "1".equals(subscriptionActiveHeader.trim());
-        }
+        boolean subscriptionActive = parseSubscriptionActiveFlag(subscriptionActiveHeader);
 
         return UserContext.builder()
                 .userId(userIdHeader)
@@ -241,6 +278,9 @@ public class AgentvendRequestVerifier {
                 .roles(roles)
                 .quotaRemaining(quotaRemaining)
                 .subscriptionActive(subscriptionActive)
+                .billingModelType(emptyToNull(billingModelHeader))
+                .measurementType(emptyToNull(measurementTypeHeader))
+                .unitLabel(emptyToNull(unitLabelHeader))
                 .build();
     }
 
@@ -273,5 +313,8 @@ public class AgentvendRequestVerifier {
         private List<String> roles;
         private BigDecimal quotaRemaining;
         private boolean subscriptionActive;
+        private String billingModelType;
+        private String measurementType;
+        private String unitLabel;
     }
 }

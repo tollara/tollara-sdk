@@ -4,7 +4,16 @@ using System.Text.Json;
 
 namespace AgentVend;
 
-public record AgentKeyValidationResult(string? UserId, string? AgentId, string? Plan, IReadOnlyList<string> Roles, decimal? QuotaRemaining, bool SubscriptionActive);
+public record AgentKeyValidationResult(
+    string? UserId,
+    string? AgentId,
+    string? Plan,
+    IReadOnlyList<string> Roles,
+    decimal? QuotaRemaining,
+    bool SubscriptionActive,
+    string? BillingModelType,
+    string? MeasurementType,
+    string? UnitLabel);
 
 public static class ValidationClient
 {
@@ -32,7 +41,10 @@ public static class ValidationClient
             root.TryGetProperty("plan", out var p) ? p.GetString() : null,
             roles,
             root.TryGetProperty("quotaRemaining", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetDecimal() : (decimal?)null,
-            root.TryGetProperty("subscriptionActive", out var sa) && sa.GetBoolean()
+            root.TryGetProperty("subscriptionActive", out var sa) && sa.GetBoolean(),
+            root.TryGetProperty("billingModelType", out var bm) && bm.ValueKind == JsonValueKind.String ? bm.GetString() : null,
+            root.TryGetProperty("measurementType", out var mt) && mt.ValueKind == JsonValueKind.String ? mt.GetString() : null,
+            root.TryGetProperty("unitLabel", out var ul) && ul.ValueKind == JsonValueKind.String ? ul.GetString() : null
         );
     }
 }

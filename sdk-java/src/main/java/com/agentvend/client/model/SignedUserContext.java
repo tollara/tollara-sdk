@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * User fields that participate in the inbound HMAC {@code userContextString}
- * (see docs/hmac-spec.md). Does not include unsigned headers such as subscription active.
+ * (see docs/hmac-spec.md), including subscription and billing metadata from gateway headers.
  */
 @Value
 @Builder
@@ -19,4 +19,9 @@ public class SignedUserContext {
     @Builder.Default
     List<String> roles = Collections.emptyList();
     BigDecimal quotaRemaining;
+    @Builder.Default
+    boolean subscriptionActive = false;
+    String billingModelType;
+    String measurementType;
+    String unitLabel;
 }

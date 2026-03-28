@@ -25,7 +25,7 @@ use AgentVend\AgentSdk\Verifier;
 
 $valid = Verifier::verifySignatureFromHeaders($agentSecret, $headersArray, $rawBody);
 
-$req = new InboundHmacRequest($sig, $ts, $payload, $userId, $plan, $roles, $quotaRemaining);
+$req = new InboundHmacRequest($sig, $ts, $payload, $userId, $plan, $roles, $quotaRemaining, subscriptionActive: false);
 $valid = Verifier::verifyInboundHmac($agentSecret, $req);
 
 $ctx = Verifier::parseUserContext($headersArray);

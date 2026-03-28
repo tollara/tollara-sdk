@@ -8,6 +8,9 @@ export interface AgentKeyValidationResult {
   roles: string[];
   quotaRemaining: number | null;
   subscriptionActive: boolean;
+  billingModelType: string | null;
+  measurementType: string | null;
+  unitLabel: string | null;
 }
 
 const CACHE_TTL_MS = 60_000;
@@ -58,7 +61,19 @@ export async function validateAgentKey(
   const expectedSig = calculateHmac(dataToVerify, agentSecret);
   if (!constantTimeEquals(expectedSig, signature)) return null;
 
-  let data: { valid?: boolean; userId?: string; agentId?: string; plan?: string; roles?: string[]; quotaRemaining?: number; subscriptionActive?: boolean; error?: string };
+  let data: {
+    valid?: boolean;
+    userId?: string;
+    agentId?: string;
+    plan?: string;
+    roles?: string[];
+    quotaRemaining?: number;
+    subscriptionActive?: boolean;
+    billingModelType?: string | null;
+    measurementType?: string | null;
+    unitLabel?: string | null;
+    error?: string;
+  };
   try {
     data = JSON.parse(responseText);
   } catch {
@@ -74,6 +89,9 @@ export async function validateAgentKey(
     roles: Array.isArray(data.roles) ? data.roles : [],
     quotaRemaining: typeof data.quotaRemaining === 'number' ? data.quotaRemaining : null,
     subscriptionActive: Boolean(data.subscriptionActive),
+    billingModelType: data.billingModelType ?? null,
+    measurementType: data.measurementType ?? null,
+    unitLabel: data.unitLabel ?? null,
   };
 }
 

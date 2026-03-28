@@ -7,6 +7,9 @@ export const AgentVendHeaders = {
   ROLES: 'X-AgentVend-Roles',
   QUOTA_REMAINING: 'X-AgentVend-Quota-Remaining',
   SUBSCRIPTION_ACTIVE: 'X-AgentVend-Subscription-Active',
+  BILLING_MODEL: 'X-AgentVend-Billing-Model',
+  MEASUREMENT_TYPE: 'X-AgentVend-Measurement-Type',
+  UNIT_LABEL: 'X-AgentVend-Unit-Label',
 } as const;
 
 export type AgentVendHeaderName = (typeof AgentVendHeaders)[keyof typeof AgentVendHeaders];

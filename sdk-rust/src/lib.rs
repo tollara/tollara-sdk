@@ -4,12 +4,13 @@ mod headers;
 mod hmac;
 
 pub use headers::{
-    PLAN, QUOTA_REMAINING, ROLES, SIGNATURE, SUBSCRIPTION_ACTIVE, TIMESTAMP, USER_ID,
+    BILLING_MODEL, MEASUREMENT_TYPE, PLAN, QUOTA_REMAINING, ROLES, SIGNATURE, SUBSCRIPTION_ACTIVE,
+    TIMESTAMP, UNIT_LABEL, USER_ID,
 };
 pub use hmac::{
-    calculate_hmac, calculate_hmac_with_timestamp, constant_time_equals, validate_hmac_signature,
-    verify_inbound_hmac, verify_signature, verify_signature_from_headers, parse_user_context,
-    InboundHmacVerify, SignedUserContext, UserContext,
+    build_gateway_user_context_string, calculate_hmac, calculate_hmac_with_timestamp,
+    constant_time_equals, validate_hmac_signature, verify_inbound_hmac, verify_signature_from_headers,
+    parse_user_context, InboundHmacVerify, SignedUserContext, UserContext,
 };
 
 #[cfg(feature = "http")]
