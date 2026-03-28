@@ -18,8 +18,8 @@ public static class ValidationClient
         var res = await http.SendAsync(req, ct);
         if (!res.IsSuccessStatusCode) return null;
         var responseText = await res.Content.ReadAsStringAsync(ct);
-        var signature = res.Headers.TryGetValues("X-AgentVend-Signature", out var sig) ? string.Join("", sig) : null;
-        var timestamp = res.Headers.TryGetValues("X-AgentVend-Timestamp", out var ts) ? string.Join("", ts) : null;
+        var signature = res.Headers.TryGetValues(AgentVendHeaders.Signature, out var sig) ? string.Join("", sig) : null;
+        var timestamp = res.Headers.TryGetValues(AgentVendHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
         if (!Hmac.ValidateHmacSignature(signature, responseText + timestamp, agentSecret)) return null;
         var doc = JsonDocument.Parse(responseText);

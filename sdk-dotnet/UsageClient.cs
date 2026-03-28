@@ -8,6 +8,10 @@ public record UsageReportResponse(string? Status, bool IsOverLimit, long Remaini
 
 public static class UsageClient
 {
+    public static Task<bool> ReportProgressAsync(HttpClient http, string progressUrl, string requestId,
+        string stage, int percentageComplete, string agentSecret, CancellationToken ct = default) =>
+        ReportProgressAsync(http, progressUrl, requestId, stage, percentageComplete, null, agentSecret, ct);
+
     public static async Task<bool> ReportProgressAsync(HttpClient http, string progressUrl, string requestId,
         string stage, int percentageComplete, string? errorMessage, string agentSecret, CancellationToken ct = default)
     {
@@ -18,34 +22,46 @@ public static class UsageClient
         var bodyStr = JsonSerializer.Serialize(body);
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, agentSecret);
         var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
-        req.Headers.TryAddWithoutValidation("X-AgentVend-Signature", signature);
-        req.Headers.TryAddWithoutValidation("X-AgentVend-Timestamp", timestamp);
+        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
+        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Timestamp, timestamp);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
         var res = await http.SendAsync(req, ct);
         return res.IsSuccessStatusCode;
     }
 
+    public static Task<bool> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
+        CompletionStatus status, string agentSecret, CancellationToken ct = default) =>
+        ReportCompletionAsync(http, callbackUrl, requestId, status, null, null, null, 0, agentSecret, ct);
+
+    public static Task<bool> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
+        CompletionStatus status, string result, decimal units, string agentSecret, CancellationToken ct = default) =>
+        ReportCompletionAsync(http, callbackUrl, requestId, status, result, null, null, units, agentSecret, ct);
+
     public static async Task<bool> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
-        string status, string? result, string? resultUrl, string? contentType, decimal? units, string agentSecret, CancellationToken ct = default)
+        CompletionStatus status, string? result, string? resultUrl, string? contentType, decimal units, string agentSecret, CancellationToken ct = default)
     {
         var (baseUrl, timestamp) = ParseUrlParams(callbackUrl);
         if (timestamp == null) return false;
-        var body = new Dictionary<string, object> { ["status"] = status, ["timestamp"] = DateTime.UtcNow.ToString("o"), ["units"] = units ?? 0 };
+        var body = new Dictionary<string, object> { ["status"] = status.ToApiString(), ["timestamp"] = DateTime.UtcNow.ToString("o"), ["units"] = units };
         if (result != null) body["result"] = result;
         if (resultUrl != null) body["resultUrl"] = resultUrl;
         if (contentType != null) body["contentType"] = contentType;
         var bodyStr = JsonSerializer.Serialize(body);
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, agentSecret);
         var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
-        req.Headers.TryAddWithoutValidation("X-AgentVend-Signature", signature);
-        req.Headers.TryAddWithoutValidation("X-AgentVend-Timestamp", timestamp);
+        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
+        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Timestamp, timestamp);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
         var res = await http.SendAsync(req, ct);
         return res.IsSuccessStatusCode;
     }
 
+    public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
+        string userId, string agentId, decimal unitsUsed, string agentSecret, CancellationToken ct = default) =>
+        ReportUsageAsync(http, usageServiceUrl, userId, agentId, unitsUsed, agentSecret, null, ct);
+
     public static async Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
-        string userId, string agentId, decimal unitsUsed, string agentSecret, DateTime? timestamp = null, CancellationToken ct = default)
+        string userId, string agentId, decimal unitsUsed, string agentSecret, DateTime? timestamp, CancellationToken ct = default)
     {
         var ts = timestamp ?? DateTime.UtcNow;
         var tsMs = (long)(ts - DateTime.UnixEpoch).TotalMilliseconds;
@@ -55,8 +71,8 @@ public static class UsageClient
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, tsStr, agentSecret);
         var baseUrl = usageServiceUrl.TrimEnd('/');
         var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/api/usage/report");
-        req.Headers.TryAddWithoutValidation("X-AgentVend-Signature", signature);
-        req.Headers.TryAddWithoutValidation("X-AgentVend-Timestamp", tsStr);
+        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
+        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Timestamp, tsStr);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
         var res = await http.SendAsync(req, ct);
         res.EnsureSuccessStatusCode();

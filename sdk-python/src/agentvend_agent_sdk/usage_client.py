@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
+from .agentvend_headers import AgentVendHeaders
+from .completion_status import CompletionStatus
 from .hmac_utils import calculate_hmac_with_timestamp
 
 
@@ -48,30 +50,80 @@ def report_progress(
     body_str = json.dumps(body)
     signature = calculate_hmac_with_timestamp(body_str, timestamp, agent_secret)
     sess = session or __import__("requests").Session()
-    resp = sess.post(base_url, json=body, headers={"X-AgentVend-Signature": signature, "X-AgentVend-Timestamp": timestamp})
+    resp = sess.post(
+        base_url,
+        json=body,
+        headers={AgentVendHeaders.SIGNATURE: signature, AgentVendHeaders.TIMESTAMP: timestamp},
+    )
     return resp.ok
 
 
 def report_completion(
     callback_url: str,
     request_id: str,
-    status: str,
+    status: CompletionStatus,
     agent_secret: str,
+    *,
+    units: float = 0.0,
+    session: Optional["requests.Session"] = None,
+) -> bool:
+    """POST completion with status and units only."""
+    return report_completion_full(
+        callback_url,
+        request_id,
+        status,
+        agent_secret,
+        units=units,
+        session=session,
+    )
+
+
+def report_completion_with_result(
+    callback_url: str,
+    request_id: str,
+    status: CompletionStatus,
+    agent_secret: str,
+    result: str,
+    *,
+    units: float = 0.0,
+    session: Optional["requests.Session"] = None,
+) -> bool:
+    """POST completion with inline result text."""
+    return report_completion_full(
+        callback_url,
+        request_id,
+        status,
+        agent_secret,
+        result=result,
+        units=units,
+        session=session,
+    )
+
+
+def report_completion_full(
+    callback_url: str,
+    request_id: str,
+    status: CompletionStatus,
+    agent_secret: str,
+    *,
     result: Optional[str] = None,
     result_url: Optional[str] = None,
     content_type: Optional[str] = None,
-    units: Optional[float] = None,
-    *,
+    units: float = 0.0,
     session: Optional["requests.Session"] = None,
 ) -> bool:
     try:
         import requests
     except ImportError:
-        raise ImportError("report_completion requires 'requests'. pip install requests")
+        raise ImportError("report_completion_full requires 'requests'. pip install requests")
     base_url, timestamp = _parse_url_params(callback_url)
     if not timestamp:
         return False
-    body = {"status": status, "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "units": units or 0}
+    body = {
+        "status": status.api_value,
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "units": units,
+    }
     if result is not None:
         body["result"] = result
     if result_url is not None:
@@ -81,11 +133,36 @@ def report_completion(
     body_str = json.dumps(body)
     signature = calculate_hmac_with_timestamp(body_str, timestamp, agent_secret)
     sess = session or requests.Session()
-    resp = sess.post(base_url, json=body, headers={"X-AgentVend-Signature": signature, "X-AgentVend-Timestamp": timestamp})
+    resp = sess.post(
+        base_url,
+        json=body,
+        headers={AgentVendHeaders.SIGNATURE: signature, AgentVendHeaders.TIMESTAMP: timestamp},
+    )
     return resp.ok
 
 
 def report_usage(
+    usage_service_url: str,
+    user_id: str,
+    agent_id: str,
+    units_used: float,
+    agent_secret: str,
+    *,
+    session: Optional["requests.Session"] = None,
+) -> UsageReportResponse:
+    """Report usage with current time as timestamp."""
+    return report_usage_at(
+        usage_service_url,
+        user_id,
+        agent_id,
+        units_used,
+        agent_secret,
+        timestamp=None,
+        session=session,
+    )
+
+
+def report_usage_at(
     usage_service_url: str,
     user_id: str,
     agent_id: str,
@@ -107,7 +184,11 @@ def report_usage(
     signature = calculate_hmac_with_timestamp(body_str, ts_str, agent_secret)
     url = usage_service_url.rstrip("/") + "/api/usage/report"
     sess = session or requests.Session()
-    resp = sess.post(url, json=body, headers={"X-AgentVend-Signature": signature, "X-AgentVend-Timestamp": ts_str})
+    resp = sess.post(
+        url,
+        json=body,
+        headers={AgentVendHeaders.SIGNATURE: signature, AgentVendHeaders.TIMESTAMP: ts_str},
+    )
     resp.raise_for_status()
     data = resp.json()
     return UsageReportResponse(

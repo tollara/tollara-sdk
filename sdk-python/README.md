@@ -2,11 +2,22 @@
 
 **Package:** `agentvend-agent-sdk` (PyPI)
 
-Verify HMAC, validate agent keys, report usage, progress, and completion.
+Verify HMAC, validate agent keys, report usage, progress, completion, and poll async job status.
+
+## Configuration (base URLs)
+
+SDK **does not embed** production hosts. You pass:
+
+- **Core:** base URL including path prefix (e.g. `https://core.example.com/api/v1`).
+- **Usage:** `usage_service_url` for `report_usage` (uses `{url}/api/usage/report`). Adjust for ECS per [sdk-api-spec.md](../docs/sdk-api-spec.md) §3.
+- **Gateway:** `gateway_base_url` + `gateway_path_prefix` for `get_request_status` / `get_request_result`.
+- **Progress / completion:** full URLs from async responses.
+
+See [api-overview.md](../docs/api-overview.md).
 
 ## Requirements
 
-- Python 3.10 or later
+Python 3.10+
 
 ## Install
 
@@ -14,102 +25,101 @@ Verify HMAC, validate agent keys, report usage, progress, and completion.
 pip install agentvend-agent-sdk
 ```
 
-For HTTP features (validate key, report usage, progress, completion):
-
-```bash
-pip install agentvend-agent-sdk requests
-```
-
-Or install with optional dependencies in one go:
+HTTP features (validate, usage, gateway, progress):
 
 ```bash
 pip install agentvend-agent-sdk[http]
 ```
 
-## Build (from source)
+## Examples
 
-From the `sdk-python` directory:
+### Verify HMAC (backend)
 
-```bash
-# Install build dependency
-pip install build
+```python
+from agentvend_agent_sdk import (
+    AgentVendHeaders,
+    verify_signature_from_headers,
+    get_user_context,
+)
 
-# Build wheel and sdist
-python -m build
+agent_secret = "your-agent-secret"
+headers = {  # keys matched case-insensitively
+    "x-agentvend-signature": sig,
+    "x-agentvend-timestamp": ts,
+    # ...
+}
+valid = verify_signature_from_headers(agent_secret, headers, raw_body)
+if valid:
+    ctx = get_user_context(headers)
 ```
 
-Artifacts appear in `dist/`: e.g. `agentvend_agent_sdk-1.0.0-py3-none-any.whl` and `agentvend-agent-sdk-1.0.0.tar.gz`.
+### Typed inbound request
 
-To install the package from source in editable mode (for development):
+```python
+from agentvend_agent_sdk import verify_inbound_hmac, InboundHmacRequest, SignedUserContext
 
-```bash
-pip install -e .
-# With HTTP support
-pip install -e ".[http]"
+req = InboundHmacRequest(
+    signature=sig,
+    timestamp=ts,
+    payload="",
+    signed_user_context=SignedUserContext(
+        user_id="u1", plan="p1", roles=["r1"], quota_remaining=10.0
+    ),
+)
+assert verify_inbound_hmac(agent_secret, req)
 ```
 
-## Running tests
+### Validate agent key
 
-Tests use **pytest** and **responses** to mock HTTP calls to the AgentVend API (no real server required).
+```python
+from agentvend_agent_sdk import validate_agent_key
 
-### One-time setup
+result = validate_agent_key(
+    "https://core.example.com/api/v1",
+    "bearer-token",
+    "agent-secret",
+    agent_id="agent-uuid",
+)
+```
 
-Install the package with dev dependencies (includes pytest and responses):
+### Report usage, progress, completion
+
+```python
+from agentvend_agent_sdk import (
+    CompletionStatus,
+    report_usage,
+    report_usage_at,
+    report_progress,
+    report_completion_with_result,
+)
+
+report_usage("https://usage.example.com", user_id, agent_id, 1.0, agent_secret)
+report_usage_at("https://usage.example.com", user_id, agent_id, 1.0, agent_secret, timestamp=1700000000.0)
+report_progress(progress_url, request_id, "stage", 50, agent_secret)
+report_completion_with_result(
+    callback_url, request_id, CompletionStatus.COMPLETED, agent_secret, "ok", units=1.0
+)
+```
+
+### Gateway job status / result
+
+```python
+from agentvend_agent_sdk import get_request_status, get_request_result
+
+st = get_request_status(
+    "https://gateway.example.com", "/api", request_id, agent_key
+)
+res = get_request_result(
+    "https://gateway.example.com", "/gateway/api/v1", request_id, agent_key
+)
+```
+
+## Tests (from source)
 
 ```bash
 cd sdk-python
 pip install -e ".[dev,http]"
-```
-
-### Run all tests
-
-```bash
-# From sdk-python directory
 pytest
-
-# Or explicitly
-pytest tests/ -v
-
-# With coverage (optional: pip install pytest-cov)
-pytest tests/ -v --cov=agentvend_agent_sdk --cov-report=term-missing
 ```
 
-### Run a single test file
-
-```bash
-pytest tests/test_validation_client_integration.py -v
-pytest tests/test_usage_client_integration.py -v
-```
-
-### Run a single test by name
-
-```bash
-pytest tests/test_validation_client_integration.py::test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac -v
-```
-
-### Test framework overview
-
-| Tool       | Purpose |
-|-----------|---------|
-| **pytest** | Test runner; discovers `test_*.py` under `tests/` and runs functions named `test_*`. |
-| **responses** | Mocks the `requests` library so HTTP calls are intercepted and return stubbed responses. No live server needed. |
-
-Integration tests in `tests/` mock the Core and Usage APIs as described in `docs/sdk-api-spec.md` and assert that the SDK sends the correct requests and parses responses (including HMAC verification for the validation client).
-
-## Example
-
-```python
-from agentvend_agent_sdk import verify_signature, get_user_context, validate_agent_key, report_usage
-
-# Verify signature (backend)
-valid = verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining)
-ctx = get_user_context(headers)
-
-# Validate key (caller) – requires requests
-result = validate_agent_key(core_service_url, agent_key, agent_secret, agent_id=agent_id)
-
-# Report usage (backend) – requires requests
-resp = report_usage(usage_service_url, user_id, agent_id, 1.0, agent_secret)
-```
-
-See [HMAC spec](../docs/hmac-spec.md) and [API overview](../docs/api-overview.md).
+See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
