@@ -10,4 +10,7 @@ public static class AgentVendHeaders
     public const string Roles = "X-AgentVend-Roles";
     public const string QuotaRemaining = "X-AgentVend-Quota-Remaining";
     public const string SubscriptionActive = "X-AgentVend-Subscription-Active";
+    public const string BillingModel = "X-AgentVend-Billing-Model";
+    public const string MeasurementType = "X-AgentVend-Measurement-Type";
+    public const string UnitLabel = "X-AgentVend-Unit-Label";
 }

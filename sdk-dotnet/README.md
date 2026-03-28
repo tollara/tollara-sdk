@@ -41,7 +41,7 @@ var ctx = Verifier.GetUserContext(headers);
 ### Inbound DTO
 
 ```csharp
-var signed = new SignedUserContext("user1", "plan1", new[] { "r1" }, 10m);
+var signed = new SignedUserContext("user1", "plan1", new[] { "r1" }, 10m, subscriptionActive: false);
 var req = new InboundHmacRequest(sig, ts, payload, signed);
 bool ok = Verifier.VerifyInboundHmac(agentSecret, req);
 ```

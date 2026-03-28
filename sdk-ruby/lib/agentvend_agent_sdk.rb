@@ -11,7 +11,10 @@ module AgentvendAgentSdk
     plan: "X-AgentVend-Plan",
     roles: "X-AgentVend-Roles",
     quota_remaining: "X-AgentVend-Quota-Remaining",
-    subscription_active: "X-AgentVend-Subscription-Active"
+    subscription_active: "X-AgentVend-Subscription-Active",
+    billing_model: "X-AgentVend-Billing-Model",
+    measurement_type: "X-AgentVend-Measurement-Type",
+    unit_label: "X-AgentVend-Unit-Label"
   }.freeze
 
   def self.calculate_hmac(data, key)
@@ -38,18 +41,25 @@ module AgentvendAgentSdk
     s
   end
 
-  def self.verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining)
+  def self.build_gateway_user_context_string(user_id, plan, roles, quota_remaining, subscription_active, billing, measurement, unit)
+    r = roles || []
+    sub = subscription_active ? "true" : "false"
+    (user_id || "").to_s + (plan || "").to_s + r.join(",") + (quota_remaining || "").to_s + sub + (billing || "").to_s + (measurement || "").to_s + (unit || "").to_s
+  end
+
+  def self.verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining, subscription_active, billing = nil, measurement = nil, unit = nil)
     return false if signature.to_s.empty? || timestamp.to_s.empty? || agent_secret.to_s.empty?
     r = roles || []
-    user_context_string = (user_id || "").to_s + (plan || "").to_s + r.join(",") + (quota_remaining || "").to_s
+    q = format_quota_for_signing(quota_remaining)
+    user_context_string = build_gateway_user_context_string(user_id, plan, r, q, subscription_active, billing, measurement, unit)
     data_to_sign = (payload || "").to_s + timestamp.to_s + user_context_string
     expected = calculate_hmac(data_to_sign, agent_secret)
     constant_time_equals(expected, signature)
   end
 
-  # +inbound+ is a Hash with keys :signature, :timestamp, :payload, :user_id, :plan, :roles (Array), :quota_remaining (optional)
+  # +inbound+ is a Hash with keys :signature, :timestamp, :payload, :user_id, :plan, :roles, optional quota, :subscription_active, billing keys
   def self.verify_inbound_hmac(agent_secret, inbound)
-    q = format_quota_for_signing(inbound[:quota_remaining])
+    sub = inbound[:subscription_active] == true || inbound[:subscription_active].to_s == "true" || inbound[:subscription_active].to_s == "1"
     verify_signature(
       agent_secret,
       inbound[:signature],
@@ -58,7 +68,11 @@ module AgentvendAgentSdk
       inbound[:user_id],
       inbound[:plan],
       inbound[:roles] || [],
-      q
+      inbound[:quota_remaining],
+      sub,
+      inbound[:billing_model_type],
+      inbound[:measurement_type],
+      inbound[:unit_label]
     )
   end
 
@@ -77,6 +91,11 @@ module AgentvendAgentSdk
     roles_csv = header_get_ci(headers, HEADERS[:roles]).to_s
     roles = roles_csv.split(",").map(&:strip).reject(&:empty?)
     qraw = header_get_ci(headers, HEADERS[:quota_remaining])
+    sub_raw = header_get_ci(headers, HEADERS[:subscription_active])
+    sub_active = sub_raw == "true" || sub_raw == "1"
+    bm = header_get_ci(headers, HEADERS[:billing_model])
+    mt = header_get_ci(headers, HEADERS[:measurement_type])
+    ul = header_get_ci(headers, HEADERS[:unit_label])
     verify_inbound_hmac(
       agent_secret,
       signature: sig,
@@ -85,7 +104,11 @@ module AgentvendAgentSdk
       user_id: header_get_ci(headers, HEADERS[:user_id]),
       plan: header_get_ci(headers, HEADERS[:plan]),
       roles: roles,
-      quota_remaining: qraw
+      quota_remaining: qraw,
+      subscription_active: sub_active,
+      billing_model_type: bm,
+      measurement_type: mt,
+      unit_label: ul
     )
   end
 
@@ -96,12 +119,18 @@ module AgentvendAgentSdk
     quota = qraw.nil? || qraw.empty? ? nil : qraw.to_f
     sub = header_get_ci(headers, HEADERS[:subscription_active])
     sub_active = sub == "true" || sub == "1"
+    bm = header_get_ci(headers, HEADERS[:billing_model]).to_s
+    mt = header_get_ci(headers, HEADERS[:measurement_type]).to_s
+    ul = header_get_ci(headers, HEADERS[:unit_label]).to_s
     {
       user_id: header_get_ci(headers, HEADERS[:user_id]),
       plan: header_get_ci(headers, HEADERS[:plan]),
       roles: roles,
       quota_remaining: quota,
-      subscription_active: sub_active
+      subscription_active: sub_active,
+      billing_model_type: bm.empty? ? nil : bm,
+      measurement_type: mt.empty? ? nil : mt,
+      unit_label: ul.empty? ? nil : ul
     }
   end
 end

@@ -92,6 +92,9 @@ public class AgentKeyValidationClient {
                             .roles(validationResponse.getRoles() != null ? validationResponse.getRoles() : Collections.emptyList())
                             .quotaRemaining(validationResponse.getQuotaRemaining())
                             .subscriptionActive(validationResponse.isSubscriptionActive())
+                            .billingModelType(validationResponse.getBillingModelType())
+                            .measurementType(validationResponse.getMeasurementType())
+                            .unitLabel(validationResponse.getUnitLabel())
                             .build();
                     cache.put(agentKey, new CachedValidationResult(result, System.currentTimeMillis()));
                     return result;
@@ -146,6 +149,9 @@ public class AgentKeyValidationClient {
         private List<String> roles;
         private BigDecimal quotaRemaining;
         private boolean subscriptionActive;
+        private String billingModelType;
+        private String measurementType;
+        private String unitLabel;
         private long timestamp;
         private String error;
     }
@@ -161,6 +167,9 @@ public class AgentKeyValidationClient {
         private List<String> roles;
         private BigDecimal quotaRemaining;
         private boolean subscriptionActive;
+        private String billingModelType;
+        private String measurementType;
+        private String unitLabel;
     }
 
     private static class CachedValidationResult {

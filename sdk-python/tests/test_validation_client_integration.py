@@ -56,6 +56,9 @@ def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
     assert result.roles == ["user"]
     assert result.quota_remaining == 100
     assert result.subscription_active is True
+    assert result.billing_model_type is None
+    assert result.measurement_type is None
+    assert result.unit_label is None
 
 
 @responses.activate

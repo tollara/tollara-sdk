@@ -63,7 +63,11 @@ req = InboundHmacRequest(
     timestamp=ts,
     payload="",
     signed_user_context=SignedUserContext(
-        user_id="u1", plan="p1", roles=["r1"], quota_remaining=10.0
+        user_id="u1",
+        plan="p1",
+        roles=["r1"],
+        quota_remaining=10.0,
+        subscription_active=False,
     ),
 )
 assert verify_inbound_hmac(agent_secret, req)

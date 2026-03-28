@@ -7,6 +7,9 @@ export interface UserContext {
   roles: string[];
   quotaRemaining: number | null;
   subscriptionActive: boolean;
+  billingModelType: string | null;
+  measurementType: string | null;
+  unitLabel: string | null;
 }
 
 export interface VerifySignatureInput {
@@ -17,6 +20,11 @@ export interface VerifySignatureInput {
   plan: string | null;
   roles: string[];
   quotaRemaining: number | string | null;
+  /** Must match X-AgentVend-Subscription-Active for verification. */
+  subscriptionActive: boolean;
+  billingModelType?: string | null;
+  measurementType?: string | null;
+  unitLabel?: string | null;
 }
 
 /** User fields that participate in inbound HMAC userContextString (docs/hmac-spec.md). */
@@ -25,6 +33,10 @@ export interface SignedUserContext {
   plan: string | null;
   roles: string[];
   quotaRemaining: number | string | null;
+  subscriptionActive: boolean;
+  billingModelType?: string | null;
+  measurementType?: string | null;
+  unitLabel?: string | null;
 }
 
 export interface InboundHmacRequest {
@@ -48,33 +60,68 @@ function headerGet(headers: HeaderBag, canonicalName: string): string | null {
   return null;
 }
 
+function parseSubscriptionActive(raw: string | null): boolean {
+  if (raw == null || raw === '') return false;
+  const t = raw.trim();
+  return t === 'true' || t === '1';
+}
+
 /**
- * Build userContextString for HMAC (per spec: userId + plan + roles.join(',') + quotaRemaining).
+ * Gateway inbound HMAC suffix: userId + plan + rolesCsv + quota + subscriptionActive + billing + measurement + unit.
  */
-function buildUserContextString(
+export function buildGatewayUserContextString(
   userId: string | null,
   plan: string | null,
   roles: string[],
-  quotaRemaining: number | string | null
+  quotaRemaining: number | string | null,
+  subscriptionActive: boolean,
+  billingModelType: string | null,
+  measurementType: string | null,
+  unitLabel: string | null
 ): string {
   const u = userId ?? '';
   const p = plan ?? '';
   const r = roles?.length ? roles.join(',') : '';
-  const q = quotaRemaining != null ? String(quotaRemaining) : '';
-  return u + p + r + q;
+  const q = quotaRemaining != null && quotaRemaining !== '' ? String(quotaRemaining) : '';
+  const sub = subscriptionActive ? 'true' : 'false';
+  const b = billingModelType ?? '';
+  const m = measurementType ?? '';
+  const ul = unitLabel ?? '';
+  return u + p + r + q + sub + b + m + ul;
 }
 
 /**
  * Verifies HMAC on an inbound gateway request.
- * Canonical string: payload + timestamp + userContextString.
+ * Canonical string: payload + timestamp + userContextString (see docs/hmac-spec.md).
  */
 export function verifySignature(agentSecret: string, input: VerifySignatureInput): boolean {
-  const { signature, timestamp, payload, userId, plan, roles, quotaRemaining } = input;
+  const {
+    signature,
+    timestamp,
+    payload,
+    userId,
+    plan,
+    roles,
+    quotaRemaining,
+    subscriptionActive,
+    billingModelType,
+    measurementType,
+    unitLabel,
+  } = input;
   if (!signature || !timestamp || !agentSecret) return false;
   try {
     const payloadString =
       payload == null ? '' : typeof payload === 'string' ? payload : JSON.stringify(payload);
-    const userContextString = buildUserContextString(userId, plan, roles, quotaRemaining);
+    const userContextString = buildGatewayUserContextString(
+      userId,
+      plan,
+      roles ?? [],
+      quotaRemaining,
+      subscriptionActive,
+      billingModelType ?? null,
+      measurementType ?? null,
+      unitLabel ?? null
+    );
     const dataToSign = payloadString + timestamp + userContextString;
     const expectedSignature = calculateHmac(dataToSign, agentSecret);
     return constantTimeEquals(expectedSignature, signature);
@@ -96,6 +143,10 @@ export function verifyInboundHmac(agentSecret: string, request: InboundHmacReque
     plan: s.plan,
     roles: s.roles ?? [],
     quotaRemaining: s.quotaRemaining,
+    subscriptionActive: s.subscriptionActive,
+    billingModelType: s.billingModelType,
+    measurementType: s.measurementType,
+    unitLabel: s.unitLabel,
   });
 }
 
@@ -119,11 +170,20 @@ export function verifySignatureFromHeaders(
   } else {
     quotaRemaining = null;
   }
+  const subRaw = headerGet(headers, AgentVendHeaders.SUBSCRIPTION_ACTIVE);
+  const subscriptionActive = parseSubscriptionActive(subRaw);
+  const billing = headerGet(headers, AgentVendHeaders.BILLING_MODEL);
+  const measurement = headerGet(headers, AgentVendHeaders.MEASUREMENT_TYPE);
+  const unit = headerGet(headers, AgentVendHeaders.UNIT_LABEL);
   const signedUserContext: SignedUserContext = {
     userId: headerGet(headers, AgentVendHeaders.USER_ID),
     plan: headerGet(headers, AgentVendHeaders.PLAN),
     roles,
     quotaRemaining,
+    subscriptionActive,
+    billingModelType: billing && billing !== '' ? billing : null,
+    measurementType: measurement && measurement !== '' ? measurement : null,
+    unitLabel: unit && unit !== '' ? unit : null,
   };
   return verifyInboundHmac(agentSecret, {
     signature,
@@ -146,12 +206,18 @@ export function getUserContext(headers: HeaderBag): UserContext {
     if (!Number.isNaN(n)) quotaRemaining = n;
   }
   const sub = headerGet(headers, AgentVendHeaders.SUBSCRIPTION_ACTIVE);
-  const subscriptionActive = sub != null && (sub === 'true' || sub === '1');
+  const subscriptionActive = parseSubscriptionActive(sub);
+  const bm = headerGet(headers, AgentVendHeaders.BILLING_MODEL);
+  const mt = headerGet(headers, AgentVendHeaders.MEASUREMENT_TYPE);
+  const ul = headerGet(headers, AgentVendHeaders.UNIT_LABEL);
   return {
     userId: headerGet(headers, AgentVendHeaders.USER_ID),
     plan: headerGet(headers, AgentVendHeaders.PLAN),
     roles,
     quotaRemaining,
     subscriptionActive,
+    billingModelType: bm && bm !== '' ? bm : null,
+    measurementType: mt && mt !== '' ? mt : null,
+    unitLabel: ul && ul !== '' ? ul : null,
   };
 }

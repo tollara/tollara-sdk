@@ -13,6 +13,9 @@ class AgentKeyValidationResult:
     roles: List[str]
     quota_remaining: Optional[float]
     subscription_active: bool
+    billing_model_type: Optional[str]
+    measurement_type: Optional[str]
+    unit_label: Optional[str]
 
 
 def validate_agent_key(
@@ -52,4 +55,7 @@ def validate_agent_key(
         roles=roles if isinstance(roles, list) else [],
         quota_remaining=data.get("quotaRemaining"),
         subscription_active=bool(data.get("subscriptionActive")),
+        billing_model_type=data.get("billingModelType"),
+        measurement_type=data.get("measurementType"),
+        unit_label=data.get("unitLabel"),
     )

@@ -13,4 +13,7 @@ final class AgentVendHeaders
     public const ROLES = 'X-AgentVend-Roles';
     public const QUOTA_REMAINING = 'X-AgentVend-Quota-Remaining';
     public const SUBSCRIPTION_ACTIVE = 'X-AgentVend-Subscription-Active';
+    public const BILLING_MODEL = 'X-AgentVend-Billing-Model';
+    public const MEASUREMENT_TYPE = 'X-AgentVend-Measurement-Type';
+    public const UNIT_LABEL = 'X-AgentVend-Unit-Label';
 }

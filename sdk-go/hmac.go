@@ -45,17 +45,42 @@ type UserContext struct {
 	Roles              []string `json:"roles"`
 	QuotaRemaining     *float64 `json:"quotaRemaining"`
 	SubscriptionActive bool     `json:"subscriptionActive"`
+	BillingModelType   string   `json:"billingModelType,omitempty"`
+	MeasurementType    string   `json:"measurementType,omitempty"`
+	UnitLabel          string   `json:"unitLabel,omitempty"`
 }
 
 // InboundHmacRequest carries material to verify gateway-signed requests.
 type InboundHmacRequest struct {
-	Signature      string
-	Timestamp      string
-	Payload        string
-	UserID         string
-	Plan           string
-	Roles          []string
-	QuotaRemaining string
+	Signature            string
+	Timestamp            string
+	Payload              string
+	UserID               string
+	Plan                 string
+	Roles                []string
+	QuotaRemaining       string
+	SubscriptionActive   bool
+	BillingModelType     string
+	MeasurementType      string
+	UnitLabel            string
+}
+
+// BuildGatewayUserContextString builds the HMAC suffix after payload+timestamp.
+func BuildGatewayUserContextString(userID, plan string, roles []string, quotaRemaining string, subscriptionActive bool, billing, measurement, unit string) string {
+	var sb strings.Builder
+	sb.WriteString(userID)
+	sb.WriteString(plan)
+	sb.WriteString(strings.Join(roles, ","))
+	sb.WriteString(quotaRemaining)
+	if subscriptionActive {
+		sb.WriteString("true")
+	} else {
+		sb.WriteString("false")
+	}
+	sb.WriteString(billing)
+	sb.WriteString(measurement)
+	sb.WriteString(unit)
+	return sb.String()
 }
 
 // VerifyInboundHMAC verifies using a single request struct (preferred).
@@ -63,7 +88,7 @@ func VerifyInboundHMAC(agentSecret string, req *InboundHmacRequest) bool {
 	if req == nil {
 		return false
 	}
-	return VerifySignature(agentSecret, req.Signature, req.Timestamp, req.Payload, req.UserID, req.Plan, req.Roles, req.QuotaRemaining)
+	return VerifySignature(agentSecret, req.Signature, req.Timestamp, req.Payload, req.UserID, req.Plan, req.Roles, req.QuotaRemaining, req.SubscriptionActive, req.BillingModelType, req.MeasurementType, req.UnitLabel)
 }
 
 // VerifyInboundHMACFromHeaders uses net/http Header (case-insensitive lookup).
@@ -71,14 +96,23 @@ func VerifyInboundHMACFromHeaders(agentSecret string, h http.Header, payload str
 	if h == nil {
 		return false
 	}
+	sub := h.Get(HeaderSubscriptionActive)
+	subActive := sub == "true" || sub == "1"
+	bm := h.Get(HeaderBillingModel)
+	mt := h.Get(HeaderMeasurementType)
+	ul := h.Get(HeaderUnitLabel)
 	req := &InboundHmacRequest{
-		Signature:      h.Get(HeaderSignature),
-		Timestamp:      h.Get(HeaderTimestamp),
-		Payload:        payload,
-		UserID:         h.Get(HeaderUserID),
-		Plan:           h.Get(HeaderPlan),
-		Roles:          splitRolesCSV(h.Get(HeaderRoles)),
-		QuotaRemaining: formatQuotaForSigning(h.Get(HeaderQuotaRemaining)),
+		Signature:          h.Get(HeaderSignature),
+		Timestamp:          h.Get(HeaderTimestamp),
+		Payload:            payload,
+		UserID:             h.Get(HeaderUserID),
+		Plan:               h.Get(HeaderPlan),
+		Roles:              splitRolesCSV(h.Get(HeaderRoles)),
+		QuotaRemaining:     formatQuotaForSigning(h.Get(HeaderQuotaRemaining)),
+		SubscriptionActive:   subActive,
+		BillingModelType:   bm,
+		MeasurementType:    mt,
+		UnitLabel:          ul,
 	}
 	return VerifyInboundHMAC(agentSecret, req)
 }
@@ -111,11 +145,11 @@ func splitRolesCSV(csv string) []string {
 }
 
 // VerifySignature validates inbound gateway request HMAC.
-func VerifySignature(agentSecret, signature, timestamp, payload string, userID, plan string, roles []string, quotaRemaining string) bool {
+func VerifySignature(agentSecret, signature, timestamp, payload string, userID, plan string, roles []string, quotaRemaining string, subscriptionActive bool, billing, measurement, unit string) bool {
 	if signature == "" || timestamp == "" || agentSecret == "" {
 		return false
 	}
-	userContextString := userID + plan + strings.Join(roles, ",") + quotaRemaining
+	userContextString := BuildGatewayUserContextString(userID, plan, roles, quotaRemaining, subscriptionActive, billing, measurement, unit)
 	dataToSign := payload + timestamp + userContextString
 	expected := CalculateHmac(dataToSign, agentSecret)
 	return ConstantTimeEquals(expected, signature)
@@ -165,5 +199,8 @@ func UserContextFromHeaders(h http.Header) UserContext {
 		Roles:              splitRolesCSV(h.Get(HeaderRoles)),
 		QuotaRemaining:     q,
 		SubscriptionActive: sub == "true" || sub == "1",
+		BillingModelType:   h.Get(HeaderBillingModel),
+		MeasurementType:    h.Get(HeaderMeasurementType),
+		UnitLabel:          h.Get(HeaderUnitLabel),
 	}
 }

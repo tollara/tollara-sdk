@@ -5,6 +5,7 @@ export {
   verifyInboundHmac,
   verifySignatureFromHeaders,
   getUserContext,
+  buildGatewayUserContextString,
   type UserContext,
   type VerifySignatureInput,
   type SignedUserContext,

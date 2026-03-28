@@ -10,14 +10,17 @@ from agentvend_agent_sdk import (
     verify_signature,
     verify_signature_from_headers,
 )
+from agentvend_agent_sdk.verifier import build_gateway_user_context_string
 
 
-def test_verify_inbound_hmac_hmac_spec_vector():
+def test_verify_inbound_hmac_extended_vector():
     secret = "my-agent-secret"
     payload = ""
     timestamp = "1700000000"
-    user_context_string = "user1plan1role1,role210"
-    data_to_sign = payload + timestamp + user_context_string
+    ucs = build_gateway_user_context_string(
+        "user1", "plan1", ["role1", "role2"], 10.0, False, None, None, None
+    )
+    data_to_sign = payload + timestamp + ucs
     signature = calculate_hmac(data_to_sign, secret)
     req = InboundHmacRequest(
         signature=signature,
@@ -28,6 +31,7 @@ def test_verify_inbound_hmac_hmac_spec_vector():
             plan="plan1",
             roles=["role1", "role2"],
             quota_remaining=10.0,
+            subscription_active=False,
         ),
     )
     assert verify_inbound_hmac(secret, req) is True
@@ -37,9 +41,10 @@ def test_verify_signature_from_headers_lowercase_keys():
     secret = "my-agent-secret"
     payload = ""
     timestamp = "1700000000"
-    user_context_string = "user1plan1role1,role210"
-    data_to_sign = payload + timestamp + user_context_string
-    signature = calculate_hmac(data_to_sign, secret)
+    ucs = build_gateway_user_context_string(
+        "user1", "plan1", ["role1", "role2"], 10.0, False, None, None, None
+    )
+    signature = calculate_hmac(payload + timestamp + ucs, secret)
     headers = {
         "x-agentvend-signature": signature,
         "x-agentvend-timestamp": timestamp,
@@ -47,8 +52,67 @@ def test_verify_signature_from_headers_lowercase_keys():
         "x-agentvend-plan": "plan1",
         "x-agentvend-roles": "role1,role2",
         "x-agentvend-quota-remaining": "10",
+        "x-agentvend-subscription-active": "false",
     }
     assert verify_signature_from_headers(secret, headers, payload) is True
+
+
+def test_owner_like_gateway_vector():
+    secret = "test-agent-secret"
+    payload = '{"hello":1}'
+    ts = "1700000000"
+    ucs = build_gateway_user_context_string(
+        "user-1", "owner", [], 9223372036854775807, True, None, None, None
+    )
+    sig = calculate_hmac(payload + ts + ucs, secret)
+    assert (
+        verify_signature(
+            secret,
+            sig,
+            ts,
+            payload,
+            "user-1",
+            "owner",
+            [],
+            9223372036854775807,
+            True,
+        )
+        is True
+    )
+
+
+def test_subscriber_with_billing_headers():
+    secret = "test-agent-secret"
+    payload = ""
+    ts = "1710000000"
+    ucs = build_gateway_user_context_string(
+        "sub-user",
+        "basic",
+        ["roleA", "roleB"],
+        50.0,
+        True,
+        "SUBSCRIPTION",
+        "PER_REQUEST",
+        "request",
+    )
+    sig = calculate_hmac(payload + ts + ucs, secret)
+    assert (
+        verify_signature(
+            secret,
+            sig,
+            ts,
+            payload,
+            "sub-user",
+            "basic",
+            ["roleA", "roleB"],
+            50.0,
+            True,
+            "SUBSCRIPTION",
+            "PER_REQUEST",
+            "request",
+        )
+        is True
+    )
 
 
 def test_get_user_context_case_insensitive():
@@ -56,15 +120,25 @@ def test_get_user_context_case_insensitive():
         {
             "x-agentvend-user-id": "u1",
             AgentVendHeaders.SUBSCRIPTION_ACTIVE: "true",
+            AgentVendHeaders.BILLING_MODEL: "SUBSCRIPTION",
         }
     )
     assert ctx.user_id == "u1"
     assert ctx.subscription_active is True
+    assert ctx.billing_model_type == "SUBSCRIPTION"
 
 
-def test_legacy_verify_signature_still_works():
+def test_verify_signature_extended_explicit():
     secret = "my-agent-secret"
     payload = ""
     timestamp = "1700000000"
-    sig = calculate_hmac(payload + timestamp + "user1plan1role1,role210", secret)
-    assert verify_signature(secret, sig, timestamp, payload, "user1", "plan1", ["role1", "role2"], 10.0) is True
+    ucs = build_gateway_user_context_string(
+        "user1", "plan1", ["role1", "role2"], 10.0, False, None, None, None
+    )
+    sig = calculate_hmac(payload + timestamp + ucs, secret)
+    assert (
+        verify_signature(
+            secret, sig, timestamp, payload, "user1", "plan1", ["role1", "role2"], 10.0, False
+        )
+        is True
+    )

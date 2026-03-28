@@ -3,7 +3,7 @@
  * Use with your HTTP server: call verifyRequest, then your logic, then reportUsageIfNeeded.
  */
 
-import { verifySignature, getUserContext, reportUsage } from '@agentvend/agent-sdk';
+import { verifySignatureFromHeaders, getUserContext, reportUsage } from '@agentvend/agent-sdk';
 import type { PluginConfig } from './types';
 
 export interface IncomingRequest {
@@ -25,33 +25,14 @@ export function verifyRequest(
   if (!secret) {
     return { verified: false, error: 'agentSecret not configured' };
   }
-  const get = (name: string) => {
-    const v = req.headers[name.toLowerCase()] ?? req.headers[name];
-    return Array.isArray(v) ? v[0] : v;
-  };
-  const signature = get('x-agentvend-signature') ?? '';
-  const timestamp = get('x-agentvend-timestamp') ?? '';
   const payload =
     typeof req.body === 'string' ? req.body : req.body != null ? JSON.stringify(req.body) : '';
-  const valid = verifySignature(secret, {
-    signature,
-    timestamp,
-    payload,
-    userId: get('x-agentvend-user-id') ?? null,
-    plan: get('x-agentvend-plan') ?? null,
-    roles: (get('x-agentvend-roles') ?? '').split(',').filter(Boolean),
-    quotaRemaining: get('x-agentvend-quota-remaining') ?? null,
-  });
+  const headerBag: Record<string, string | string[] | undefined> = { ...req.headers };
+  const valid = verifySignatureFromHeaders(secret, headerBag, payload);
   if (!valid) {
     return { verified: false, error: 'Invalid HMAC signature' };
   }
-  const userContext = getUserContext({
-    'X-AgentVend-User-ID': get('x-agentvend-user-id'),
-    'X-AgentVend-Plan': get('x-agentvend-plan'),
-    'X-AgentVend-Roles': get('x-agentvend-roles'),
-    'X-AgentVend-Quota-Remaining': get('x-agentvend-quota-remaining'),
-    'X-AgentVend-Subscription-Active': get('x-agentvend-subscription-active'),
-  });
+  const userContext = getUserContext(headerBag);
   return { verified: true, userContext };
 }
 

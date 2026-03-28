@@ -31,7 +31,7 @@ For API and HMAC details, see [docs/](docs/).
 
 ## Versioning
 
-SDK versions are aligned with the platform where possible; see root or per-SDK README for "SDK vX.Y ↔ Platform API vX.Y".
+See [CHANGELOG.md](CHANGELOG.md). Pre-release development uses **1.0.0**; gateway inbound HMAC uses the extended `userContextString` in [docs/hmac-spec.md](docs/hmac-spec.md).
 
 ## Build and test (per folder)
 

@@ -5,16 +5,17 @@ namespace AgentVend.AgentSdk.Tests;
 public class VerifierTests
 {
     private const string Secret = "my-agent-secret";
+    private const string SecretOwner = "test-agent-secret";
 
     [Fact]
-    public void VerifyInboundHmac_AcceptsHmacSpecVector()
+    public void VerifyInboundHmac_AcceptsExtendedVector()
     {
         var payload = "";
         var timestamp = "1700000000";
-        var userContextString = "user1plan1role1,role210";
-        var dataToSign = payload + timestamp + userContextString;
+        var ucs = Verifier.BuildGatewayUserContextString("user1", "plan1", new[] { "role1", "role2" }, 10m, false, null, null, null);
+        var dataToSign = payload + timestamp + ucs;
         var signature = Hmac.CalculateHmac(dataToSign, Secret);
-        var signed = new SignedUserContext("user1", "plan1", new[] { "role1", "role2" }, 10m);
+        var signed = new SignedUserContext("user1", "plan1", new[] { "role1", "role2" }, 10m, false);
         var req = new InboundHmacRequest(signature, timestamp, payload, signed);
         Assert.True(Verifier.VerifyInboundHmac(Secret, req));
     }
@@ -24,8 +25,8 @@ public class VerifierTests
     {
         var payload = "";
         var timestamp = "1700000000";
-        var dataToSign = payload + timestamp + "user1plan1role1,role210";
-        var signature = Hmac.CalculateHmac(dataToSign, Secret);
+        var ucs = Verifier.BuildGatewayUserContextString("user1", "plan1", new[] { "role1", "role2" }, 10m, false, null, null, null);
+        var signature = Hmac.CalculateHmac(payload + timestamp + ucs, Secret);
         var headers = new Dictionary<string, string?>
         {
             ["x-agentvend-signature"] = signature,
@@ -34,8 +35,32 @@ public class VerifierTests
             ["x-agentvend-plan"] = "plan1",
             ["x-agentvend-roles"] = "role1,role2",
             ["x-agentvend-quota-remaining"] = "10",
+            ["x-agentvend-subscription-active"] = "false",
         };
         Assert.True(Verifier.VerifySignatureFromHeaders(Secret, headers, payload));
+    }
+
+    [Fact]
+    public void OwnerLikeContext_MatchesGateway()
+    {
+        var payload = "{\"hello\":1}";
+        var ts = "1700000000";
+        var quota = 9223372036854775807m;
+        var ucs = Verifier.BuildGatewayUserContextString("user-1", "owner", Array.Empty<string>(), quota, true, null, null, null);
+        var sig = Hmac.CalculateHmac(payload + ts + ucs, SecretOwner);
+        Assert.True(Verifier.VerifySignature(SecretOwner, sig, ts, payload, "user-1", "owner", Array.Empty<string>(), quota, true));
+    }
+
+    [Fact]
+    public void SubscriberWithBilling_MatchesGateway()
+    {
+        var payload = "";
+        var ts = "1710000000";
+        var ucs = Verifier.BuildGatewayUserContextString(
+            "sub-user", "basic", new[] { "roleA", "roleB" }, 50m, true, "SUBSCRIPTION", "PER_REQUEST", "request");
+        var sig = Hmac.CalculateHmac(payload + ts + ucs, SecretOwner);
+        Assert.True(Verifier.VerifySignature(SecretOwner, sig, ts, payload, "sub-user", "basic",
+            new[] { "roleA", "roleB" }, 50m, true, "SUBSCRIPTION", "PER_REQUEST", "request"));
     }
 
     [Fact]
@@ -45,9 +70,11 @@ public class VerifierTests
         {
             ["x-agentvend-user-id"] = "u1",
             ["x-agentvend-subscription-active"] = "true",
+            ["x-agentvend-billing-model"] = "USAGE_POSTPAID",
         };
         var ctx = Verifier.GetUserContext(headers);
         Assert.Equal("u1", ctx.UserId);
         Assert.True(ctx.SubscriptionActive);
+        Assert.Equal("USAGE_POSTPAID", ctx.BillingModelType);
     }
 }
