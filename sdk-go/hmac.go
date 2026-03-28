@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -46,6 +47,69 @@ type UserContext struct {
 	SubscriptionActive bool     `json:"subscriptionActive"`
 }
 
+// InboundHmacRequest carries material to verify gateway-signed requests.
+type InboundHmacRequest struct {
+	Signature      string
+	Timestamp      string
+	Payload        string
+	UserID         string
+	Plan           string
+	Roles          []string
+	QuotaRemaining string
+}
+
+// VerifyInboundHMAC verifies using a single request struct (preferred).
+func VerifyInboundHMAC(agentSecret string, req *InboundHmacRequest) bool {
+	if req == nil {
+		return false
+	}
+	return VerifySignature(agentSecret, req.Signature, req.Timestamp, req.Payload, req.UserID, req.Plan, req.Roles, req.QuotaRemaining)
+}
+
+// VerifyInboundHMACFromHeaders uses net/http Header (case-insensitive lookup).
+func VerifyInboundHMACFromHeaders(agentSecret string, h http.Header, payload string) bool {
+	if h == nil {
+		return false
+	}
+	req := &InboundHmacRequest{
+		Signature:      h.Get(HeaderSignature),
+		Timestamp:      h.Get(HeaderTimestamp),
+		Payload:        payload,
+		UserID:         h.Get(HeaderUserID),
+		Plan:           h.Get(HeaderPlan),
+		Roles:          splitRolesCSV(h.Get(HeaderRoles)),
+		QuotaRemaining: formatQuotaForSigning(h.Get(HeaderQuotaRemaining)),
+	}
+	return VerifyInboundHMAC(agentSecret, req)
+}
+
+func formatQuotaForSigning(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	v, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil {
+		return raw
+	}
+	if v == float64(int64(v)) {
+		return strconv.FormatInt(int64(v), 10)
+	}
+	return strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+func splitRolesCSV(csv string) []string {
+	if csv == "" {
+		return nil
+	}
+	var out []string
+	for _, s := range strings.Split(csv, ",") {
+		if t := strings.TrimSpace(s); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // VerifySignature validates inbound gateway request HMAC.
 func VerifySignature(agentSecret, signature, timestamp, payload string, userID, plan string, roles []string, quotaRemaining string) bool {
 	if signature == "" || timestamp == "" || agentSecret == "" {
@@ -57,7 +121,7 @@ func VerifySignature(agentSecret, signature, timestamp, payload string, userID, 
 	return ConstantTimeEquals(expected, signature)
 }
 
-// GetUserContext parses headers into UserContext (caller should pass header map).
+// GetUserContext parses individual header values (legacy helper).
 func GetUserContext(userID, plan, rolesCsv, quotaRemaining, subscriptionActive string) UserContext {
 	var roles []string
 	if rolesCsv != "" {
@@ -79,5 +143,27 @@ func GetUserContext(userID, plan, rolesCsv, quotaRemaining, subscriptionActive s
 		Roles:              roles,
 		QuotaRemaining:     q,
 		SubscriptionActive: subscriptionActive == "true" || subscriptionActive == "1",
+	}
+}
+
+// UserContextFromHeaders parses full user context from http.Header.
+func UserContextFromHeaders(h http.Header) UserContext {
+	if h == nil {
+		return UserContext{}
+	}
+	qstr := h.Get(HeaderQuotaRemaining)
+	var q *float64
+	if qstr != "" {
+		if v, err := strconv.ParseFloat(qstr, 64); err == nil {
+			q = &v
+		}
+	}
+	sub := h.Get(HeaderSubscriptionActive)
+	return UserContext{
+		UserID:             h.Get(HeaderUserID),
+		Plan:               h.Get(HeaderPlan),
+		Roles:              splitRolesCSV(h.Get(HeaderRoles)),
+		QuotaRemaining:     q,
+		SubscriptionActive: sub == "true" || sub == "1",
 	}
 }

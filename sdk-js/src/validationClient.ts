@@ -1,3 +1,4 @@
+import { AgentVendHeaders } from './agentVendHeaders';
 import { calculateHmac, constantTimeEquals } from './hmac';
 
 export interface AgentKeyValidationResult {
@@ -49,8 +50,8 @@ export async function validateAgentKey(
   if (!res.ok) return null;
 
   const responseText = await res.text();
-  const signature = res.headers.get('X-AgentVend-Signature');
-  const timestamp = res.headers.get('X-AgentVend-Timestamp');
+  const signature = res.headers.get(AgentVendHeaders.SIGNATURE);
+  const timestamp = res.headers.get(AgentVendHeaders.TIMESTAMP);
   if (!signature || !timestamp) return null;
 
   const dataToVerify = responseText + timestamp;

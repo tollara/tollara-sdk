@@ -1,3 +1,5 @@
+import { AgentVendHeaders } from './agentVendHeaders';
+import { CompletionStatus } from './completionStatus';
 import { calculateHmacWithTimestamp } from './hmac';
 
 function parseUrlParams(url: string): { baseUrl: string; signature: string | null; timestamp: string | null } {
@@ -14,20 +16,21 @@ function parseUrlParams(url: string): { baseUrl: string; signature: string | nul
   return { baseUrl, signature, timestamp };
 }
 
+export type ReportProgressParams = {
+  progressUrl: string;
+  requestId: string;
+  stage: string;
+  percentageComplete: number;
+  /** Omit or leave unset when there is no error (avoids passing null). */
+  errorMessage?: string | null;
+  agentSecret: string;
+  fetch?: typeof globalThis.fetch;
+};
+
 /**
- * POST to progressUrl with signed body (stage, percentageComplete, errorMessage?, timestamp).
+ * POST to progressUrl with signed body (optional errorMessage).
  */
-export async function reportProgress(
-  params: {
-    progressUrl: string;
-    requestId: string;
-    stage: string;
-    percentageComplete: number;
-    errorMessage?: string | null;
-    agentSecret: string;
-    fetch?: typeof globalThis.fetch;
-  }
-): Promise<boolean> {
+export async function reportProgress(params: ReportProgressParams): Promise<boolean> {
   const { progressUrl, requestId, stage, percentageComplete, errorMessage, agentSecret, fetch: fetchFn = fetch } = params;
   const { baseUrl, timestamp } = parseUrlParams(progressUrl);
   if (!timestamp) return false;
@@ -47,8 +50,8 @@ export async function reportProgress(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-AgentVend-Signature': signature,
-        'X-AgentVend-Timestamp': timestamp,
+        [AgentVendHeaders.SIGNATURE]: signature,
+        [AgentVendHeaders.TIMESTAMP]: timestamp,
       },
       body: bodyString,
     });
@@ -58,28 +61,48 @@ export async function reportProgress(
   }
 }
 
+export type ReportCompletionParams = {
+  callbackUrl: string;
+  requestId: string;
+  status: CompletionStatus;
+  result?: string | null;
+  resultUrl?: string | null;
+  contentType?: string | null;
+  units?: number | null;
+  agentSecret: string;
+  fetch?: typeof globalThis.fetch;
+};
+
 /**
- * POST to callbackUrl with signed body (status, result?, resultUrl?, contentType?, units?, timestamp).
+ * POST completion with status and optional units (defaults to 0).
  */
 export async function reportCompletion(
-  params: {
-    callbackUrl: string;
-    requestId: string;
-    status: string;
-    result?: string | null;
-    resultUrl?: string | null;
-    contentType?: string | null;
+  params: Pick<ReportCompletionParams, 'callbackUrl' | 'requestId' | 'status' | 'agentSecret' | 'fetch'> & {
     units?: number | null;
-    agentSecret: string;
-    fetch?: typeof globalThis.fetch;
   }
 ): Promise<boolean> {
+  return reportCompletionFull({ ...params, units: params.units ?? 0 });
+}
+
+/**
+ * POST completion with inline result text.
+ */
+export async function reportCompletionWithResult(
+  params: Pick<ReportCompletionParams, 'callbackUrl' | 'requestId' | 'status' | 'result' | 'units' | 'agentSecret' | 'fetch'>
+): Promise<boolean> {
+  return reportCompletionFull({ ...params, units: params.units ?? 0 });
+}
+
+/**
+ * POST to callbackUrl with signed body (all optional fields).
+ */
+export async function reportCompletionFull(params: ReportCompletionParams): Promise<boolean> {
   const { callbackUrl, status, result, resultUrl, contentType, units, agentSecret, fetch: fetchFn = fetch } = params;
   const { baseUrl, timestamp } = parseUrlParams(callbackUrl);
   if (!timestamp) return false;
 
   const body: Record<string, unknown> = {
-    status,
+    status: status as string,
     timestamp: new Date().toISOString(),
     units: units ?? 0,
   };
@@ -95,8 +118,8 @@ export async function reportCompletion(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-AgentVend-Signature': signature,
-        'X-AgentVend-Timestamp': timestamp,
+        [AgentVendHeaders.SIGNATURE]: signature,
+        [AgentVendHeaders.TIMESTAMP]: timestamp,
       },
       body: bodyString,
     });
@@ -147,8 +170,8 @@ export async function reportUsage(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-AgentVend-Signature': signature,
-      'X-AgentVend-Timestamp': timestampStr,
+      [AgentVendHeaders.SIGNATURE]: signature,
+      [AgentVendHeaders.TIMESTAMP]: timestampStr,
     },
     body: bodyString,
   });

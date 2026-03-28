@@ -7,10 +7,13 @@ import json
 import pytest
 import responses
 
+from agentvend_agent_sdk.completion_status import CompletionStatus
 from agentvend_agent_sdk.usage_client import (
-    report_usage,
-    report_progress,
     report_completion,
+    report_completion_with_result,
+    report_progress,
+    report_usage,
+    report_usage_at,
     UsageReportResponse,
 )
 
@@ -32,7 +35,7 @@ def test_report_usage_sends_signed_request_and_returns_response():
         status=200,
     )
 
-    result = report_usage(
+    result = report_usage_at(
         USAGE_BASE, "user-1", "agent-1", 1.0, AGENT_SECRET, timestamp=1700000000.0
     )
 
@@ -106,12 +109,12 @@ def test_report_completion_posts_to_callback_url_with_signature():
         status=200,
     )
 
-    ok = report_completion(
+    ok = report_completion_with_result(
         callback_url,
         "req-456",
-        "COMPLETED",
+        CompletionStatus.COMPLETED,
         AGENT_SECRET,
-        result="done",
+        "done",
         units=1.0,
     )
 
@@ -136,5 +139,7 @@ def test_report_progress_returns_false_when_url_missing_timestamp():
 def test_report_completion_returns_false_when_url_missing_timestamp():
     """report_completion returns False when the URL has no timestamp query param."""
     callback_url = f"{USAGE_BASE}/api/usage/complete/req-1"
-    ok = report_completion(callback_url, "req-1", "FAILED", AGENT_SECRET)
+    ok = report_completion(
+        callback_url, "req-1", CompletionStatus.FAILED, AGENT_SECRET
+    )
     assert ok is False

@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { reportCompletion } from '@agentvend/agent-sdk';
+import { CompletionStatus, reportCompletionFull } from '@agentvend/agent-sdk';
 
 export class AgentvendComplete implements INodeType {
   description: INodeTypeDescription = {
@@ -35,10 +35,11 @@ export class AgentvendComplete implements INodeType {
     const contentType = this.getNodeParameter('contentType', 0, '') as string;
     const units = this.getNodeParameter('units', 0, 0) as number;
 
-    const ok = await reportCompletion({
+    const statusEnum = status === 'FAILED' ? CompletionStatus.Failed : CompletionStatus.Completed;
+    const ok = await reportCompletionFull({
       callbackUrl,
       requestId,
-      status,
+      status: statusEnum,
       result: result || undefined,
       resultUrl: resultUrl || undefined,
       contentType: contentType || undefined,

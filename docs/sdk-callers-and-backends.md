@@ -11,6 +11,8 @@ This document explains **how the AgentVend SDK is used** in the two main integra
 
 There is **no other doc** in this folder dedicated solely to caller vs backend *usage*; those files focus on API contracts and repository layout.
 
+**Base URLs:** SDKs do not embed production hostnames. Callers and backends configure Gateway, Core, and Usage base URLs (and path prefixes per deployment). Async flows should use the full `progressUrl` / `callbackUrl` values returned by the platform. See [api-overview.md](./api-overview.md) and [sdk-api-spec.md](./sdk-api-spec.md).
+
 ---
 
 ## 1. Two roles in one platform

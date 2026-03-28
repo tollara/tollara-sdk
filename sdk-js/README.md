@@ -2,7 +2,18 @@
 
 **Package:** `@agentvend/agent-sdk`
 
-Verify HMAC, validate agent keys, report usage, and send progress/completion for AgentVend.
+Verify HMAC, validate agent keys, report usage, progress, completion, and poll async job status on the gateway.
+
+## Configuration (base URLs)
+
+The SDK **never hardcodes** production URLs. You pass:
+
+- **Core:** `coreServiceUrl` (e.g. `https://core.example.com/api/v1`) for validate.
+- **Usage:** `usageServiceUrl` for `reportUsage` (appends `/api/usage/report`). Match your deployment to [sdk-api-spec.md](../docs/sdk-api-spec.md) §3 (default vs ECS prefixes).
+- **Gateway:** `gatewayBaseUrl` + `gatewayPathPrefix` for `getRequestStatus` / `getRequestResult` (`/api` vs `/gateway/api/v1`).
+- **Progress / completion:** full `progressUrl` and `callbackUrl` strings from the async invoke response.
+
+See [api-overview.md](../docs/api-overview.md).
 
 ## Install
 
@@ -10,35 +21,26 @@ Verify HMAC, validate agent keys, report usage, and send progress/completion for
 npm install @agentvend/agent-sdk
 ```
 
-## API
+## API highlights
 
-- **verifySignature(agentSecret, input)** — Validates HMAC on an inbound gateway request (payload + timestamp + userContextString).
-- **getUserContext(headers)** — Parses `X-AgentVend-*` headers into `UserContext`.
-- **validateAgentKey(params)** — Calls core-service `/agent-keys/validate`, verifies response HMAC, returns user/plan/quota or null.
-- **reportProgress(params)** — POST to progress URL with signed body.
-- **reportCompletion(params)** — POST to callback URL with signed body.
-- **reportUsage(params)** — POST to usage service report endpoint with signed body.
+- `AgentVendHeaders` — canonical `X-AgentVend-*` names.
+- `verifyInboundHmac(agentSecret, InboundHmacRequest)` / `verifySignatureFromHeaders(agentSecret, headers, payload)` — inbound gateway HMAC.
+- `getUserContext(headers)` — parses headers (case-insensitive keys).
+- `validateAgentKey({ coreServiceUrl, agentKey, agentId, agentSecret })`
+- `reportUsage`, `reportProgress`, `reportCompletion`
+- `getRequestStatus`, `getRequestResult` — gateway polling.
 
-## Minimal example
+## Examples
 
-### Verify HMAC and get user context (backend)
+### Verify HMAC (backend)
 
 ```ts
-import { verifySignature, getUserContext } from '@agentvend/agent-sdk';
+import { verifySignatureFromHeaders, getUserContext, AgentVendHeaders } from '@agentvend/agent-sdk';
 
 const agentSecret = 'your-agent-secret';
-const valid = verifySignature(agentSecret, {
-  signature: req.headers['x-agentvend-signature'],
-  timestamp: req.headers['x-agentvend-timestamp'],
-  payload: req.body,
-  userId: req.headers['x-agentvend-user-id'],
-  plan: req.headers['x-agentvend-plan'],
-  roles: (req.headers['x-agentvend-roles'] || '').split(','),
-  quotaRemaining: req.headers['x-agentvend-quota-remaining'],
-});
+const valid = verifySignatureFromHeaders(agentSecret, req.headers, rawBodyString);
 if (valid) {
   const ctx = getUserContext(req.headers);
-  console.log(ctx.userId, ctx.plan);
 }
 ```
 
@@ -53,10 +55,9 @@ const result = await validateAgentKey({
   agentId: 'agent-id',
   agentSecret: 'agent-secret',
 });
-if (result) console.log(result.userId, result.quotaRemaining);
 ```
 
-### Report usage (backend)
+### Report usage
 
 ```ts
 import { reportUsage } from '@agentvend/agent-sdk';
@@ -70,7 +71,46 @@ await reportUsage({
 });
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [API overview](../docs/api-overview.md) in the repo `docs/`.
+### Progress and completion (async)
+
+```ts
+import { CompletionStatus, reportProgress, reportCompletionWithResult } from '@agentvend/agent-sdk';
+
+await reportProgress({
+  progressUrl,
+  requestId,
+  stage: 'processing',
+  percentageComplete: 50,
+  agentSecret,
+});
+await reportCompletionWithResult({
+  callbackUrl,
+  requestId,
+  status: CompletionStatus.Completed,
+  result: 'done',
+  agentSecret,
+  units: 1,
+});
+```
+
+### Job status / result (caller)
+
+```ts
+import { getRequestStatus, getRequestResult } from '@agentvend/agent-sdk';
+
+const st = await getRequestStatus({
+  gatewayBaseUrl: 'https://gateway.example.com',
+  gatewayPathPrefix: '/api',
+  requestId,
+  agentKey,
+});
+const res = await getRequestResult({
+  gatewayBaseUrl: 'https://gateway.example.com',
+  gatewayPathPrefix: '/api',
+  requestId,
+  agentKey,
+});
+```
 
 ## Build & test
 
@@ -79,3 +119,5 @@ npm ci
 npm run build
 npm test
 ```
+
+See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).

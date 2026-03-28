@@ -1,8 +1,26 @@
 //! Client for the Usage API: report usage, progress, completion (see docs/sdk-api-spec.md §3).
 
+use crate::headers;
 use crate::hmac::calculate_hmac_with_timestamp;
 use serde::Deserialize;
 use serde::Serialize;
+
+/// Completion status for async completion POST (sdk-api-spec §3.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompletionStatus {
+    Completed,
+    Failed,
+}
+
+impl CompletionStatus {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Completed => "COMPLETED",
+            Self::Failed => "FAILED",
+        }
+    }
+}
 
 /// Response from the report-usage endpoint.
 #[derive(Debug, Clone)]
@@ -38,8 +56,20 @@ fn parse_timestamp_from_url(url: &str) -> (String, Option<String>) {
     (base, None)
 }
 
-/// Reports usage to the usage service. Returns error on non-2xx or parse failure.
+/// Reports usage with the current time as timestamp.
 pub async fn report_usage(
+    client: &reqwest::Client,
+    usage_base_url: &str,
+    user_id: &str,
+    agent_id: &str,
+    units_used: f64,
+    agent_secret: &str,
+) -> Result<UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
+    report_usage_at(client, usage_base_url, user_id, agent_id, units_used, agent_secret, None).await
+}
+
+/// Reports usage with an optional explicit timestamp (epoch seconds).
+pub async fn report_usage_at(
     client: &reqwest::Client,
     usage_base_url: &str,
     user_id: &str,
@@ -70,8 +100,8 @@ pub async fn report_usage(
     let resp = client
         .post(&url)
         .json(&body)
-        .header("X-AgentVend-Signature", &signature)
-        .header("X-AgentVend-Timestamp", &ts_str)
+        .header(headers::SIGNATURE, &signature)
+        .header(headers::TIMESTAMP, &ts_str)
         .send()
         .await?;
     resp.error_for_status_ref()?;
@@ -81,6 +111,27 @@ pub async fn report_usage(
         is_over_limit: data.is_over_limit.unwrap_or(false),
         remaining_requests_per_period: data.remaining_requests_per_period.unwrap_or(0),
     })
+}
+
+/// Sends a progress update without an error message.
+pub async fn report_progress_simple(
+    client: &reqwest::Client,
+    progress_url: &str,
+    request_id: &str,
+    stage: &str,
+    percentage_complete: i32,
+    agent_secret: &str,
+) -> bool {
+    report_progress(
+        client,
+        progress_url,
+        request_id,
+        stage,
+        percentage_complete,
+        agent_secret,
+        None,
+    )
+    .await
 }
 
 /// Sends a progress update. Returns `false` if URL has no timestamp or request fails.
@@ -115,8 +166,8 @@ pub async fn report_progress(
     let resp = client
         .post(&base_url)
         .json(&body)
-        .header("X-AgentVend-Signature", signature)
-        .header("X-AgentVend-Timestamp", &timestamp)
+        .header(headers::SIGNATURE, signature)
+        .header(headers::TIMESTAMP, &timestamp)
         .send()
         .await;
     match resp {
@@ -125,17 +176,64 @@ pub async fn report_progress(
     }
 }
 
-/// Sends a completion notification. Returns `false` if URL has no timestamp or request fails.
+/// Sends completion with status and units only.
 pub async fn report_completion(
     client: &reqwest::Client,
     callback_url: &str,
+    request_id: &str,
+    status: CompletionStatus,
+    agent_secret: &str,
+    units: f64,
+) -> bool {
+    report_completion_full(
+        client,
+        callback_url,
+        request_id,
+        status,
+        agent_secret,
+        None,
+        None,
+        None,
+        units,
+    )
+    .await
+}
+
+/// Sends completion with inline result text.
+pub async fn report_completion_with_result(
+    client: &reqwest::Client,
+    callback_url: &str,
+    request_id: &str,
+    status: CompletionStatus,
+    agent_secret: &str,
+    result: &str,
+    units: f64,
+) -> bool {
+    report_completion_full(
+        client,
+        callback_url,
+        request_id,
+        status,
+        agent_secret,
+        Some(result),
+        None,
+        None,
+        units,
+    )
+    .await
+}
+
+/// Sends a completion notification. Returns `false` if URL has no timestamp or request fails.
+pub async fn report_completion_full(
+    client: &reqwest::Client,
+    callback_url: &str,
     _request_id: &str,
-    status: &str,
+    status: CompletionStatus,
     agent_secret: &str,
     result: Option<&str>,
     result_url: Option<&str>,
     content_type: Option<&str>,
-    units: Option<f64>,
+    units: f64,
 ) -> bool {
     let (base_url, timestamp) = parse_timestamp_from_url(callback_url);
     let timestamp = match timestamp {
@@ -147,9 +245,9 @@ pub async fn report_completion(
         .unwrap()
         .as_secs() as i64;
     let mut body = serde_json::json!({
-        "status": status,
+        "status": status.as_str(),
         "timestamp": ts_secs,
-        "units": units.unwrap_or(0.0),
+        "units": units,
     });
     if let Some(r) = result {
         body["result"] = serde_json::Value::String(r.to_string());
@@ -165,8 +263,8 @@ pub async fn report_completion(
     let resp = client
         .post(&base_url)
         .json(&body)
-        .header("X-AgentVend-Signature", signature)
-        .header("X-AgentVend-Timestamp", &timestamp)
+        .header(headers::SIGNATURE, signature)
+        .header(headers::TIMESTAMP, &timestamp)
         .send()
         .await;
     match resp {

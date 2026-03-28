@@ -1,5 +1,6 @@
 package com.agentvend.client;
 
+import com.agentvend.client.model.CompletionStatus;
 import com.agentvend.client.model.UsageReportRequest;
 import com.agentvend.client.model.UsageReportResponse;
 import com.agentvend.common.util.HmacUtils;
@@ -48,6 +49,13 @@ public class UsageServiceClient {
     }
 
     /**
+     * Sends a progress update to the usage service (no error message).
+     */
+    public boolean sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete) {
+        return sendProgressUpdate(progressUrl, requestId, stage, percentageComplete, null);
+    }
+
+    /**
      * Sends a progress update to the usage service.
      */
     public boolean sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete, String errorMessage) {
@@ -89,8 +97,8 @@ public class UsageServiceClient {
             String newSignature = HmacUtils.calculateHmacWithTimestamp(progressUpdatePayload, timestampLong, agentSecret);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("X-AgentVend-Signature", newSignature);
-            headers.set("X-AgentVend-Timestamp", timestamp);
+            headers.set(AgentVendHeaders.SIGNATURE, newSignature);
+            headers.set(AgentVendHeaders.TIMESTAMP, timestamp);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity<Void> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, Void.class);
             return response.getStatusCode().is2xxSuccessful();
@@ -104,9 +112,24 @@ public class UsageServiceClient {
     }
 
     /**
-     * Sends a completion notification to the usage service.
+     * Sends completion with status and billed units only.
      */
-    public boolean sendCompletion(String callbackUrl, String requestId, String status, String result,
+    public boolean sendCompletion(String callbackUrl, String requestId, CompletionStatus status, BigDecimal units) {
+        return sendCompletion(callbackUrl, requestId, status, null, null, null, units);
+    }
+
+    /**
+     * Sends completion with inline result text.
+     */
+    public boolean sendCompletion(String callbackUrl, String requestId, CompletionStatus status, String result,
+                                  BigDecimal units) {
+        return sendCompletion(callbackUrl, requestId, status, result, null, null, units);
+    }
+
+    /**
+     * Sends completion with result URL and content type.
+     */
+    public boolean sendCompletion(String callbackUrl, String requestId, CompletionStatus status, String result,
                                   String resultUrl, String contentType, BigDecimal units) {
         if (callbackUrl == null || callbackUrl.isEmpty()) {
             log.warn("Callback URL is null or empty");
@@ -135,7 +158,7 @@ public class UsageServiceClient {
                 return false;
             }
             Map<String, Object> requestBody = new LinkedHashMap<>();
-            requestBody.put("status", status);
+            requestBody.put("status", status.getApiValue());
             if (result != null) requestBody.put("result", result);
             if (resultUrl != null) requestBody.put("resultUrl", resultUrl);
             if (contentType != null) requestBody.put("contentType", contentType);
@@ -146,8 +169,8 @@ public class UsageServiceClient {
             String newSignature = HmacUtils.calculateHmacWithTimestamp(completionPayload, timestampLong, agentSecret);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("X-AgentVend-Signature", newSignature);
-            headers.set("X-AgentVend-Timestamp", timestamp);
+            headers.set(AgentVendHeaders.SIGNATURE, newSignature);
+            headers.set(AgentVendHeaders.TIMESTAMP, timestamp);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity<Void> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, Void.class);
             return response.getStatusCode().is2xxSuccessful();
@@ -158,6 +181,13 @@ public class UsageServiceClient {
             log.error("Error generating signature for completion: {}", e.getMessage(), e);
             return false;
         }
+    }
+
+    /**
+     * Reports usage with current time as timestamp.
+     */
+    public UsageReportResponse reportUsage(String userId, String agentId, BigDecimal unitsUsed) {
+        return reportUsage(userId, agentId, unitsUsed, Instant.now());
     }
 
     /**
@@ -180,8 +210,8 @@ public class UsageServiceClient {
             String signature = HmacUtils.calculateHmacWithTimestamp(requestBody, timestampLong, agentSecret);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("X-AgentVend-Signature", signature);
-            headers.set("X-AgentVend-Timestamp", String.valueOf(timestampLong));
+            headers.set(AgentVendHeaders.SIGNATURE, signature);
+            headers.set(AgentVendHeaders.TIMESTAMP, String.valueOf(timestampLong));
             HttpEntity<UsageReportRequest> entity = new HttpEntity<>(request, headers);
             String baseUrl = usageServiceUrl != null ? usageServiceUrl.replaceAll("/$", "") : "";
             if (baseUrl.isEmpty()) {

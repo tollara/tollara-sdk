@@ -1,5 +1,6 @@
 package com.agentvend.client;
 
+import com.agentvend.client.model.CompletionStatus;
 import com.agentvend.client.model.UsageReportResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,7 +56,7 @@ class UsageServiceClientIntegrationTest {
                                     """))
         );
 
-        UsageReportResponse response = client.reportUsage("user-1", "agent-1", BigDecimal.ONE, null);
+        UsageReportResponse response = client.reportUsage("user-1", "agent-1", BigDecimal.ONE);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo("ok");
@@ -72,7 +73,7 @@ class UsageServiceClientIntegrationTest {
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 org.springframework.web.client.RestClientException.class,
-                () -> client.reportUsage("user-1", "agent-1", BigDecimal.ONE, null)
+                () -> client.reportUsage("user-1", "agent-1", BigDecimal.ONE)
         );
     }
 
@@ -91,7 +92,7 @@ class UsageServiceClientIntegrationTest {
         );
 
         String progressUrl = usageBaseUrl + progressPath + "?signature=ignored&timestamp=" + timestamp;
-        boolean ok = client.sendProgressUpdate(progressUrl, requestId, "processing", 50, null);
+        boolean ok = client.sendProgressUpdate(progressUrl, requestId, "processing", 50);
 
         assertThat(ok).isTrue();
     }
@@ -111,7 +112,7 @@ class UsageServiceClientIntegrationTest {
         );
 
         String callbackUrl = usageBaseUrl + completePath + "?signature=ignored&timestamp=" + timestamp;
-        boolean ok = client.sendCompletion(callbackUrl, requestId, "COMPLETED", "done", null, null, BigDecimal.ONE);
+        boolean ok = client.sendCompletion(callbackUrl, requestId, CompletionStatus.COMPLETED, "done", BigDecimal.ONE);
 
         assertThat(ok).isTrue();
     }
@@ -119,7 +120,7 @@ class UsageServiceClientIntegrationTest {
     @Test
     void sendProgressUpdate_returnsFalse_whenUrlMissingTimestamp() {
         String progressUrl = usageBaseUrl + "/api/usage/progress/req-1";
-        boolean ok = client.sendProgressUpdate(progressUrl, "req-1", "stage", 0, null);
+        boolean ok = client.sendProgressUpdate(progressUrl, "req-1", "stage", 0);
         assertThat(ok).isFalse();
     }
 }

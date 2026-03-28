@@ -4,9 +4,10 @@
 
 #![cfg(feature = "http")]
 
-use agentvend_agent_sdk::hmac::calculate_hmac;
+use agentvend_agent_sdk::gateway_client;
+use agentvend_agent_sdk::usage_client::{self, CompletionStatus};
 use agentvend_agent_sdk::validation_client;
-use agentvend_agent_sdk::usage_client;
+use agentvend_agent_sdk::calculate_hmac;
 use reqwest::Client;
 
 const AGENT_SECRET: &str = "test-agent-secret";
@@ -125,7 +126,7 @@ async fn report_usage_sends_signed_request_and_returns_response() {
         .create();
 
     let client = Client::new();
-    let result = usage_client::report_usage(
+    let result = usage_client::report_usage_at(
         &client,
         usage_base,
         "user-1",
@@ -162,7 +163,6 @@ async fn report_usage_errors_on_5xx() {
         "agent-1",
         1.0,
         AGENT_SECRET,
-        None,
     )
     .await;
 
@@ -182,14 +182,13 @@ async fn report_progress_posts_to_progress_url_with_signature() {
         .create();
 
     let client = Client::new();
-    let ok = usage_client::report_progress(
+    let ok = usage_client::report_progress_simple(
         &client,
         &progress_url,
         "req-123",
         "processing",
         50,
         AGENT_SECRET,
-        None,
     )
     .await;
 
@@ -229,16 +228,14 @@ async fn report_completion_posts_to_callback_url_with_signature() {
         .create();
 
     let client = Client::new();
-    let ok = usage_client::report_completion(
+    let ok = usage_client::report_completion_with_result(
         &client,
         &callback_url,
         "req-456",
-        "COMPLETED",
+        CompletionStatus::Completed,
         AGENT_SECRET,
-        Some("done"),
-        None,
-        None,
-        Some(1.0),
+        "done",
+        1.0,
     )
     .await;
 
@@ -255,14 +252,37 @@ async fn report_completion_returns_false_when_url_missing_timestamp() {
         &client,
         &callback_url,
         "req-1",
-        "FAILED",
+        CompletionStatus::Failed,
         AGENT_SECRET,
-        None,
-        None,
-        None,
-        None,
+        0.0,
     )
     .await;
 
     assert!(!ok);
+}
+
+#[tokio::test]
+async fn get_request_status_sends_bearer() {
+    let mut server = mockito::Server::new();
+    let gw = server.url();
+    let _m = server
+        .mock("GET", "/api/requests/j1/status")
+        .match_header("authorization", "Bearer my-key")
+        .with_status(200)
+        .with_body(r#"{"state":"PENDING"}"#)
+        .create();
+
+    let client = Client::new();
+    let (ok, status, body) = gateway_client::get_request_status(
+        &client,
+        &gw,
+        "/api",
+        "j1",
+        "my-key",
+    )
+    .await
+    .expect("request");
+    assert!(ok);
+    assert_eq!(status, 200);
+    assert!(body.contains("PENDING"));
 }

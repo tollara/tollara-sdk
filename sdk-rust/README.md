@@ -2,7 +2,13 @@
 
 **Crate:** `agentvend-agent-sdk` (crates.io)
 
-Verify HMAC, validate agent keys, report usage. HTTP clients behind `http` feature.
+HMAC verification, user context parsing, and (with the `http` feature) Core validation, Usage reporting, progress/completion, and gateway job polling.
+
+## Configuration (base URLs)
+
+All service URLs are **caller-supplied** (no hardcoded hosts). Path prefixes follow [sdk-api-spec.md](../docs/sdk-api-spec.md) (default vs ECS). Usage helpers append `/api/usage/report` to the base you pass. Use full `progress_url` / `callback_url` for async flows.
+
+See [api-overview.md](../docs/api-overview.md).
 
 ## Install
 
@@ -15,31 +21,48 @@ agentvend-agent-sdk = "1.0"
 ## Build
 
 ```bash
-cargo build                    # core only (HMAC, verifier)
-cargo build --features http   # with validation & usage HTTP clients
+cargo build
+cargo build --features http
 ```
 
-## Running tests
+## Examples
 
-Integration tests mock the AgentVend Core and Usage APIs (see `docs/sdk-api-spec.md`). They require the `http` feature.
+### Verify HMAC (no HTTP feature)
+
+```rust
+use std::collections::HashMap;
+use agentvend_agent_sdk::{
+    verify_inbound_hmac, verify_signature_from_headers, parse_user_context,
+    InboundHmacVerify, SignedUserContext,
+};
+
+let ok = verify_signature_from_headers(secret, &headers_map, payload);
+let ctx = parse_user_context(&headers_map);
+```
+
+### HTTP clients (`--features http`)
+
+```rust
+use agentvend_agent_sdk::validation_client;
+use agentvend_agent_sdk::usage_client;
+use agentvend_agent_sdk::gateway_client;
+
+// validate_agent_key(&client, core_base_url, agent_key, agent_secret, agent_id)
+// report_usage / report_usage_at; report_progress_simple; report_completion*, CompletionStatus
+let (ok, status, body) = gateway_client::get_request_status(
+    &client,
+    "https://gateway.example.com",
+    "/api",
+    request_id,
+    agent_key,
+).await?;
+```
+
+## Tests
 
 ```bash
-cd sdk-rust
+cargo test
 cargo test --features http
 ```
 
-To run a single test by name:
-
-```bash
-cargo test --features http validate_agent_key_returns_result
-```
-
-## Example
-
-```rust
-use agentvend_agent_sdk::{verify_signature, calculate_hmac, UserContext};
-
-let valid = verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, &roles, quota_remaining);
-```
-
-See [HMAC spec](../docs/hmac-spec.md) and [API overview](../docs/api-overview.md).
+See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).

@@ -68,8 +68,8 @@ public class AgentKeyValidationClient {
                 ValidationResponse validationResponse = response.getBody();
                 if (response.getStatusCode().is2xxSuccessful() && validationResponse != null) {
                     String responseJson = objectMapper.writeValueAsString(validationResponse);
-                    String signature = response.getHeaders().getFirst("X-AgentVend-Signature");
-                    String timestampStr = response.getHeaders().getFirst("X-AgentVend-Timestamp");
+                    String signature = response.getHeaders().getFirst(AgentVendHeaders.SIGNATURE);
+                    String timestampStr = response.getHeaders().getFirst(AgentVendHeaders.TIMESTAMP);
                     if (signature == null || timestampStr == null) {
                         log.warn("Missing HMAC signature or timestamp in validation response");
                         return null;

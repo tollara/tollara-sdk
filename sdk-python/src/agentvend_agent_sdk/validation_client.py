@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
+from .agentvend_headers import AgentVendHeaders
 from .hmac_utils import validate_hmac_signature
 
 
@@ -34,8 +35,8 @@ def validate_agent_key(
     if not resp.ok:
         return None
     response_text = resp.text
-    signature = resp.headers.get("X-AgentVend-Signature")
-    timestamp = resp.headers.get("X-AgentVend-Timestamp")
+    signature = resp.headers.get(AgentVendHeaders.SIGNATURE)
+    timestamp = resp.headers.get(AgentVendHeaders.TIMESTAMP)
     if not signature or not timestamp:
         return None
     if not validate_hmac_signature(signature, response_text + timestamp, agent_secret):

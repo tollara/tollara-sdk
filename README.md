@@ -39,7 +39,7 @@ Each `sdk-*` and `integration-*` folder is self-contained. From repo root:
 
 - **sdk-java**: `cd sdk-java && ./gradlew build`
 - **sdk-js**: `cd sdk-js && npm ci && npm test`
-- **sdk-dotnet**: `cd sdk-dotnet && dotnet build`
+- **sdk-dotnet**: `cd sdk-dotnet && dotnet build` and `cd sdk-dotnet/AgentVend.AgentSdk.Tests && dotnet test` (when .NET SDK is installed)
 - **sdk-python**: `cd sdk-python && pip install -e . && pytest`
 - **sdk-go**: `cd sdk-go && go build ./...`
 - **sdk-rust**: `cd sdk-rust && cargo build`

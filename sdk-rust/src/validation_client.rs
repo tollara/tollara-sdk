@@ -1,5 +1,6 @@
 //! Client for validating agent keys via the Core API (see docs/sdk-api-spec.md §2).
 
+use crate::headers;
 use crate::hmac::validate_hmac_signature;
 use serde::Deserialize;
 use serde::Serialize;
@@ -69,11 +70,11 @@ pub async fn validate_agent_key(
     let response_text = resp.text().await.ok()?;
     let signature = resp
         .headers()
-        .get("x-agentvend-signature")
+        .get(headers::SIGNATURE)
         .and_then(|v| v.to_str().ok())?;
     let timestamp = resp
         .headers()
-        .get("x-agentvend-timestamp")
+        .get(headers::TIMESTAMP)
         .and_then(|v| v.to_str().ok())?;
     if !validate_hmac_signature(signature, &format!("{}{}", response_text, timestamp), agent_secret)
     {
