@@ -6,23 +6,19 @@ Verify HMAC, validate agent keys, report usage, progress, completion, and poll j
 
 ## Configuration (base URLs)
 
-Nothing is hardcoded. You pass:
+**Unified `AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`AgentVendClient.DefaultApiUrl`). Set `ApiUrl` or **`AGENTVEND_API_URL`** only to override (staging, local). Default path prefixes match [sdk-api-spec.md](../docs/sdk-api-spec.md); use `CorePathPrefix`, `GatewayPathPrefix`, or `UsagePathPrefix` only for non-standard layouts.
 
-- **Core:** `coreServiceUrl` (trimmed) + `/agent-keys/validate`.
-- **Usage:** `usageServiceUrl` + `/api/usage/report` in `ReportUsageAsync`. Align base with [sdk-api-spec.md](../docs/sdk-api-spec.md) §3 for ECS.
-- **Gateway:** `gatewayBaseUrl` + `gatewayPathPrefix` for `GatewayClient` helpers.
-- **Progress / completion:** full URLs with required query parameters.
+**Low-level clients** take explicit URLs: Core + `/agent-keys/validate`, Usage base + `/api/usage/report`, Gateway base + prefix. **Progress / completion** use full URLs from the platform.
 
 See [api-overview.md](../docs/api-overview.md).
 
 ### Unified client
 
-`AgentVendClient.Create` matches Java: `AGENTVEND_API_URL`, optional `AGENTVEND_AGENT_ID` / `AGENTVEND_AGENT_SECRET`, default path prefixes, optional split bases and `UsagePathPrefix` on `AgentVendClientOptions`.
+`AgentVendClient.Create` matches Java: optional `AGENTVEND_API_URL`, optional `AGENTVEND_AGENT_ID`, required `AGENTVEND_AGENT_SECRET`, default path prefixes, optional split bases and `UsagePathPrefix`.
 
 ```csharp
 var client = AgentVendClient.Create(new AgentVendClientOptions
 {
-    ApiUrl = "https://api.agentvend.api",
     AgentId = agentId,
     AgentSecret = agentSecret,
     HttpClient = http,

@@ -6,7 +6,7 @@ HMAC helpers and inbound verification. Use Net::HTTP, Faraday, or similar for Co
 
 ## Configuration (base URLs)
 
-**No embedded production URLs.** Configure Gateway, Core, and Usage bases per [sdk-api-spec.md](../docs/sdk-api-spec.md).
+The gem does not ship a unified HTTP client. Default production API origin is **`https://api.agentvend.api`** (aligned with other SDKs’ `AgentVendClient`). Configure Gateway, Core, and Usage bases per [sdk-api-spec.md](../docs/sdk-api-spec.md); set `AGENTVEND_API_URL` only when you need a non-production origin.
 
 See [api-overview.md](../docs/api-overview.md).
 
@@ -14,7 +14,7 @@ See [api-overview.md](../docs/api-overview.md).
 
 The gem does **not** read the environment. Use the same names as the Java `AgentVendClient` in your deployment config:
 
-- `AGENTVEND_API_URL`
+- `AGENTVEND_API_URL` (optional override; production default is `https://api.agentvend.api`)
 - `AGENTVEND_AGENT_ID` (optional depending on Core)
 - `AGENTVEND_AGENT_SECRET`
 

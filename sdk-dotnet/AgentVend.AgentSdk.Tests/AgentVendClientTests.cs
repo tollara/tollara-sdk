@@ -39,10 +39,20 @@ public class AgentVendClientTests
     }
 
     [Fact]
-    public void Create_ThrowsWithoutApiUrl()
+    public async Task GetRequestStatusAsync_UsesDefaultApiUrlWhenOmitted()
     {
-        Assert.Throws<InvalidOperationException>(() =>
-            AgentVendClient.Create(new AgentVendClientOptions { AgentSecret = AgentSecret }));
+        var handler = new GatewayOkHandler();
+        using var http = new HttpClient(handler);
+        var client = AgentVendClient.Create(new AgentVendClientOptions
+        {
+            HttpClient = http,
+            AgentId = AgentId,
+            AgentSecret = AgentSecret,
+        });
+
+        await client.GetRequestStatusAsync("job-1", AgentKey);
+
+        Assert.Equal("https://api.agentvend.api/api/requests/job-1/status", handler.LastUri);
     }
 
     [Fact]

@@ -9,14 +9,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AgentVendClientTest {
 
     @Test
-    void build_throwsWhenApiUrlMissingAndEnvUnset() {
-        assertThatThrownBy(() -> AgentVendClient.builder()
-                        .agentId("a")
-                        .agentSecret("s")
-                        .httpClient(HttpClient.newHttpClient())
-                        .build())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(AgentVendClient.ENV_API_URL);
+    void build_succeedsWithDefaultApiUrlWhenOnlyAgentSecret() {
+        AgentVendClient.builder()
+                .agentSecret("s")
+                .httpClient(HttpClient.newHttpClient())
+                .build();
     }
 
     @Test

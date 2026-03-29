@@ -14,6 +14,9 @@ export const ENV_API_URL = 'AGENTVEND_API_URL';
 export const ENV_AGENT_ID = 'AGENTVEND_AGENT_ID';
 export const ENV_AGENT_SECRET = 'AGENTVEND_AGENT_SECRET';
 
+/** Production API origin; used when neither `apiUrl` nor `AGENTVEND_API_URL` is set. */
+export const DEFAULT_API_URL = 'https://api.agentvend.api';
+
 export const DEFAULT_CORE_PATH_PREFIX = '/api/v1';
 export const DEFAULT_GATEWAY_PATH_PREFIX = '/api';
 
@@ -59,11 +62,13 @@ export type AgentVendClientOptions = {
 /**
  * Unified client: Core validate, Usage report/progress/complete, Gateway polling.
  * Omitted options fall back to `AGENTVEND_*` environment variables (when `process.env` exists).
+ * The API origin defaults to `DEFAULT_API_URL` when neither `apiUrl` nor `AGENTVEND_API_URL` is set.
  */
 export class AgentVendClient {
   static readonly ENV_API_URL = ENV_API_URL;
   static readonly ENV_AGENT_ID = ENV_AGENT_ID;
   static readonly ENV_AGENT_SECRET = ENV_AGENT_SECRET;
+  static readonly DEFAULT_API_URL = DEFAULT_API_URL;
   static readonly DEFAULT_CORE_PATH_PREFIX = DEFAULT_CORE_PATH_PREFIX;
   static readonly DEFAULT_GATEWAY_PATH_PREFIX = DEFAULT_GATEWAY_PATH_PREFIX;
   static readonly DEFAULT_USAGE_PATH_PREFIX = DEFAULT_USAGE_PATH_PREFIX;
@@ -78,11 +83,9 @@ export class AgentVendClient {
   private readonly fetchFn: typeof globalThis.fetch;
 
   constructor(options: AgentVendClientOptions = {}) {
-    const resolved = trimTrailingSlashes(firstNonBlank(options.apiUrl, envGet(ENV_API_URL)));
+    let resolved = trimTrailingSlashes(firstNonBlank(options.apiUrl, envGet(ENV_API_URL)));
     if (!resolved) {
-      throw new Error(
-        `AgentVend API URL is required: set apiUrl or environment variable ${ENV_API_URL}`
-      );
+      resolved = DEFAULT_API_URL;
     }
 
     const coreBase = trimTrailingSlashes(firstNonBlank(options.coreApiUrl, resolved));

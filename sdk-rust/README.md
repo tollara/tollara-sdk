@@ -6,7 +6,7 @@ HMAC verification, user context parsing, and (with the `http` feature) Core vali
 
 ## Configuration (base URLs)
 
-All service URLs are **caller-supplied** (no hardcoded hosts). Path prefixes follow [sdk-api-spec.md](../docs/sdk-api-spec.md) (default vs ECS). Usage helpers append `/api/usage/report` to the base you pass. Use full `progress_url` / `callback_url` for async flows.
+**`AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Set `api_url` or **`AGENTVEND_API_URL`** only to override. Default path prefixes follow [sdk-api-spec.md](../docs/sdk-api-spec.md); lower-level modules still take explicit bases. Use full `progress_url` / `callback_url` for async flows.
 
 See [api-overview.md](../docs/api-overview.md).
 
@@ -46,13 +46,12 @@ let ctx = parse_user_context(&headers_map);
 use agentvend_agent_sdk::agent_vend_client::{AgentVendClient, AgentVendClientConfig};
 
 let client = AgentVendClient::try_new(AgentVendClientConfig {
-    api_url: Some("https://api.agentvend.api".into()),
     agent_id: Some("agent-uuid".into()),
     agent_secret: Some("secret".into()),
     ..Default::default()
 })?;
 
-// Or env-only: AgentVendClient::try_from_env()?
+// Or `try_from_env()` with AGENTVEND_AGENT_SECRET (and optional URL overrides).
 
 client.validate_agent_key(agent_key).await;
 client.report_usage(user_id, agent_id, 1.0).await?;

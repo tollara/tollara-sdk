@@ -22,3 +22,5 @@ pub mod validation_client;
 pub mod usage_client;
 #[cfg(feature = "http")]
 pub mod agent_vend_client;
+#[cfg(feature = "http")]
+pub use agent_vend_client::DEFAULT_API_URL;

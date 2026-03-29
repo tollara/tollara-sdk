@@ -30,6 +30,7 @@ export {
 export { getRequestStatus, getRequestResult, type GatewayPollResult } from './gatewayClient';
 export {
   AgentVendClient,
+  DEFAULT_API_URL,
   DEFAULT_CORE_PATH_PREFIX,
   DEFAULT_GATEWAY_PATH_PREFIX,
   ENV_AGENT_ID,

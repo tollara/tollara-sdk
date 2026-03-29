@@ -19,9 +19,13 @@ public sealed class AgentVendClientOptions
 
 /// <summary>
 /// Unified client for Core validate, Usage report/progress/complete, and Gateway polling (Java <c>AgentVendClient</c> parity).
+/// The API origin defaults to <see cref="DefaultApiUrl"/> when neither <see cref="AgentVendClientOptions.ApiUrl"/> nor <c>AGENTVEND_API_URL</c> is set.
 /// </summary>
 public sealed class AgentVendClient
 {
+    /// <summary>Production API origin used when no URL is configured.</summary>
+    public const string DefaultApiUrl = "https://api.agentvend.api";
+
     public const string EnvApiUrl = "AGENTVEND_API_URL";
     public const string EnvAgentId = "AGENTVEND_AGENT_ID";
     public const string EnvAgentSecret = "AGENTVEND_AGENT_SECRET";
@@ -66,8 +70,7 @@ public sealed class AgentVendClient
 
         var resolved = TrimTrailingSlashes(FirstNonBlank(options.ApiUrl, Environment.GetEnvironmentVariable(EnvApiUrl)));
         if (string.IsNullOrEmpty(resolved))
-            throw new InvalidOperationException(
-                $"AgentVend API URL is required: set {nameof(AgentVendClientOptions.ApiUrl)} or environment variable {EnvApiUrl}");
+            resolved = DefaultApiUrl;
 
         var coreBase = TrimTrailingSlashes(FirstNonBlank(options.CoreApiUrl, resolved));
         var gwBase = TrimTrailingSlashes(FirstNonBlank(options.GatewayApiUrl, resolved));
