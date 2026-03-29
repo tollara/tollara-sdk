@@ -4,6 +4,8 @@ Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate age
 
 **Package:** `com.agentvend:agent-sdk`
 
+Dependencies are **Jackson**, **SLF4J**, and the **JDK** `java.net.http.HttpClient` (no Spring).
+
 ## Configuration (base URLs)
 
 The SDK **does not hardcode** production hosts. You supply:
@@ -45,42 +47,34 @@ From this directory:
 
 ## Examples
 
-### Verify HMAC and user context (agent backend)
+### Verify inbound HMAC (agent backend)
 
-Use `org.springframework.http.HttpHeaders` (case-insensitive). Pass the **raw body string** the gateway signed (read once or use a caching request wrapper if filters consume the stream).
+Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed.
 
 ```java
-import com.agentvend.client.AgentVendHeaders;
 import com.agentvend.client.AgentvendRequestVerifier;
-import org.springframework.http.HttpHeaders;
+import jakarta.servlet.http.HttpServletRequest; // or your stack’s request type
 
-String agentSecret = "your-agent-secret";
 AgentvendRequestVerifier verifier = new AgentvendRequestVerifier(agentSecret);
+String rawBody = rawRequestBodyUtf8;
 
-HttpHeaders headers = new HttpHeaders();
-headers.add(AgentVendHeaders.SIGNATURE, request.getHeader(AgentVendHeaders.SIGNATURE));
-headers.add(AgentVendHeaders.TIMESTAMP, request.getHeader(AgentVendHeaders.TIMESTAMP));
-// ... copy other X-AgentVend-* into headers, or use an adapter from your framework
-
-String rawBody = requestBodyString;
-
-boolean valid = verifier.verifyInboundHmac(headers, rawBody);
+boolean valid = verifier.verifyInboundHmac(request::getHeader, rawBody);
 if (valid) {
-    AgentvendRequestVerifier.UserContext ctx = verifier.userContextFromHeaders(headers);
+    AgentvendRequestVerifier.UserContext ctx = verifier.userContextFromHeaders(request::getHeader);
 }
 ```
 
-**Low-level DTO** (tests or non-Spring): `InboundHmacRequest` + `SignedUserContext` with `verifyInboundHmac(InboundHmacRequest)`, or `verifyInboundHmac(Map<String, String> headers, String payload)` with case-insensitive keys.
+You can also pass a `Map<String, String>` (`verifyInboundHmac(map, rawBody)`); keys are matched case-insensitively. For full control, build `InboundHmacRequest` with `SignedUserContext` and call `verifyInboundHmac(InboundHmacRequest)`.
 
 ### Validate agent key (caller)
 
 ```java
 import com.agentvend.client.AgentKeyValidationClient;
-import org.springframework.web.client.RestTemplate;
 
-RestTemplate rest = new RestTemplate();
+import java.net.http.HttpClient;
+
 AgentKeyValidationClient client = new AgentKeyValidationClient(
-    "https://core.example.com/api/v1", "agent-id", "agent-secret", rest);
+    "https://core.example.com/api/v1", "agent-id", "agent-secret", HttpClient.newHttpClient());
 AgentKeyValidationClient.AgentKeyValidationResult result = client.validateAgentKey("bearer-token");
 if (result != null) {
     // result.getUserId(), result.getPlan(), ...
@@ -93,7 +87,9 @@ if (result != null) {
 import com.agentvend.client.UsageServiceClient;
 import com.agentvend.client.model.UsageReportResponse;
 
-UsageServiceClient usage = new UsageServiceClient("https://usage.example.com", agentSecret, restTemplate);
+import java.net.http.HttpClient;
+
+UsageServiceClient usage = new UsageServiceClient("https://usage.example.com", agentSecret, HttpClient.newHttpClient());
 UsageReportResponse resp = usage.reportUsage(userId, agentId, BigDecimal.ONE);
 ```
 
@@ -112,12 +108,14 @@ boolean doneOk = usage.sendCompletion(callbackUrl, requestId, CompletionStatus.C
 
 ```java
 import com.agentvend.client.GatewayClient;
-import org.springframework.http.ResponseEntity;
+import com.agentvend.client.GatewayHttpResponse;
 
-GatewayClient gw = new GatewayClient(restTemplate);
-ResponseEntity<String> status = gw.getRequestStatus(
+import java.net.http.HttpClient;
+
+GatewayClient gw = new GatewayClient(HttpClient.newHttpClient());
+GatewayHttpResponse status = gw.getRequestStatus(
     "https://gateway.example.com", "/api", requestId, agentKey);
-ResponseEntity<String> result = gw.getRequestResult(
+GatewayHttpResponse result = gw.getRequestResult(
     "https://gateway.example.com", "/api", requestId, agentKey);
 ```
 

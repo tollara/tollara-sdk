@@ -10,15 +10,11 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.http.HttpClient;
+import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -33,13 +29,13 @@ public class UsageServiceClient {
 
     private final String usageServiceUrl;
     private final String agentSecret;
-    private final RestTemplate restTemplate;
+    private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    public UsageServiceClient(String usageServiceUrl, String agentSecret, RestTemplate restTemplate) {
+    public UsageServiceClient(String usageServiceUrl, String agentSecret, HttpClient httpClient) {
         this.usageServiceUrl = usageServiceUrl;
         this.agentSecret = agentSecret;
-        this.restTemplate = restTemplate;
+        this.httpClient = httpClient;
         this.objectMapper = new ObjectMapper();
         JavaTimeModule module = new JavaTimeModule();
         module.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
@@ -95,15 +91,16 @@ public class UsageServiceClient {
             String progressUpdatePayload = objectMapper.writeValueAsString(requestBody);
             long timestampLong = Long.parseLong(timestamp);
             String newSignature = HmacUtils.calculateHmacWithTimestamp(progressUpdatePayload, timestampLong, agentSecret);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set(AgentVendHeaders.SIGNATURE, newSignature);
-            headers.set(AgentVendHeaders.TIMESTAMP, timestamp);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Void> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, Void.class);
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (RestClientException e) {
+            Map<String, String> headers = Map.of(
+                    AgentVendHeaders.SIGNATURE, newSignature,
+                    AgentVendHeaders.TIMESTAMP, timestamp);
+            HttpResponse<String> response = HttpSupport.postJson(httpClient, baseUrl, progressUpdatePayload, headers);
+            return response.statusCode() >= 200 && response.statusCode() < 300;
+        } catch (IOException e) {
             log.error("Error sending progress update: {}", e.getMessage(), e);
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return false;
         } catch (Exception e) {
             log.error("Error generating signature for progress update: {}", e.getMessage(), e);
@@ -167,15 +164,16 @@ public class UsageServiceClient {
             String completionPayload = objectMapper.writeValueAsString(requestBody);
             long timestampLong = Long.parseLong(timestamp);
             String newSignature = HmacUtils.calculateHmacWithTimestamp(completionPayload, timestampLong, agentSecret);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set(AgentVendHeaders.SIGNATURE, newSignature);
-            headers.set(AgentVendHeaders.TIMESTAMP, timestamp);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Void> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, Void.class);
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (RestClientException e) {
+            Map<String, String> headers = Map.of(
+                    AgentVendHeaders.SIGNATURE, newSignature,
+                    AgentVendHeaders.TIMESTAMP, timestamp);
+            HttpResponse<String> response = HttpSupport.postJson(httpClient, baseUrl, completionPayload, headers);
+            return response.statusCode() >= 200 && response.statusCode() < 300;
+        } catch (IOException e) {
             log.error("Error sending completion notification: {}", e.getMessage(), e);
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return false;
         } catch (Exception e) {
             log.error("Error generating signature for completion: {}", e.getMessage(), e);
@@ -208,23 +206,26 @@ public class UsageServiceClient {
             String requestBody = objectMapper.writeValueAsString(request);
             long timestampLong = usageTimestamp.toEpochMilli();
             String signature = HmacUtils.calculateHmacWithTimestamp(requestBody, timestampLong, agentSecret);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set(AgentVendHeaders.SIGNATURE, signature);
-            headers.set(AgentVendHeaders.TIMESTAMP, String.valueOf(timestampLong));
-            HttpEntity<UsageReportRequest> entity = new HttpEntity<>(request, headers);
+            Map<String, String> headers = Map.of(
+                    AgentVendHeaders.SIGNATURE, signature,
+                    AgentVendHeaders.TIMESTAMP, String.valueOf(timestampLong));
             String baseUrl = usageServiceUrl != null ? usageServiceUrl.replaceAll("/$", "") : "";
             if (baseUrl.isEmpty()) {
                 throw new IllegalArgumentException("usageServiceUrl must not be null or empty");
             }
             String url = baseUrl + "/api/usage/report";
-            ResponseEntity<UsageReportResponse> response = restTemplate.exchange(url, HttpMethod.POST, entity, UsageReportResponse.class);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return response.getBody();
+            HttpResponse<String> response = HttpSupport.postJson(httpClient, url, requestBody, headers);
+            if (response.statusCode() >= 200 && response.statusCode() < 300 && response.body() != null) {
+                return objectMapper.readValue(response.body(), UsageReportResponse.class);
             }
-            throw new RestClientException("Usage report failed with status: " + (response.getStatusCode()));
-        } catch (RestClientException e) {
+            throw new AgentVendHttpException(response.statusCode(), "Usage report failed with status: " + response.statusCode());
+        } catch (IOException e) {
             log.error("Error reporting usage: {}", e.getMessage(), e);
+            throw new AgentVendHttpException("Usage report failed: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AgentVendHttpException("Usage report interrupted", e);
+        } catch (AgentVendHttpException e) {
             throw e;
         } catch (Exception e) {
             log.error("Error generating signature or serializing usage report: {}", e.getMessage(), e);

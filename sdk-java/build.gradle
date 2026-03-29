@@ -30,8 +30,6 @@ sourceSets {
 }
 
 dependencies {
-    api 'org.springframework:spring-web:6.1.0'
-    api 'org.springframework:spring-core:6.1.0'
     api 'com.fasterxml.jackson.core:jackson-databind:2.15.3'
     api 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.3'
     api 'org.slf4j:slf4j-api:2.0.9'
@@ -39,7 +37,6 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
-    testImplementation 'org.springframework:spring-test:6.1.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testImplementation 'org.mockito:mockito-core:5.8.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.8.0'

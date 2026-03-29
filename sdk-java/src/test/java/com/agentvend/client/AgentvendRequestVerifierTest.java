@@ -5,7 +5,6 @@ import com.agentvend.client.model.SignedUserContext;
 import com.agentvend.common.util.GatewayHmacUserContext;
 import com.agentvend.common.util.HmacUtils;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpHeaders;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -54,7 +53,7 @@ class AgentvendRequestVerifierTest {
     }
 
     @Test
-    void verifyInboundHmac_withHttpHeaders_succeeds() throws Exception {
+    void verifyInboundHmac_withHeaderFunction_succeeds() throws Exception {
         String payload = "";
         String timestamp = "1700000000";
         SignedUserContext signed = SignedUserContext.builder()
@@ -76,17 +75,17 @@ class AgentvendRequestVerifierTest {
         String dataToSign = payload + Long.parseLong(timestamp) + userContextString;
         String signature = HmacUtils.calculateHmac(dataToSign, SECRET);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(AgentVendHeaders.SIGNATURE, signature);
-        headers.add(AgentVendHeaders.TIMESTAMP, timestamp);
-        headers.add(AgentVendHeaders.USER_ID, "user1");
-        headers.add(AgentVendHeaders.PLAN, "plan1");
-        headers.add(AgentVendHeaders.ROLES, "role1,role2");
-        headers.add(AgentVendHeaders.QUOTA_REMAINING, "10");
-        headers.add(AgentVendHeaders.SUBSCRIPTION_ACTIVE, "false");
+        Map<String, String> headers = new HashMap<>();
+        headers.put(AgentVendHeaders.SIGNATURE, signature);
+        headers.put(AgentVendHeaders.TIMESTAMP, timestamp);
+        headers.put(AgentVendHeaders.USER_ID, "user1");
+        headers.put(AgentVendHeaders.PLAN, "plan1");
+        headers.put(AgentVendHeaders.ROLES, "role1,role2");
+        headers.put(AgentVendHeaders.QUOTA_REMAINING, "10");
+        headers.put(AgentVendHeaders.SUBSCRIPTION_ACTIVE, "false");
 
         AgentvendRequestVerifier verifier = new AgentvendRequestVerifier(SECRET);
-        assertThat(verifier.verifyInboundHmac(headers, payload)).isTrue();
+        assertThat(verifier.verifyInboundHmac(headers::get, payload)).isTrue();
     }
 
     @Test
@@ -190,15 +189,15 @@ class AgentvendRequestVerifierTest {
 
     @Test
     void userContextFromHeaders_parsesSubscriptionAndBilling() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(AgentVendHeaders.USER_ID, "u1");
-        headers.add(AgentVendHeaders.SUBSCRIPTION_ACTIVE, "true");
-        headers.add(AgentVendHeaders.BILLING_MODEL, "USAGE_POSTPAID");
-        headers.add(AgentVendHeaders.MEASUREMENT_TYPE, "PER_TOKEN");
-        headers.add(AgentVendHeaders.UNIT_LABEL, "token");
+        Map<String, String> headers = new HashMap<>();
+        headers.put(AgentVendHeaders.USER_ID, "u1");
+        headers.put(AgentVendHeaders.SUBSCRIPTION_ACTIVE, "true");
+        headers.put(AgentVendHeaders.BILLING_MODEL, "USAGE_POSTPAID");
+        headers.put(AgentVendHeaders.MEASUREMENT_TYPE, "PER_TOKEN");
+        headers.put(AgentVendHeaders.UNIT_LABEL, "token");
 
         AgentvendRequestVerifier verifier = new AgentvendRequestVerifier(SECRET);
-        AgentvendRequestVerifier.UserContext ctx = verifier.userContextFromHeaders(headers);
+        AgentvendRequestVerifier.UserContext ctx = verifier.userContextFromHeaders(headers::get);
         assertThat(ctx.getUserId()).isEqualTo("u1");
         assertThat(ctx.isSubscriptionActive()).isTrue();
         assertThat(ctx.getBillingModelType()).isEqualTo("USAGE_POSTPAID");

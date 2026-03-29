@@ -5,10 +5,10 @@ import com.agentvend.client.model.UsageReportResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.springframework.web.client.RestTemplate;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 
 import java.math.BigDecimal;
+import java.net.http.HttpClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,7 +35,7 @@ class UsageServiceClientIntegrationTest {
     void setUp() {
         int port = wireMock.getPort();
         usageBaseUrl = "http://localhost:" + port;
-        client = new UsageServiceClient(usageBaseUrl, AGENT_SECRET, new RestTemplate());
+        client = new UsageServiceClient(usageBaseUrl, AGENT_SECRET, HttpClient.newHttpClient());
     }
 
     @Test
@@ -72,7 +72,7 @@ class UsageServiceClientIntegrationTest {
         );
 
         org.junit.jupiter.api.Assertions.assertThrows(
-                org.springframework.web.client.RestClientException.class,
+                AgentVendHttpException.class,
                 () -> client.reportUsage("user-1", "agent-1", BigDecimal.ONE)
         );
     }
