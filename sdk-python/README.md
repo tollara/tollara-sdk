@@ -1,26 +1,17 @@
 # AgentVend SDK (Python)
 
-**Package:** `agentvend-agent-sdk` (PyPI)
+**Package:** `agentvend-sdk` (PyPI). **Import:** `import agentvend_sdk` (replaces the former `agentvend-agent-sdk` / `agentvend_agent_sdk` names).
 
 Verify HMAC, validate agent keys, report usage, progress, completion, and poll async job status.
 
-## Configuration (base URLs)
+## Recommended: unified client (single API origin)
 
-SDK **does not embed** production hosts. You pass:
+Use **`AgentVendClient`** with one base URL (`api_url` or env `AGENTVEND_API_URL`). The client applies the usual path prefixes for Core (`/api/v1`), Gateway (`/api`), and Usage (`/api/usage` before `/report`)—same defaults as the Java SDK. Override with `core_path_prefix`, `gateway_path_prefix`, `usage_path_prefix`, or split hosts (`core_api_url`, `gateway_api_url`, `usage_api_url`) when your deployment differs (ECS, etc.); see [sdk-api-spec.md](../docs/sdk-api-spec.md) §3.
 
-- **Core:** base URL including path prefix (e.g. `https://core.example.com/api/v1`).
-- **Usage:** `usage_service_url` for `report_usage` (uses `{url}/api/usage/report`). Adjust for ECS per [sdk-api-spec.md](../docs/sdk-api-spec.md) §3.
-- **Gateway:** `gateway_base_url` + `gateway_path_prefix` for `get_request_status` / `get_request_result`.
-- **Progress / completion:** full URLs from async responses.
-
-See [api-overview.md](../docs/api-overview.md).
-
-### Unified client and environment variables
-
-`AgentVendClient` matches the Java client: one origin from `AGENTVEND_API_URL`, optional split bases (`core_api_url`, `gateway_api_url`, `usage_api_url`), default path prefixes `/api/v1` (Core), `/api` (Gateway), `/api/usage` (Usage before `/report`). Constructor arguments override env. Required env: `AGENTVEND_API_URL`, `AGENTVEND_AGENT_SECRET`; optional `AGENTVEND_AGENT_ID`.
+Required env (if not passed in the constructor): `AGENTVEND_API_URL`, `AGENTVEND_AGENT_SECRET`; optional `AGENTVEND_AGENT_ID`.
 
 ```python
-from agentvend_agent_sdk import AgentVendClient
+from agentvend_sdk import AgentVendClient
 
 client = AgentVendClient(
     api_url="https://api.example.com",
@@ -34,12 +25,18 @@ client.report_usage(user_id, agent_id, 1.0)
 client.get_request_status(request_id, agent_key)
 ```
 
-Optional `usage_path_prefix` on the client overrides the default Usage prefix (same as Java `usagePathPrefix`).
+Constructor arguments override environment variables. Optional `usage_path_prefix` on the client overrides the default Usage segment (same as Java `usagePathPrefix`).
+
+See [api-overview.md](../docs/api-overview.md).
+
+## Low-level functions (explicit URLs per call)
+
+The module also exposes **stateless** helpers (`validate_agent_key`, `report_usage`, `get_request_status`, …) where **each call** takes the service base URL (and prefix for gateway) you want. Use these when you are not using `AgentVendClient`, or when services live on different origins and you prefer not to construct a client. **Progress / completion** always use full `progress_url` / `callback_url` strings from the platform.
 
 ### Verify signature and user context in one step
 
 ```python
-from agentvend_agent_sdk import verify_signature_from_headers_and_get_user_context
+from agentvend_sdk import verify_signature_from_headers_and_get_user_context
 
 ctx = verify_signature_from_headers_and_get_user_context(agent_secret, headers, raw_body)
 if ctx is not None:
@@ -53,13 +50,13 @@ Python 3.10+
 ## Install
 
 ```bash
-pip install agentvend-agent-sdk
+pip install agentvend-sdk
 ```
 
 HTTP features (validate, usage, gateway, progress):
 
 ```bash
-pip install agentvend-agent-sdk[http]
+pip install agentvend-sdk[http]
 ```
 
 ## Examples
@@ -67,7 +64,7 @@ pip install agentvend-agent-sdk[http]
 ### Verify HMAC (backend)
 
 ```python
-from agentvend_agent_sdk import (
+from agentvend_sdk import (
     AgentVendHeaders,
     verify_signature_from_headers,
     get_user_context,
@@ -87,7 +84,7 @@ if valid:
 ### Typed inbound request
 
 ```python
-from agentvend_agent_sdk import verify_inbound_hmac, InboundHmacRequest, SignedUserContext
+from agentvend_sdk import verify_inbound_hmac, InboundHmacRequest, SignedUserContext
 
 req = InboundHmacRequest(
     signature=sig,
@@ -104,11 +101,12 @@ req = InboundHmacRequest(
 assert verify_inbound_hmac(agent_secret, req)
 ```
 
-### Validate agent key
+### Validate agent key (low-level)
 
 ```python
-from agentvend_agent_sdk import validate_agent_key
+from agentvend_sdk import validate_agent_key
 
+# core_service_url is the Core root including prefix, e.g. .../api/v1
 result = validate_agent_key(
     "https://core.example.com/api/v1",
     "bearer-token",
@@ -117,10 +115,10 @@ result = validate_agent_key(
 )
 ```
 
-### Report usage, progress, completion
+### Report usage, progress, completion (low-level)
 
 ```python
-from agentvend_agent_sdk import (
+from agentvend_sdk import (
     CompletionStatus,
     report_usage,
     report_usage_at,
@@ -139,10 +137,10 @@ report_completion_with_result(
 )
 ```
 
-### Gateway job status / result
+### Gateway job status / result (low-level)
 
 ```python
-from agentvend_agent_sdk import get_request_status, get_request_result
+from agentvend_sdk import get_request_status, get_request_result
 
 st = get_request_status(
     "https://gateway.example.com", "/api", request_id, agent_key

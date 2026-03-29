@@ -16,10 +16,10 @@ For API and HMAC details, see [docs/](docs/).
 | **Java** | `sdk-java/` — see [sdk-java/README.md](sdk-java/README.md) | Maven: `com.agentvend:agent-sdk` |
 | **JavaScript/TypeScript** | `npm install @agentvend/agent-sdk` | [sdk-js/README.md](sdk-js/README.md) |
 | **C#** | `dotnet add package AgentVend.AgentSdk` | [sdk-dotnet/README.md](sdk-dotnet/README.md) |
-| **Python** | `pip install agentvend-agent-sdk` | [sdk-python/README.md](sdk-python/README.md) |
+| **Python** | `pip install agentvend-sdk` | [sdk-python/README.md](sdk-python/README.md) |
 | **Go** | `go get github.com/agentvend/agent-sdk-go` | [sdk-go/README.md](sdk-go/README.md) |
 | **Rust** | `cargo add agentvend-agent-sdk` | [sdk-rust/README.md](sdk-rust/README.md) |
-| **Ruby** | `gem install agentvend_agent_sdk` | [sdk-ruby/README.md](sdk-ruby/README.md) |
+| **Ruby** | `gem install agentvend_sdk` | [sdk-ruby/README.md](sdk-ruby/README.md) |
 | **PHP** | `composer require agentvend/agent-sdk` | [sdk-php/README.md](sdk-php/README.md) |
 | **n8n** | Install community node from `integration-n8n/` | [integration-n8n/README.md](integration-n8n/README.md) |
 | **OpenClaw** | `openclaw plugins install openclaw-agentvend` | [integration-openclaw/README.md](integration-openclaw/README.md) |

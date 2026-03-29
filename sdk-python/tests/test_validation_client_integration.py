@@ -7,8 +7,8 @@ import json
 import pytest
 import responses
 
-from agentvend_agent_sdk.validation_client import validate_agent_key, AgentKeyValidationResult
-from agentvend_agent_sdk.hmac_utils import calculate_hmac
+from agentvend_sdk.validation_client import validate_agent_key, AgentKeyValidationResult
+from agentvend_sdk.hmac_utils import calculate_hmac
 
 CORE_BASE = "http://core.test/api/v1"
 AGENT_SECRET = "test-agent-secret"

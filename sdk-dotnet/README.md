@@ -22,7 +22,7 @@ See [api-overview.md](../docs/api-overview.md).
 ```csharp
 var client = AgentVendClient.Create(new AgentVendClientOptions
 {
-    ApiUrl = "https://api.example.com",
+    ApiUrl = "https://api.agentvend.ai",
     AgentId = agentId,
     AgentSecret = agentSecret,
     HttpClient = http,

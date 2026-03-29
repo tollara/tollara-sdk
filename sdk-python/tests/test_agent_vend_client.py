@@ -3,7 +3,7 @@
 import pytest
 import responses
 
-from agentvend_agent_sdk.client import AgentVendClient, ENV_API_URL
+from agentvend_sdk.client import AgentVendClient, ENV_API_URL
 
 AGENT_KEY = "k"
 AGENT_ID = "550e8400-e29b-41d4-a716-446655440000"

@@ -1,2 +1,0 @@
-agentvend_agent_sdk
-marketplace_agent_sdk

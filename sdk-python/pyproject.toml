@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentvend-agent-sdk"
+name = "agentvend-sdk"
 version = "1.0.0"
 description = "AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion"
 readme = "README.md"

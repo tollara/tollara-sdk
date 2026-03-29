@@ -1,6 +1,6 @@
 # AgentVend SDK (Ruby)
 
-**Gem:** `agentvend_agent_sdk` (RubyGems)
+**Gem:** `agentvend_sdk` (RubyGems). **Module:** `AgentVendSdk` (replaces the former `agentvend_agent_sdk` gem / `AgentVendAgentSdk` module).
 
 HMAC helpers and inbound verification. Use Net::HTTP, Faraday, or similar for Core, Usage, and Gateway APIs.
 
@@ -23,24 +23,24 @@ There is no unified HTTP client here; use Net::HTTP, Faraday, etc., with the URL
 ### Verify HMAC and trusted user context in one call
 
 ```ruby
-ctx = AgentVendAgentSdk.verify_signature_from_headers_and_user_context(agent_secret, headers_hash, raw_body)
+ctx = AgentVendSdk.verify_signature_from_headers_and_user_context(agent_secret, headers_hash, raw_body)
 # ctx is nil if invalid; otherwise same shape as user_context_from_headers
 ```
 
 ## Install
 
 ```bash
-gem install agentvend_agent_sdk
+gem install agentvend_sdk
 ```
 
 ## Verify inbound HMAC
 
 ```ruby
-require "agentvend_agent_sdk"
+require "agentvend_sdk"
 
-AgentVendAgentSdk.verify_signature_from_headers(agent_secret, headers_hash, raw_body)
+AgentVendSdk.verify_signature_from_headers(agent_secret, headers_hash, raw_body)
 
-AgentVendAgentSdk.verify_inbound_hmac(agent_secret,
+AgentVendSdk.verify_inbound_hmac(agent_secret,
   signature: sig,
   timestamp: ts,
   payload: body,
@@ -50,16 +50,16 @@ AgentVendAgentSdk.verify_inbound_hmac(agent_secret,
   quota_remaining: 10
 )
 
-ctx = AgentVendAgentSdk.user_context_from_headers(headers_hash)
+ctx = AgentVendSdk.user_context_from_headers(headers_hash)
 ```
 
-Header name constants: `AgentVendAgentSdk::HEADERS[:signature]`, etc.
+Header name constants: `AgentVendSdk::HEADERS[:signature]`, etc.
 
 ## Outbound signing
 
 ```ruby
-AgentVendAgentSdk.calculate_hmac(data, key)
-AgentVendAgentSdk.calculate_hmac_with_timestamp(body_string, timestamp, key)
+AgentVendSdk.calculate_hmac(data, key)
+AgentVendSdk.calculate_hmac_with_timestamp(body_string, timestamp, key)
 ```
 
 ## HTTP examples
