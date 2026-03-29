@@ -52,15 +52,15 @@ From this directory:
 Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed.
 
 ```java
-import com.agentvend.client.AgentvendRequestVerifier;
+import com.agentvend.client.AgentVendRequestVerifier;
 import jakarta.servlet.http.HttpServletRequest; // or your stack’s request type
 
-AgentvendRequestVerifier verifier = new AgentvendRequestVerifier(agentSecret);
+AgentVendRequestVerifier verifier = new AgentVendRequestVerifier(agentSecret);
 String rawBody = rawRequestBodyUtf8;
 
 boolean valid = verifier.verifyInboundHmac(request::getHeader, rawBody);
 if (valid) {
-    AgentvendRequestVerifier.UserContext ctx = verifier.userContextFromHeaders(request::getHeader);
+    AgentVendRequestVerifier.UserContext ctx = verifier.userContextFromHeaders(request::getHeader);
 }
 ```
 

@@ -69,7 +69,7 @@ The **client** and the **lib** code it depends on (e.g. HMAC utilities) have bee
 
 **Reference files in this repo (paths may vary by layout):**
 
-- **AgentvendRequestVerifier** – `verifyInboundHmac` (`InboundHmacRequest`, `HttpHeaders`, or header map), `userContextFromHeaders`, `UserContext`; deprecated `verifyHmacSignature` / `extractUserContext`  
+- **AgentVendRequestVerifier** – `verifyInboundHmac` (`InboundHmacRequest`, `Function<String,String>` header accessor, or header map), `userContextFromHeaders`, `UserContext`; deprecated `verifyHmacSignature` / `extractUserContext`  
 - **UsageServiceClient** – `sendProgressUpdate`, `sendCompletion`, `reportUsage`; progress/complete URL parsing and body signing  
 - **AgentKeyValidationClient** – `validateAgentKey`, request/response DTOs, response HMAC check, optional cache  
 - **HmacUtils** (vendored from lib) – `calculateHmac(data, key)`, `calculateHmacWithTimestamp(data, timestamp, key)` (canonical = `data + timestamp`)  
