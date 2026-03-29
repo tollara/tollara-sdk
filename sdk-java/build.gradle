@@ -12,7 +12,7 @@ plugins {
 }
 
 group = 'com.agentvend'
-version = '1.0.0'
+version = '0.0.1'
 
 repositories {
     mavenCentral()
@@ -89,7 +89,7 @@ publishing {
                     developer {
                         id = 'agentvend'
                         name = (findProperty('mavenCentralDeveloperName') ?: 'AgentVend').toString()
-                        email = (findProperty('mavenCentralDeveloperEmail') ?: 'CHANGEME@example.com').toString()
+                        email = (findProperty('mavenCentralDeveloperEmail') ?: 'support@agentvend.ai')
                     }
                 }
                 scm {
