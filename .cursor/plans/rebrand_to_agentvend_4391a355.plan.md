@@ -24,7 +24,7 @@ isProject: false
   - `client/model` → `com/agentvend/client/model`
   - `common/util` → `com/agentvend/common/util`
 - **Package declarations and imports:** Change every `com.bugisiw.marketplace.`* to `com.agentvend.`* in all 9 Java files (main + test).
-- **Class rename:** `MarketplaceRequestVerifier` → `AgentvendRequestVerifier` (or `RequestVerifier` under `com.agentvend.client`); update all references and [sdk-java/README.md](sdk-java/README.md) examples.
+- **Class rename:** `MarketplaceRequestVerifier` → `AgentVendRequestVerifier` (or `RequestVerifier` under `com.agentvend.client`); update all references and [sdk-java/README.md](sdk-java/README.md) examples.
 - **Headers:** Replace `X-Marketplace-Signature`, `X-Marketplace-Timestamp` with `X-AgentVend-Signature`, `X-AgentVend-Timestamp` in:
   - [AgentKeyValidationClient.java](sdk-java/src/main/java/com/bugisiw/marketplace/client/AgentKeyValidationClient.java)
   - [UsageServiceClient.java](sdk-java/src/main/java/com/bugisiw/marketplace/client/UsageServiceClient.java)
@@ -148,7 +148,7 @@ isProject: false
 | Area                 | From                                              | To                                                 |
 | -------------------- | ------------------------------------------------- | -------------------------------------------------- |
 | Java packages        | `com.bugisiw.marketplace.`*                       | `com.agentvend.`*                                  |
-| Java class           | `MarketplaceRequestVerifier`                      | `AgentvendRequestVerifier`                         |
+| Java class           | `MarketplaceRequestVerifier`                      | `AgentVendRequestVerifier`                         |
 | Maven group          | `com.marketplace`                                 | `com.agentvend`                                    |
 | npm package          | `@marketplace/agent-sdk`                          | `@agentvend/agent-sdk`                             |
 | NuGet / C# namespace | `Marketplace.AgentSdk`                            | `AgentVend` (or `AgentVend.AgentSdk`)              |

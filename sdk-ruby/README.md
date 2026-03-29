@@ -21,9 +21,9 @@ gem install agentvend_agent_sdk
 ```ruby
 require "agentvend_agent_sdk"
 
-AgentvendAgentSdk.verify_signature_from_headers(agent_secret, headers_hash, raw_body)
+AgentVendAgentSdk.verify_signature_from_headers(agent_secret, headers_hash, raw_body)
 
-AgentvendAgentSdk.verify_inbound_hmac(agent_secret,
+AgentVendAgentSdk.verify_inbound_hmac(agent_secret,
   signature: sig,
   timestamp: ts,
   payload: body,
@@ -33,16 +33,16 @@ AgentvendAgentSdk.verify_inbound_hmac(agent_secret,
   quota_remaining: 10
 )
 
-ctx = AgentvendAgentSdk.user_context_from_headers(headers_hash)
+ctx = AgentVendAgentSdk.user_context_from_headers(headers_hash)
 ```
 
-Header name constants: `AgentvendAgentSdk::HEADERS[:signature]`, etc.
+Header name constants: `AgentVendAgentSdk::HEADERS[:signature]`, etc.
 
 ## Outbound signing
 
 ```ruby
-AgentvendAgentSdk.calculate_hmac(data, key)
-AgentvendAgentSdk.calculate_hmac_with_timestamp(body_string, timestamp, key)
+AgentVendAgentSdk.calculate_hmac(data, key)
+AgentVendAgentSdk.calculate_hmac_with_timestamp(body_string, timestamp, key)
 ```
 
 ## HTTP examples
