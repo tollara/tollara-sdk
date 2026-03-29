@@ -32,7 +32,7 @@ openclaw plugins install ./integration-openclaw
 import { callAgent } from 'openclaw-agentvend';
 
 const result = await callAgent(
-  { gatewayUrl: 'https://gateway.example.com', agentKey: '...' },
+  { gatewayUrl: 'https://api.agentvend.api', agentKey: '...' },
   { agentId: 'my-agent', endpointId: 'run', body: { input: '...' } }
 );
 ```

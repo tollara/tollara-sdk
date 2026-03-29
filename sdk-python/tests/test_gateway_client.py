@@ -13,7 +13,7 @@ def test_get_request_status_sends_bearer():
         json={"state": "PENDING"},
         status=200,
     )
-    r = get_request_status("https://gw.test", "/api", "j1", "my-key")
+    r = get_request_status("https://gw.test", "j1", "my-key")
     assert r.ok is True
     assert r.status_code == 200
     assert "PENDING" in r.body
@@ -29,6 +29,6 @@ def test_get_request_result_ecs_prefix():
         body="{}",
         status=200,
     )
-    r = get_request_result("https://gw.test/", "/gateway/api/v1", "r2", "k")
+    r = get_request_result("https://gw.test/", "r2", "k", gateway_path_prefix="/gateway/api/v1")
     assert r.ok is True
     assert r.status_code == 200

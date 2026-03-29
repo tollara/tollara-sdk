@@ -14,7 +14,7 @@ Use **`AgentVendClient`** with one API origin. The SDK appends the path prefixes
 
 | Setting | Default | Notes |
 |--------|---------|--------|
-| API origin | From env **`AGENTVEND_API_URL`**, or `Builder.apiUrl(...)` | Scheme + host (and port), e.g. `https://api.example.com` — no trailing slash required |
+| API origin | From env **`AGENTVEND_API_URL`**, or `Builder.apiUrl(...)` | Scheme + host (and port), e.g. `https://api.agentvend.api` — no trailing slash required |
 | Agent ID | From env **`AGENTVEND_AGENT_ID`**, or `Builder.agentId(...)` | Optional if Core can infer the agent from the key |
 | Agent secret | From env **`AGENTVEND_AGENT_SECRET`**, or `Builder.agentSecret(...)` | **Required** (Usage HMAC + Core response verification) |
 | Core prefix | `/api/v1` | `Builder.corePathPrefix(...)` for `/core/api/v1` (ECS) |
@@ -114,7 +114,7 @@ import java.net.http.HttpClient;
 // Omit .apiUrl(...) / .agentId(...) / .agentSecret(...) to use AGENTVEND_API_URL, AGENTVEND_AGENT_ID
 // (optional), and AGENTVEND_AGENT_SECRET (required) — see “Environment variables” above.
 AgentVendClient client = AgentVendClient.builder()
-    .apiUrl("https://api.agentvend.ai")
+    .apiUrl("https://api.agentvend.api")
     .agentId(agentId)
     // Shared secret: signs outbound Usage calls and verifies Core validate responses (required).
     .agentSecret(agentSecret)

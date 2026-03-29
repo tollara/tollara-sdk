@@ -4,6 +4,17 @@ from typing import List, Optional
 from .agentvend_headers import AgentVendHeaders
 from .hmac_utils import validate_hmac_signature
 
+DEFAULT_CORE_PATH_PREFIX = "/core/api/v1"
+
+
+def _validate_url(base_url: str, core_path_prefix: Optional[str]) -> str:
+    base = base_url.rstrip("/")
+    p = (core_path_prefix or DEFAULT_CORE_PATH_PREFIX).strip()
+    if not p.startswith("/"):
+        p = "/" + p
+    p = p.rstrip("/")
+    return f"{base}{p}/agent-keys/validate"
+
 
 @dataclass
 class AgentKeyValidationResult:
@@ -19,19 +30,20 @@ class AgentKeyValidationResult:
 
 
 def validate_agent_key(
-    core_service_url: str,
+    base_url: str,
     agent_key: str,
     agent_secret: str,
     agent_id: Optional[str] = None,
     *,
+    core_path_prefix: Optional[str] = None,
     session: Optional["requests.Session"] = None,
 ) -> Optional[AgentKeyValidationResult]:
-    """Validate agent key via core service. Requires 'requests' (pip install requests)."""
+    """Validate agent key via Core service. Requires 'requests' (pip install requests)."""
     try:
         import requests
     except ImportError:
         raise ImportError("validate_agent_key requires 'requests'. pip install requests")
-    url = core_service_url.rstrip("/") + "/agent-keys/validate"
+    url = _validate_url(base_url, core_path_prefix)
     body = {"agentKey": agent_key, "agentId": agent_id, "agentSecret": agent_secret}
     sess = session or requests.Session()
     resp = sess.post(url, json=body)

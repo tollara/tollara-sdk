@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     import requests
 
+DEFAULT_GATEWAY_PATH_PREFIX = "/api"
+
 
 def _normalize_base(url: str) -> str:
     return url.rstrip("/")
@@ -32,11 +34,11 @@ class GatewayPollResult:
 
 
 def get_request_status(
-    gateway_base_url: str,
-    gateway_path_prefix: str,
+    base_url: str,
     request_id: str,
     agent_key: str,
     *,
+    gateway_path_prefix: str = DEFAULT_GATEWAY_PATH_PREFIX,
     session: Optional["requests.Session"] = None,
 ) -> GatewayPollResult:
     """GET .../requests/{request_id}/status with Bearer agent key."""
@@ -44,18 +46,18 @@ def get_request_status(
         import requests
     except ImportError as e:
         raise ImportError("get_request_status requires 'requests'. pip install requests") from e
-    url = _build_url(gateway_base_url, gateway_path_prefix, f"/requests/{request_id}/status")
+    url = _build_url(base_url, gateway_path_prefix, f"/requests/{request_id}/status")
     sess = session or requests.Session()
     resp = sess.get(url, headers={"Authorization": f"Bearer {agent_key}"}, timeout=60)
     return GatewayPollResult(ok=resp.ok, status_code=resp.status_code, body=resp.text or "")
 
 
 def get_request_result(
-    gateway_base_url: str,
-    gateway_path_prefix: str,
+    base_url: str,
     request_id: str,
     agent_key: str,
     *,
+    gateway_path_prefix: str = DEFAULT_GATEWAY_PATH_PREFIX,
     session: Optional["requests.Session"] = None,
 ) -> GatewayPollResult:
     """GET .../requests/{request_id}/result with Bearer agent key."""
@@ -63,7 +65,7 @@ def get_request_result(
         import requests
     except ImportError as e:
         raise ImportError("get_request_result requires 'requests'. pip install requests") from e
-    url = _build_url(gateway_base_url, gateway_path_prefix, f"/requests/{request_id}/result")
+    url = _build_url(base_url, gateway_path_prefix, f"/requests/{request_id}/result")
     sess = session or requests.Session()
     resp = sess.get(url, headers={"Authorization": f"Bearer {agent_key}"}, timeout=60)
     return GatewayPollResult(ok=resp.ok, status_code=resp.status_code, body=resp.text or "")

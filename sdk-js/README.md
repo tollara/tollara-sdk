@@ -8,7 +8,7 @@ Verify HMAC, validate agent keys, report usage, progress, completion, and poll a
 
 The SDK **never hardcodes** production URLs. You pass:
 
-- **Core:** `coreServiceUrl` (e.g. `https://core.example.com/api/v1`) for validate.
+- **Core:** `coreServiceUrl` (e.g. `https://api.agentvend.api/core/api/v1`) for validate.
 - **Usage:** `usageServiceUrl` for `reportUsage` (appends `/api/usage/report`). Match your deployment to [sdk-api-spec.md](../docs/sdk-api-spec.md) §3 (default vs ECS prefixes).
 - **Gateway:** `gatewayBaseUrl` + `gatewayPathPrefix` for `getRequestStatus` / `getRequestResult` (`/api` vs `/gateway/api/v1`).
 - **Progress / completion:** full `progressUrl` and `callbackUrl` strings from the async invoke response.
@@ -23,7 +23,7 @@ See [api-overview.md](../docs/api-overview.md).
 import { AgentVendClient } from '@agentvend/agent-sdk';
 
 const client = new AgentVendClient({
-  apiUrl: 'https://api.example.com',
+  apiUrl: 'https://api.agentvend.api',
   agentId: 'agent-uuid',
   agentSecret: 'secret',
 });
@@ -76,7 +76,7 @@ if (valid) {
 import { validateAgentKey } from '@agentvend/agent-sdk';
 
 const result = await validateAgentKey({
-  coreServiceUrl: 'https://core.example.com/api/v1',
+  coreServiceUrl: 'https://api.agentvend.api/core/api/v1',
   agentKey: 'bearer-token',
   agentId: 'agent-id',
   agentSecret: 'agent-secret',
@@ -89,7 +89,7 @@ const result = await validateAgentKey({
 import { reportUsage } from '@agentvend/agent-sdk';
 
 await reportUsage({
-  usageServiceUrl: 'https://usage.example.com',
+  usageServiceUrl: 'https://api.agentvend.api',
   userId: 'u1',
   agentId: 'a1',
   unitsUsed: 1,
@@ -125,13 +125,13 @@ await reportCompletionWithResult({
 import { getRequestStatus, getRequestResult } from '@agentvend/agent-sdk';
 
 const st = await getRequestStatus({
-  gatewayBaseUrl: 'https://gateway.example.com',
+  gatewayBaseUrl: 'https://api.agentvend.api',
   gatewayPathPrefix: '/api',
   requestId,
   agentKey,
 });
 const res = await getRequestResult({
-  gatewayBaseUrl: 'https://gateway.example.com',
+  gatewayBaseUrl: 'https://api.agentvend.api',
   gatewayPathPrefix: '/api',
   requestId,
   agentKey,

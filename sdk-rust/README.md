@@ -46,7 +46,7 @@ let ctx = parse_user_context(&headers_map);
 use agentvend_agent_sdk::agent_vend_client::{AgentVendClient, AgentVendClientConfig};
 
 let client = AgentVendClient::try_new(AgentVendClientConfig {
-    api_url: Some("https://api.example.com".into()),
+    api_url: Some("https://api.agentvend.api".into()),
     agent_id: Some("agent-uuid".into()),
     agent_secret: Some("secret".into()),
     ..Default::default()
@@ -70,7 +70,7 @@ use agentvend_agent_sdk::gateway_client;
 // report_usage / report_usage_at (optional usage_path_prefix); report_progress_simple; report_completion*, CompletionStatus
 let (ok, status, body) = gateway_client::get_request_status(
     &client,
-    "https://gateway.example.com",
+    "https://api.agentvend.api",
     "/api",
     request_id,
     agent_key,

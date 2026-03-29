@@ -4,6 +4,7 @@ from .verifier import (
     verify_signature,
     verify_inbound_hmac,
     verify_signature_from_headers,
+    verify_inbound_context,
     verify_signature_from_headers_and_get_user_context,
     get_user_context,
     build_gateway_user_context_string,
@@ -26,6 +27,7 @@ from .usage_client import (
 from .gateway_client import get_request_status, get_request_result, GatewayPollResult
 from .client import (
     AgentVendClient,
+    DEFAULT_API_URL,
     DEFAULT_CORE_PATH_PREFIX,
     DEFAULT_GATEWAY_PATH_PREFIX,
     ENV_AGENT_ID,
@@ -42,6 +44,7 @@ __all__ = [
     "verify_signature",
     "verify_inbound_hmac",
     "verify_signature_from_headers",
+    "verify_inbound_context",
     "verify_signature_from_headers_and_get_user_context",
     "get_user_context",
     "build_gateway_user_context_string",
@@ -63,6 +66,7 @@ __all__ = [
     "get_request_result",
     "GatewayPollResult",
     "AgentVendClient",
+    "DEFAULT_API_URL",
     "ENV_API_URL",
     "ENV_AGENT_ID",
     "ENV_AGENT_SECRET",

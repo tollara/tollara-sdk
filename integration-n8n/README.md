@@ -23,9 +23,9 @@ n8n nodes for AgentVend: webhook trigger with HMAC verification, invoke agent, p
 **AgentVend API**
 
 - **Agent Secret** (required) – Used for HMAC signing and verification.
-- **Gateway URL** – Base URL of the gateway (e.g. `http://localhost:8083`).
-- **Core Service URL** – Base URL of the core service (e.g. `http://localhost:8081/api/v1`).
-- **Usage Service URL** – Base URL of the usage service (e.g. `http://localhost:8084`).
+- **Gateway URL** – Base URL of the gateway (e.g. `https://api.agentvend.api`).
+- **Core Service URL** – Base URL of the core service (e.g. `https://api.agentvend.api/core/api/v1`).
+- **Usage Service URL** – Base URL of the usage service (e.g. `https://api.agentvend.api`).
 
 ## Build
 

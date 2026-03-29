@@ -6,7 +6,12 @@ import os
 from typing import TYPE_CHECKING, Optional
 
 from .completion_status import CompletionStatus
-from .gateway_client import GatewayPollResult, get_request_result, get_request_status
+from .gateway_client import (
+    DEFAULT_GATEWAY_PATH_PREFIX,
+    GatewayPollResult,
+    get_request_result,
+    get_request_status,
+)
 from .usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
@@ -16,7 +21,11 @@ from .usage_client import (
     report_usage_at,
     UsageReportResponse,
 )
-from .validation_client import AgentKeyValidationResult, validate_agent_key
+from .validation_client import (
+    DEFAULT_CORE_PATH_PREFIX,
+    AgentKeyValidationResult,
+    validate_agent_key,
+)
 
 if TYPE_CHECKING:
     import requests
@@ -25,8 +34,8 @@ ENV_API_URL = "AGENTVEND_API_URL"
 ENV_AGENT_ID = "AGENTVEND_AGENT_ID"
 ENV_AGENT_SECRET = "AGENTVEND_AGENT_SECRET"
 
-DEFAULT_CORE_PATH_PREFIX = "/api/v1"
-DEFAULT_GATEWAY_PATH_PREFIX = "/api"
+# Production API origin; override with `api_url=...` or `AGENTVEND_API_URL` for tests/staging.
+DEFAULT_API_URL = "https://api.agentvend.api"
 
 
 def _trim_trailing_slashes(s: str) -> str:
@@ -52,15 +61,26 @@ def _first_non_blank(a: Optional[str], b: Optional[str]) -> str:
     return ""
 
 
+def _resolve_api_url(api_url: Optional[str]) -> str:
+    if api_url is not None and api_url.strip():
+        return _trim_trailing_slashes(api_url.strip())
+    env = os.environ.get(ENV_API_URL)
+    if env is not None and env.strip():
+        return _trim_trailing_slashes(env.strip())
+    return DEFAULT_API_URL
+
+
 class AgentVendClient:
     """
     Single entry point for Core validate, Usage report/progress/complete, and Gateway polling.
     Explicit constructor arguments override environment variables (same order as Java `Builder`).
+    The API origin defaults to :data:`DEFAULT_API_URL` when neither `api_url` nor ``AGENTVEND_API_URL`` is set.
     """
 
     ENV_API_URL = ENV_API_URL
     ENV_AGENT_ID = ENV_AGENT_ID
     ENV_AGENT_SECRET = ENV_AGENT_SECRET
+    DEFAULT_API_URL = DEFAULT_API_URL
     DEFAULT_CORE_PATH_PREFIX = DEFAULT_CORE_PATH_PREFIX
     DEFAULT_GATEWAY_PATH_PREFIX = DEFAULT_GATEWAY_PATH_PREFIX
     DEFAULT_USAGE_PATH_PREFIX = DEFAULT_USAGE_PATH_PREFIX
@@ -79,12 +99,7 @@ class AgentVendClient:
         agent_secret: Optional[str] = None,
         session: Optional["requests.Session"] = None,
     ) -> None:
-        resolved = _first_non_blank(api_url, os.environ.get(ENV_API_URL))
-        resolved = _trim_trailing_slashes(resolved)
-        if not resolved:
-            raise ValueError(
-                f"AgentVend API URL is required: pass api_url=... or set environment variable {ENV_API_URL}"
-            )
+        resolved = _resolve_api_url(api_url)
 
         core_base = _trim_trailing_slashes(_first_non_blank(core_api_url, resolved))
         gw_base = _trim_trailing_slashes(_first_non_blank(gateway_api_url, resolved))
@@ -105,7 +120,8 @@ class AgentVendClient:
 
         self._gateway_base_url = gw_base
         self._gateway_path_prefix = gp
-        self._core_root = _join_url(core_base, cp)
+        self._core_base = core_base
+        self._core_path_prefix = cp
         self._usage_base = usage_base
         self._usage_path_prefix = up
         self._agent_id = aid_opt
@@ -114,15 +130,16 @@ class AgentVendClient:
 
     @classmethod
     def from_env(cls, *, session: Optional["requests.Session"] = None) -> AgentVendClient:
-        """Build using only `AGENTVEND_*` environment variables."""
+        """Build from environment (optional `AGENTVEND_API_URL` / agent id / secret). Uses :data:`DEFAULT_API_URL` when unset."""
         return cls(session=session)
 
     def validate_agent_key(self, agent_key: str) -> Optional[AgentKeyValidationResult]:
         return validate_agent_key(
-            self._core_root,
+            self._core_base,
             agent_key,
             self._agent_secret,
             self._agent_id,
+            core_path_prefix=self._core_path_prefix,
             session=self._session,
         )
 
@@ -227,9 +244,9 @@ class AgentVendClient:
     ) -> GatewayPollResult:
         return get_request_status(
             self._gateway_base_url,
-            self._gateway_path_prefix,
             request_id,
             agent_key,
+            gateway_path_prefix=self._gateway_path_prefix,
             session=session or self._session,
         )
 
@@ -242,8 +259,8 @@ class AgentVendClient:
     ) -> GatewayPollResult:
         return get_request_result(
             self._gateway_base_url,
-            self._gateway_path_prefix,
             request_id,
             agent_key,
+            gateway_path_prefix=self._gateway_path_prefix,
             session=session or self._session,
         )

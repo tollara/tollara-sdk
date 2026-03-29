@@ -10,7 +10,7 @@ import responses
 from agentvend_sdk.validation_client import validate_agent_key, AgentKeyValidationResult
 from agentvend_sdk.hmac_utils import calculate_hmac
 
-CORE_BASE = "http://core.test/api/v1"
+CORE_BASE = "http://core.test"
 AGENT_SECRET = "test-agent-secret"
 AGENT_ID = "550e8400-e29b-41d4-a716-446655440000"
 
@@ -36,7 +36,7 @@ def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/agent-keys/validate",
+        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -66,7 +66,7 @@ def test_validate_agent_key_returns_none_when_core_returns_401():
     """Core returns 401; SDK returns None."""
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/agent-keys/validate",
+        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
         json={"valid": False, "error": "Invalid key"},
         status=401,
         headers={"Content-Type": "application/json"},
@@ -95,7 +95,7 @@ def test_validate_agent_key_returns_none_when_hmac_invalid():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/agent-keys/validate",
+        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -130,7 +130,7 @@ def test_validate_agent_key_returns_none_when_valid_false_in_body():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/agent-keys/validate",
+        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -164,7 +164,7 @@ def test_validate_agent_key_sends_agent_key_and_agent_id_in_body():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/agent-keys/validate",
+        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -182,3 +182,26 @@ def test_validate_agent_key_sends_agent_key_and_agent_id_in_body():
     assert sent_body["agentKey"] == "the-agent-key"
     assert sent_body["agentId"] == AGENT_ID
     assert sent_body["agentSecret"] == AGENT_SECRET
+
+
+@responses.activate
+def test_validate_agent_key_custom_core_path_prefix():
+    responses.add(
+        responses.POST,
+        f"{CORE_BASE}/api/v1/agent-keys/validate",
+        json={"valid": False},
+        status=200,
+        headers={
+            "Content-Type": "application/json",
+            "X-AgentVend-Signature": "x",
+            "X-AgentVend-Timestamp": "1",
+        },
+    )
+    validate_agent_key(
+        CORE_BASE,
+        "the-agent-key",
+        AGENT_SECRET,
+        agent_id=AGENT_ID,
+        core_path_prefix="/api/v1",
+    )
+    assert responses.calls[0].request.url == f"{CORE_BASE}/api/v1/agent-keys/validate"
