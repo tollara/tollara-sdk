@@ -4,10 +4,10 @@ import com.agentvend.common.util.HmacUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.springframework.web.client.RestTemplate;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 
 import java.math.BigDecimal;
+import java.net.http.HttpClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,8 +35,7 @@ class AgentKeyValidationClientIntegrationTest {
     void setUp() {
         int port = wireMock.getPort();
         coreBaseUrl = "http://localhost:" + port + "/api/v1";
-        RestTemplate restTemplate = new RestTemplate();
-        client = new AgentKeyValidationClient(coreBaseUrl, AGENT_ID, AGENT_SECRET, restTemplate);
+        client = new AgentKeyValidationClient(coreBaseUrl, AGENT_ID, AGENT_SECRET, HttpClient.newHttpClient());
     }
 
     @Test

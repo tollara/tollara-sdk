@@ -4,9 +4,8 @@ import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
+
+import java.net.http.HttpClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
@@ -29,7 +28,7 @@ class GatewayClientIntegrationTest {
     void setUp() {
         int port = wireMock.getPort();
         gatewayBase = "http://localhost:" + port;
-        client = new GatewayClient(new RestTemplate());
+        client = new GatewayClient(HttpClient.newHttpClient());
     }
 
     @Test
@@ -43,9 +42,9 @@ class GatewayClientIntegrationTest {
                                         .withHeader("Content-Type", "application/json")
                                         .withBody("{\"state\":\"PENDING\"}")));
 
-        ResponseEntity<String> res =
+        GatewayHttpResponse res =
                 client.getRequestStatus(gatewayBase, "/api", "job-1", AGENT_KEY);
-        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(res.getStatusCode()).isEqualTo(200);
         assertThat(res.getBody()).contains("PENDING");
     }
 
@@ -56,8 +55,8 @@ class GatewayClientIntegrationTest {
                         .withHeader("Authorization", equalTo("Bearer " + AGENT_KEY))
                         .willReturn(aResponse().withStatus(200).withBody("{}")));
 
-        ResponseEntity<String> result =
+        GatewayHttpResponse result =
                 client.getRequestResult(gatewayBase, "/gateway/api/v1", "job-2", AGENT_KEY);
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(result.getStatusCode()).isEqualTo(200);
     }
 }

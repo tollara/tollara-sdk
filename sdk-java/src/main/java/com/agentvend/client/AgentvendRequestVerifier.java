@@ -8,12 +8,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Verifies AgentVend requests by validating HMAC signatures.
@@ -56,17 +57,29 @@ public class AgentvendRequestVerifier {
     }
 
     /**
-     * Verifies inbound HMAC from Spring {@link HttpHeaders} (case-insensitive) and raw body.
+     * Verifies inbound HMAC using a header accessor (e.g. {@code servletRequest::getHeader}) and the raw body bytes as UTF-8.
+     * Tries the canonical header name first, then the lowercase form, so it works with stacks that normalize names.
      */
-    public boolean verifyInboundHmac(HttpHeaders headers, String payload) {
-        if (headers == null) {
+    public boolean verifyInboundHmac(Function<String, String> getHeader, String payload) {
+        if (getHeader == null) {
             return false;
         }
-        return verifyInboundHmac(
-                headers.getFirst(AgentVendHeaders.SIGNATURE),
-                headers.getFirst(AgentVendHeaders.TIMESTAMP),
-                payload,
-                headers);
+        SignedUserContext signed =
+                parseSignedUserContext(
+                        headerFrom(getHeader, AgentVendHeaders.USER_ID),
+                        headerFrom(getHeader, AgentVendHeaders.PLAN),
+                        headerFrom(getHeader, AgentVendHeaders.ROLES),
+                        headerFrom(getHeader, AgentVendHeaders.QUOTA_REMAINING),
+                        headerFrom(getHeader, AgentVendHeaders.SUBSCRIPTION_ACTIVE),
+                        headerFrom(getHeader, AgentVendHeaders.BILLING_MODEL),
+                        headerFrom(getHeader, AgentVendHeaders.MEASUREMENT_TYPE),
+                        headerFrom(getHeader, AgentVendHeaders.UNIT_LABEL));
+        return verifyInboundHmac(InboundHmacRequest.builder()
+                .signature(headerFrom(getHeader, AgentVendHeaders.SIGNATURE))
+                .timestamp(headerFrom(getHeader, AgentVendHeaders.TIMESTAMP))
+                .payload(payload)
+                .signedUserContext(signed)
+                .build());
     }
 
     /**
@@ -76,51 +89,18 @@ public class AgentvendRequestVerifier {
         if (headers == null || headers.isEmpty()) {
             return false;
         }
-        return verifyInboundHmac(
-                getHeaderIgnoreCase(headers, AgentVendHeaders.SIGNATURE),
-                getHeaderIgnoreCase(headers, AgentVendHeaders.TIMESTAMP),
-                payload,
-                headers);
+        return verifyInboundHmac(name -> getHeaderIgnoreCase(headers, name), payload);
     }
 
-    private boolean verifyInboundHmac(
-            String signature, String timestamp, String payload, HttpHeaders headers) {
-        SignedUserContext signed =
-                parseSignedUserContext(
-                        headers.getFirst(AgentVendHeaders.USER_ID),
-                        headers.getFirst(AgentVendHeaders.PLAN),
-                        headers.getFirst(AgentVendHeaders.ROLES),
-                        headers.getFirst(AgentVendHeaders.QUOTA_REMAINING),
-                        headers.getFirst(AgentVendHeaders.SUBSCRIPTION_ACTIVE),
-                        headers.getFirst(AgentVendHeaders.BILLING_MODEL),
-                        headers.getFirst(AgentVendHeaders.MEASUREMENT_TYPE),
-                        headers.getFirst(AgentVendHeaders.UNIT_LABEL));
-        return verifyInboundHmac(InboundHmacRequest.builder()
-                .signature(signature)
-                .timestamp(timestamp)
-                .payload(payload)
-                .signedUserContext(signed)
-                .build());
-    }
-
-    private boolean verifyInboundHmac(
-            String signature, String timestamp, String payload, Map<String, String> headers) {
-        SignedUserContext signed =
-                parseSignedUserContext(
-                        getHeaderIgnoreCase(headers, AgentVendHeaders.USER_ID),
-                        getHeaderIgnoreCase(headers, AgentVendHeaders.PLAN),
-                        getHeaderIgnoreCase(headers, AgentVendHeaders.ROLES),
-                        getHeaderIgnoreCase(headers, AgentVendHeaders.QUOTA_REMAINING),
-                        getHeaderIgnoreCase(headers, AgentVendHeaders.SUBSCRIPTION_ACTIVE),
-                        getHeaderIgnoreCase(headers, AgentVendHeaders.BILLING_MODEL),
-                        getHeaderIgnoreCase(headers, AgentVendHeaders.MEASUREMENT_TYPE),
-                        getHeaderIgnoreCase(headers, AgentVendHeaders.UNIT_LABEL));
-        return verifyInboundHmac(InboundHmacRequest.builder()
-                .signature(signature)
-                .timestamp(timestamp)
-                .payload(payload)
-                .signedUserContext(signed)
-                .build());
+    private static String headerFrom(Function<String, String> getHeader, String canonicalName) {
+        if (canonicalName == null) {
+            return null;
+        }
+        String v = getHeader.apply(canonicalName);
+        if (v != null) {
+            return v;
+        }
+        return getHeader.apply(canonicalName.toLowerCase(Locale.ROOT));
     }
 
     private static SignedUserContext parseSignedUserContext(
@@ -161,24 +141,21 @@ public class AgentvendRequestVerifier {
     }
 
     /**
-     * Parses full user context from Spring {@link HttpHeaders}, including unsigned fields.
+     * Parses full user context from request headers via {@code getHeader} (same resolution as {@link #verifyInboundHmac(Function, String)}).
      */
-    public UserContext userContextFromHeaders(HttpHeaders headers) {
-        if (headers == null) {
-            return UserContext.builder()
-                    .roles(Collections.emptyList())
-                    .subscriptionActive(false)
-                    .build();
+    public UserContext userContextFromHeaders(Function<String, String> getHeader) {
+        if (getHeader == null) {
+            return emptyUserContext();
         }
         return extractUserContext(
-                headers.getFirst(AgentVendHeaders.USER_ID),
-                headers.getFirst(AgentVendHeaders.PLAN),
-                headers.getFirst(AgentVendHeaders.ROLES),
-                headers.getFirst(AgentVendHeaders.QUOTA_REMAINING),
-                headers.getFirst(AgentVendHeaders.SUBSCRIPTION_ACTIVE),
-                headers.getFirst(AgentVendHeaders.BILLING_MODEL),
-                headers.getFirst(AgentVendHeaders.MEASUREMENT_TYPE),
-                headers.getFirst(AgentVendHeaders.UNIT_LABEL));
+                headerFrom(getHeader, AgentVendHeaders.USER_ID),
+                headerFrom(getHeader, AgentVendHeaders.PLAN),
+                headerFrom(getHeader, AgentVendHeaders.ROLES),
+                headerFrom(getHeader, AgentVendHeaders.QUOTA_REMAINING),
+                headerFrom(getHeader, AgentVendHeaders.SUBSCRIPTION_ACTIVE),
+                headerFrom(getHeader, AgentVendHeaders.BILLING_MODEL),
+                headerFrom(getHeader, AgentVendHeaders.MEASUREMENT_TYPE),
+                headerFrom(getHeader, AgentVendHeaders.UNIT_LABEL));
     }
 
     /**
@@ -186,10 +163,7 @@ public class AgentvendRequestVerifier {
      */
     public UserContext userContextFromHeaders(Map<String, String> headers) {
         if (headers == null || headers.isEmpty()) {
-            return UserContext.builder()
-                    .roles(Collections.emptyList())
-                    .subscriptionActive(false)
-                    .build();
+            return emptyUserContext();
         }
         return extractUserContext(
                 getHeaderIgnoreCase(headers, AgentVendHeaders.USER_ID),
@@ -200,6 +174,13 @@ public class AgentvendRequestVerifier {
                 getHeaderIgnoreCase(headers, AgentVendHeaders.BILLING_MODEL),
                 getHeaderIgnoreCase(headers, AgentVendHeaders.MEASUREMENT_TYPE),
                 getHeaderIgnoreCase(headers, AgentVendHeaders.UNIT_LABEL));
+    }
+
+    private static UserContext emptyUserContext() {
+        return UserContext.builder()
+                .roles(Collections.emptyList())
+                .subscriptionActive(false)
+                .build();
     }
 
     private static String getHeaderIgnoreCase(Map<String, String> headers, String canonicalName) {
@@ -215,7 +196,7 @@ public class AgentvendRequestVerifier {
      * Verifies the HMAC signature with the extended gateway user-context string (see {@link GatewayHmacUserContext}).
      * Prefer {@link #verifyInboundHmac(InboundHmacRequest)}.
      *
-     * @deprecated Use {@link #verifyInboundHmac(InboundHmacRequest)} or {@link #verifyInboundHmac(HttpHeaders, String)}.
+     * @deprecated Use {@link #verifyInboundHmac(InboundHmacRequest)} or {@link #verifyInboundHmac(Function, String)}.
      */
     @Deprecated
     public boolean verifyHmacSignature(String signature, String timestamp, Object payload,
@@ -260,7 +241,7 @@ public class AgentvendRequestVerifier {
     /**
      * Extracts user context from individual header values.
      *
-     * @deprecated Prefer {@link #userContextFromHeaders(HttpHeaders)} or {@link #userContextFromHeaders(Map)}.
+     * @deprecated Prefer {@link #userContextFromHeaders(Function)} or {@link #userContextFromHeaders(Map)}.
      */
     @Deprecated
     public UserContext extractUserContext(String userIdHeader, String planHeader, String rolesHeader,

@@ -9,10 +9,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.http.HttpClient;
+import java.net.http.HttpResponse;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -27,16 +28,16 @@ public class AgentKeyValidationClient {
     private final String coreServiceUrl;
     private final String agentId;
     private final String agentSecret;
-    private final RestTemplate restTemplate;
+    private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final Map<String, CachedValidationResult> cache = new ConcurrentHashMap<>();
     private static final long CACHE_TTL_MS = 60_000;
 
-    public AgentKeyValidationClient(String coreServiceUrl, String agentId, String agentSecret, RestTemplate restTemplate) {
+    public AgentKeyValidationClient(String coreServiceUrl, String agentId, String agentSecret, HttpClient httpClient) {
         this.coreServiceUrl = coreServiceUrl;
         this.agentId = agentId;
         this.agentSecret = agentSecret;
-        this.restTemplate = restTemplate;
+        this.httpClient = httpClient;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -60,25 +61,26 @@ public class AgentKeyValidationClient {
         long retryDelayMs = 200;
         for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                HttpEntity<ValidateRequest> requestEntity = new HttpEntity<>(request, headers);
-                ResponseEntity<ValidationResponse> response = restTemplate.exchange(
-                        validateUrl, HttpMethod.POST, requestEntity, ValidationResponse.class);
-                ValidationResponse validationResponse = response.getBody();
-                if (response.getStatusCode().is2xxSuccessful() && validationResponse != null) {
-                    String responseJson = objectMapper.writeValueAsString(validationResponse);
-                    String signature = response.getHeaders().getFirst(AgentVendHeaders.SIGNATURE);
-                    String timestampStr = response.getHeaders().getFirst(AgentVendHeaders.TIMESTAMP);
+                String bodyJson = objectMapper.writeValueAsString(request);
+                HttpResponse<String> response = HttpSupport.postJson(httpClient, validateUrl, bodyJson, Map.of());
+
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    String responseText = response.body();
+                    String signature =
+                            response.headers().firstValue(AgentVendHeaders.SIGNATURE).orElse(null);
+                    String timestampStr =
+                            response.headers().firstValue(AgentVendHeaders.TIMESTAMP).orElse(null);
                     if (signature == null || timestampStr == null) {
                         log.warn("Missing HMAC signature or timestamp in validation response");
                         return null;
                     }
                     long timestamp = Long.parseLong(timestampStr);
-                    if (!HmacUtils.validateHmacSignature(signature, responseJson + timestamp, agentSecret)) {
+                    if (!HmacUtils.validateHmacSignature(signature, responseText + timestamp, agentSecret)) {
                         log.warn("Invalid HMAC signature in validation response");
                         return null;
                     }
+                    ValidationResponse validationResponse =
+                            objectMapper.readValue(responseText, ValidationResponse.class);
                     if (!validationResponse.isValid()) {
                         log.warn("Agent key validation failed: {}", validationResponse.getError());
                         return null;
@@ -99,8 +101,12 @@ public class AgentKeyValidationClient {
                     cache.put(agentKey, new CachedValidationResult(result, System.currentTimeMillis()));
                     return result;
                 }
+                if (response.statusCode() >= 400 && response.statusCode() < 500) {
+                    log.warn("HTTP client error validating agent key: {}", response.statusCode());
+                    return null;
+                }
                 return null;
-            } catch (org.springframework.web.client.ResourceAccessException e) {
+            } catch (IOException e) {
                 log.warn("Timeout/connection error validating agent key, attempt {}/{}: {}", attempt + 1, maxRetries, e.getMessage());
                 if (attempt < maxRetries - 1) {
                     try {
@@ -114,8 +120,8 @@ public class AgentKeyValidationClient {
                     log.error("Error validating agent key after {} attempts: {}", maxRetries, e.getMessage(), e);
                     return null;
                 }
-            } catch (org.springframework.web.client.HttpClientErrorException e) {
-                log.warn("HTTP client error validating agent key: {}", e.getStatusCode());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 return null;
             } catch (Exception e) {
                 log.error("Error validating agent key: {}", e.getMessage(), e);
