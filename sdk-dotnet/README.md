@@ -22,7 +22,7 @@ See [api-overview.md](../docs/api-overview.md).
 ```csharp
 var client = AgentVendClient.Create(new AgentVendClientOptions
 {
-    ApiUrl = "https://api.agentvend.ai",
+    ApiUrl = "https://api.agentvend.api",
     AgentId = agentId,
     AgentSecret = agentSecret,
     HttpClient = http,
@@ -73,13 +73,13 @@ bool ok = Verifier.VerifyInboundHmac(agentSecret, req);
 
 ```csharp
 var result = await ValidationClient.ValidateAgentKeyAsync(
-    http, "https://core.example.com/api/v1", agentKey, agentId, agentSecret);
+    http, "https://api.agentvend.api/core/api/v1", agentKey, agentId, agentSecret);
 ```
 
 ### Usage, progress, completion
 
 ```csharp
-var report = await UsageClient.ReportUsageAsync(http, "https://usage.example.com",
+var report = await UsageClient.ReportUsageAsync(http, "https://api.agentvend.api",
     userId, agentId, 1m, agentSecret);
 await UsageClient.ReportProgressAsync(http, progressUrl, requestId, "processing", 50, agentSecret);
 await UsageClient.ReportCompletionAsync(http, callbackUrl, requestId, CompletionStatus.Completed, "ok", 1m, agentSecret);
@@ -89,7 +89,7 @@ await UsageClient.ReportCompletionAsync(http, callbackUrl, requestId, Completion
 
 ```csharp
 var (ok, code, body) = await GatewayClient.GetRequestStatusAsync(
-    http, "https://gateway.example.com", "/api", requestId, agentKey);
+    http, "https://api.agentvend.api", "/api", requestId, agentKey);
 ```
 
 ## Tests

@@ -14,7 +14,7 @@ See [api-overview.md](../docs/api-overview.md).
 
 This package does **not** load configuration from the environment. Use the same variable names as the Java `AgentVendClient` in your app config:
 
-- `AGENTVEND_API_URL` — API origin (e.g. `https://api.example.com`).
+- `AGENTVEND_API_URL` — API origin (e.g. `https://api.agentvend.api`).
 - `AGENTVEND_AGENT_ID` — Agent UUID (optional for some Core flows).
 - `AGENTVEND_AGENT_SECRET` — Shared secret for outbound signing and inbound HMAC verification.
 

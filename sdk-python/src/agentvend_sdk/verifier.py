@@ -197,7 +197,7 @@ def verify_signature(
         return False
 
 
-def verify_signature_from_headers_and_get_user_context(
+def verify_inbound_context(
     agent_secret: str,
     headers: Dict[str, Optional[str]],
     payload: Any,
@@ -206,6 +206,10 @@ def verify_signature_from_headers_and_get_user_context(
     if not verify_signature_from_headers(agent_secret, headers, payload):
         return None
     return get_user_context(headers)
+
+
+# Backward compatibility — prefer :func:`verify_inbound_context`
+verify_signature_from_headers_and_get_user_context = verify_inbound_context
 
 
 def get_user_context(headers: Dict[str, Optional[str]]) -> UserContext:

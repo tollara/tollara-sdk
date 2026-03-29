@@ -11,8 +11,8 @@ from .hmac_utils import calculate_hmac_with_timestamp
 DEFAULT_USAGE_PATH_PREFIX = "/api/usage"
 
 
-def _usage_report_url(usage_service_url: str, usage_path_prefix: Optional[str]) -> str:
-    base = usage_service_url.rstrip("/")
+def _usage_report_url(base_url: str, usage_path_prefix: Optional[str]) -> str:
+    base = base_url.rstrip("/")
     p = (usage_path_prefix or DEFAULT_USAGE_PATH_PREFIX).strip()
     if not p.startswith("/"):
         p = "/" + p
@@ -153,7 +153,7 @@ def report_completion_full(
 
 
 def report_usage(
-    usage_service_url: str,
+    base_url: str,
     user_id: str,
     agent_id: str,
     units_used: float,
@@ -164,7 +164,7 @@ def report_usage(
 ) -> UsageReportResponse:
     """Report usage with current time as timestamp."""
     return report_usage_at(
-        usage_service_url,
+        base_url,
         user_id,
         agent_id,
         units_used,
@@ -176,7 +176,7 @@ def report_usage(
 
 
 def report_usage_at(
-    usage_service_url: str,
+    base_url: str,
     user_id: str,
     agent_id: str,
     units_used: float,
@@ -196,7 +196,7 @@ def report_usage_at(
     body_str = json.dumps(body)
     ts_str = str(ts_ms)
     signature = calculate_hmac_with_timestamp(body_str, ts_str, agent_secret)
-    url = _usage_report_url(usage_service_url, usage_path_prefix)
+    url = _usage_report_url(base_url, usage_path_prefix)
     sess = session or requests.Session()
     resp = sess.post(
         url,

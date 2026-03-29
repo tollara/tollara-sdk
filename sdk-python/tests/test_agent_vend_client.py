@@ -3,16 +3,24 @@
 import pytest
 import responses
 
-from agentvend_sdk.client import AgentVendClient, ENV_API_URL
+from agentvend_sdk.client import DEFAULT_API_URL, AgentVendClient, ENV_API_URL
 
 AGENT_KEY = "k"
 AGENT_ID = "550e8400-e29b-41d4-a716-446655440000"
 AGENT_SECRET = "test-agent-secret"
 
 
-def test_build_requires_api_url():
-    with pytest.raises(ValueError, match="API URL"):
-        AgentVendClient(agent_secret=AGENT_SECRET)
+@responses.activate
+def test_requests_use_default_api_base_when_only_secret():
+    base = DEFAULT_API_URL.rstrip("/")
+    responses.add(
+        responses.GET,
+        f"{base}/api/requests/x/status",
+        body="{}",
+        status=200,
+    )
+    AgentVendClient(agent_secret=AGENT_SECRET, agent_id=AGENT_ID).get_request_status("x", AGENT_KEY)
+    assert responses.calls[0].request.url.startswith(f"{base}/api/")
 
 
 def test_build_requires_agent_secret():
@@ -86,11 +94,11 @@ def test_custom_usage_path_prefix_on_client():
 
 
 @responses.activate
-def test_from_env_uses_env_vars(monkeypatch):
-    base = "http://env-from.test"
-    monkeypatch.setenv(ENV_API_URL, base)
+def test_from_env_uses_default_base_without_agents_api_url(monkeypatch):
+    monkeypatch.delenv(ENV_API_URL, raising=False)
     monkeypatch.setenv("AGENTVEND_AGENT_SECRET", AGENT_SECRET)
     monkeypatch.setenv("AGENTVEND_AGENT_ID", AGENT_ID)
+    base = DEFAULT_API_URL.rstrip("/")
     responses.add(
         responses.GET,
         f"{base}/api/requests/r1/status",
@@ -101,3 +109,20 @@ def test_from_env_uses_env_vars(monkeypatch):
     res = AgentVendClient.from_env().get_request_status("r1", AGENT_KEY)
     assert res.ok
     assert res.status_code == 200
+
+
+@responses.activate
+def test_from_env_overrides_base_with_agents_api_url(monkeypatch):
+    base = "http://env-from.test"
+    monkeypatch.setenv(ENV_API_URL, base)
+    monkeypatch.setenv("AGENTVEND_AGENT_SECRET", AGENT_SECRET)
+    monkeypatch.setenv("AGENTVEND_AGENT_ID", AGENT_ID)
+    responses.add(
+        responses.GET,
+        f"{base}/api/requests/r2/status",
+        body="{}",
+        status=200,
+    )
+
+    res = AgentVendClient.from_env().get_request_status("r2", AGENT_KEY)
+    assert res.ok
