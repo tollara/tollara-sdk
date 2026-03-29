@@ -64,7 +64,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: cd sdk-dotnet && dotnet build
+      - run: cd sdk-dotnet && dotnet test AgentVend.AgentSdk.Tests/AgentVend.AgentSdk.Tests.csproj
     continue-on-error: true
 
   sdk-python:
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: cd sdk-python && pip install -e . && python -c "from agentvend_agent_sdk import calculate_hmac; assert calculate_hmac('1234567890','secret') == 'Bgs+chJF8gBA3xW2542Tm7B7l571zTPfLMBiCBwOp2c='"
+      - run: cd sdk-python && pip install -e ".[dev]" && python -m pytest
     continue-on-error: true
 
   sdk-go:
@@ -92,5 +92,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cd sdk-rust && cargo build
+      - run: cd sdk-rust && cargo test && cargo test --features http
     continue-on-error: true

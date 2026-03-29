@@ -2,6 +2,17 @@ import { AgentVendHeaders } from './agentVendHeaders';
 import { CompletionStatus } from './completionStatus';
 import { calculateHmacWithTimestamp } from './hmac';
 
+/** Default path prefix before `/report` (matches Java `AgentVendUrls.DEFAULT_USAGE_PATH_PREFIX`). */
+export const DEFAULT_USAGE_PATH_PREFIX = '/api/usage';
+
+export function buildUsageReportUrl(usageServiceUrl: string, usagePathPrefix = DEFAULT_USAGE_PATH_PREFIX): string {
+  const base = usageServiceUrl.replace(/\/$/, '');
+  let p = (usagePathPrefix ?? DEFAULT_USAGE_PATH_PREFIX).trim();
+  if (!p.startsWith('/')) p = `/${p}`;
+  p = p.replace(/\/$/, '');
+  return `${base}${p}/report`;
+}
+
 function parseUrlParams(url: string): { baseUrl: string; signature: string | null; timestamp: string | null } {
   let baseUrl = url;
   let signature: string | null = null;
@@ -149,11 +160,22 @@ export async function reportUsage(
     agentId: string;
     unitsUsed: number;
     timestamp?: number | Date | null;
+    /** Path prefix before `/report`; default `/api/usage`. */
+    usagePathPrefix?: string;
     agentSecret: string;
     fetch?: typeof globalThis.fetch;
   }
 ): Promise<UsageReportResponse> {
-  const { usageServiceUrl, userId, agentId, unitsUsed, timestamp, agentSecret, fetch: fetchFn = fetch } = params;
+  const {
+    usageServiceUrl,
+    userId,
+    agentId,
+    unitsUsed,
+    timestamp,
+    usagePathPrefix,
+    agentSecret,
+    fetch: fetchFn = fetch,
+  } = params;
   const ts = timestamp != null
     ? (timestamp instanceof Date ? timestamp.getTime() : timestamp)
     : Date.now();
@@ -163,8 +185,7 @@ export async function reportUsage(
   const timestampStr = String(ts);
   const signature = calculateHmacWithTimestamp(bodyString, timestampStr, agentSecret);
 
-  const base = usageServiceUrl.replace(/\/$/, '');
-  const url = `${base}/api/usage/report`;
+  const url = buildUsageReportUrl(usageServiceUrl, usagePathPrefix);
 
   const res = await fetchFn(url, {
     method: 'POST',

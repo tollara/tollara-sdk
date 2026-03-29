@@ -196,6 +196,18 @@ export function verifySignatureFromHeaders(
 /**
  * Parses X-AgentVend-* headers into UserContext (case-insensitive header names).
  */
+/**
+ * Verifies inbound HMAC; if valid returns user context, else `null` (do not trust headers).
+ */
+export function verifySignatureFromHeadersAndGetUserContext(
+  agentSecret: string,
+  headers: HeaderBag,
+  payload: string | object | null
+): UserContext | null {
+  if (!verifySignatureFromHeaders(agentSecret, headers, payload)) return null;
+  return getUserContext(headers);
+}
+
 export function getUserContext(headers: HeaderBag): UserContext {
   const rolesHeader = headerGet(headers, AgentVendHeaders.ROLES);
   const roles = rolesHeader ? rolesHeader.split(',').map((s) => s.trim()).filter(Boolean) : [];

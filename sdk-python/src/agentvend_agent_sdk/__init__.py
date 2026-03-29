@@ -4,6 +4,7 @@ from .verifier import (
     verify_signature,
     verify_inbound_hmac,
     verify_signature_from_headers,
+    verify_signature_from_headers_and_get_user_context,
     get_user_context,
     build_gateway_user_context_string,
     UserContext,
@@ -13,6 +14,7 @@ from .verifier import (
 from .validation_client import validate_agent_key, AgentKeyValidationResult
 from .completion_status import CompletionStatus
 from .usage_client import (
+    DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
     report_completion_full,
     report_completion_with_result,
@@ -22,6 +24,14 @@ from .usage_client import (
     UsageReportResponse,
 )
 from .gateway_client import get_request_status, get_request_result, GatewayPollResult
+from .client import (
+    AgentVendClient,
+    DEFAULT_CORE_PATH_PREFIX,
+    DEFAULT_GATEWAY_PATH_PREFIX,
+    ENV_AGENT_ID,
+    ENV_AGENT_SECRET,
+    ENV_API_URL,
+)
 
 __all__ = [
     "AgentVendHeaders",
@@ -32,6 +42,7 @@ __all__ = [
     "verify_signature",
     "verify_inbound_hmac",
     "verify_signature_from_headers",
+    "verify_signature_from_headers_and_get_user_context",
     "get_user_context",
     "build_gateway_user_context_string",
     "UserContext",
@@ -46,8 +57,15 @@ __all__ = [
     "report_completion_full",
     "report_usage",
     "report_usage_at",
+    "DEFAULT_USAGE_PATH_PREFIX",
     "UsageReportResponse",
     "get_request_status",
     "get_request_result",
     "GatewayPollResult",
+    "AgentVendClient",
+    "ENV_API_URL",
+    "ENV_AGENT_ID",
+    "ENV_AGENT_SECRET",
+    "DEFAULT_CORE_PATH_PREFIX",
+    "DEFAULT_GATEWAY_PATH_PREFIX",
 ]

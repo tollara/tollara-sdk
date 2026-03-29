@@ -45,6 +45,40 @@ func TestVerifyInboundHMACFromHeaders(t *testing.T) {
 	}
 }
 
+func TestVerifyInboundHMACFromHeadersAndGetUserContext_ok(t *testing.T) {
+	secret := "my-agent-secret"
+	payload := ""
+	ts := "1700000000"
+	userCtx := BuildGatewayUserContextString("user1", "plan1", []string{"role1", "role2"}, "10", false, "", "", "")
+	sig := CalculateHmac(payload+ts+userCtx, secret)
+	h := http.Header{}
+	h.Set("x-agentvend-signature", sig)
+	h.Set("x-agentvend-timestamp", ts)
+	h.Set("x-agentvend-user-id", "user1")
+	h.Set("x-agentvend-plan", "plan1")
+	h.Set("x-agentvend-roles", "role1,role2")
+	h.Set("x-agentvend-quota-remaining", "10")
+	h.Set("x-agentvend-subscription-active", "false")
+	ctx, ok := VerifyInboundHMACFromHeadersAndGetUserContext(secret, h, payload)
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	if ctx.UserID != "user1" || ctx.Plan != "plan1" {
+		t.Fatalf("unexpected ctx: %+v", ctx)
+	}
+}
+
+func TestVerifyInboundHMACFromHeadersAndGetUserContext_invalid(t *testing.T) {
+	h := http.Header{}
+	h.Set("x-agentvend-signature", "bad")
+	h.Set("x-agentvend-timestamp", "1700000000")
+	h.Set("x-agentvend-user-id", "user1")
+	_, ok := VerifyInboundHMACFromHeadersAndGetUserContext("my-agent-secret", h, "")
+	if ok {
+		t.Fatal("expected not ok")
+	}
+}
+
 func TestSubscriberWithBilling(t *testing.T) {
 	secret := "test-agent-secret"
 	payload := ""

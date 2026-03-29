@@ -8,6 +8,17 @@ from .agentvend_headers import AgentVendHeaders
 from .completion_status import CompletionStatus
 from .hmac_utils import calculate_hmac_with_timestamp
 
+DEFAULT_USAGE_PATH_PREFIX = "/api/usage"
+
+
+def _usage_report_url(usage_service_url: str, usage_path_prefix: Optional[str]) -> str:
+    base = usage_service_url.rstrip("/")
+    p = (usage_path_prefix or DEFAULT_USAGE_PATH_PREFIX).strip()
+    if not p.startswith("/"):
+        p = "/" + p
+    p = p.rstrip("/")
+    return f"{base}{p}/report"
+
 
 @dataclass
 class UsageReportResponse:
@@ -148,6 +159,7 @@ def report_usage(
     units_used: float,
     agent_secret: str,
     *,
+    usage_path_prefix: Optional[str] = None,
     session: Optional["requests.Session"] = None,
 ) -> UsageReportResponse:
     """Report usage with current time as timestamp."""
@@ -158,6 +170,7 @@ def report_usage(
         units_used,
         agent_secret,
         timestamp=None,
+        usage_path_prefix=usage_path_prefix,
         session=session,
     )
 
@@ -170,6 +183,7 @@ def report_usage_at(
     agent_secret: str,
     timestamp: Optional[float] = None,
     *,
+    usage_path_prefix: Optional[str] = None,
     session: Optional["requests.Session"] = None,
 ) -> UsageReportResponse:
     try:
@@ -182,7 +196,7 @@ def report_usage_at(
     body_str = json.dumps(body)
     ts_str = str(ts_ms)
     signature = calculate_hmac_with_timestamp(body_str, ts_str, agent_secret)
-    url = usage_service_url.rstrip("/") + "/api/usage/report"
+    url = _usage_report_url(usage_service_url, usage_path_prefix)
     sess = session or requests.Session()
     resp = sess.post(
         url,

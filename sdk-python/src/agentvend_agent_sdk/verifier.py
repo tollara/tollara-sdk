@@ -197,6 +197,17 @@ def verify_signature(
         return False
 
 
+def verify_signature_from_headers_and_get_user_context(
+    agent_secret: str,
+    headers: Dict[str, Optional[str]],
+    payload: Any,
+) -> Optional[UserContext]:
+    """Verify inbound HMAC; if valid return :class:`UserContext`, else ``None`` (do not trust headers)."""
+    if not verify_signature_from_headers(agent_secret, headers, payload):
+        return None
+    return get_user_context(headers)
+
+
 def get_user_context(headers: Dict[str, Optional[str]]) -> UserContext:
     roles_str = _header_get_ci(headers, AgentVendHeaders.ROLES) or ""
     roles = [s.strip() for s in roles_str.split(",") if s.strip()]

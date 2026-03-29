@@ -12,4 +12,7 @@
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AgentVend.AgentSdk.Tests" />
+  </ItemGroup>
 </Project>

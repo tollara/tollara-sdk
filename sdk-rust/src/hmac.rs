@@ -159,6 +159,18 @@ pub fn verify_signature_from_headers(
     verify_inbound_hmac(agent_secret, &req)
 }
 
+/// Verifies inbound HMAC; returns [`Some`] user context if valid, else [`None`].
+pub fn verify_signature_from_headers_and_get_user_context(
+    agent_secret: &str,
+    headers_map: &HashMap<String, String>,
+    payload: &str,
+) -> Option<UserContext> {
+    if !verify_signature_from_headers(agent_secret, headers_map, payload) {
+        return None;
+    }
+    Some(parse_user_context(headers_map))
+}
+
 pub fn parse_user_context(headers_map: &HashMap<String, String>) -> UserContext {
     let roles_s = header_get_ci(headers_map, headers::ROLES).unwrap_or_default();
     let roles: Vec<String> = roles_s
@@ -267,5 +279,42 @@ mod tests {
             signed,
         };
         assert!(verify_inbound_hmac(secret, &req));
+    }
+
+    #[test]
+    fn verify_signature_from_headers_and_get_user_context_ok() {
+        let secret = "my-agent-secret";
+        let mut m = HashMap::new();
+        let payload = "";
+        let ts = "1700000000";
+        let signed = SignedUserContext {
+            user_id: Some("user1".into()),
+            plan: Some("plan1".into()),
+            roles: vec!["role1".into(), "role2".into()],
+            quota_remaining: Some(10.0),
+            subscription_active: false,
+            billing_model_type: None,
+            measurement_type: None,
+            unit_label: None,
+        };
+        let ucs = build_gateway_user_context_string(&signed);
+        let sig = calculate_hmac(&format!("{}{}{}", payload, ts, ucs), secret);
+        m.insert("X-AgentVend-Signature".into(), sig);
+        m.insert("X-AgentVend-Timestamp".into(), ts.into());
+        m.insert("X-AgentVend-User-ID".into(), "user1".into());
+        m.insert("X-AgentVend-Plan".into(), "plan1".into());
+        m.insert("X-AgentVend-Roles".into(), "role1,role2".into());
+        m.insert("X-AgentVend-Quota-Remaining".into(), "10".into());
+        m.insert("X-AgentVend-Subscription-Active".into(), "false".into());
+        let ctx = verify_signature_from_headers_and_get_user_context(secret, &m, payload).expect("context");
+        assert_eq!(ctx.user_id.as_deref(), Some("user1"));
+    }
+
+    #[test]
+    fn verify_signature_from_headers_and_get_user_context_invalid() {
+        let mut m = HashMap::new();
+        m.insert("X-AgentVend-Signature".into(), "bad".into());
+        m.insert("X-AgentVend-Timestamp".into(), "1700000000".into());
+        assert!(verify_signature_from_headers_and_get_user_context("my-agent-secret", &m, "").is_none());
     }
 }

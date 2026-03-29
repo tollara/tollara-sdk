@@ -38,6 +38,28 @@ struct UsageReportResponseJson {
     remaining_requests_per_period: Option<i64>,
 }
 
+/// Default path segment before `/report` (matches Java `AgentVendUrls.DEFAULT_USAGE_PATH_PREFIX`).
+pub const DEFAULT_USAGE_PATH_PREFIX: &str = "/api/usage";
+
+/// Builds `{base}{prefix}/report` with normalized slashes.
+#[must_use]
+pub fn build_usage_report_url(usage_base_url: &str, usage_path_prefix: Option<&str>) -> String {
+    let base = usage_base_url.trim_end_matches('/');
+    let mut p = usage_path_prefix.unwrap_or(DEFAULT_USAGE_PATH_PREFIX).trim();
+    if p.is_empty() {
+        p = DEFAULT_USAGE_PATH_PREFIX;
+    }
+    let mut prefix = if p.starts_with('/') {
+        p.to_string()
+    } else {
+        format!("/{p}")
+    };
+    while prefix.ends_with('/') {
+        prefix.pop();
+    }
+    format!("{base}{prefix}/report")
+}
+
 /// Parses `?key=value&...` and returns (base_url, timestamp value if present).
 fn parse_timestamp_from_url(url: &str) -> (String, Option<String>) {
     let (base, query) = match url.split_once('?') {
@@ -65,7 +87,17 @@ pub async fn report_usage(
     units_used: f64,
     agent_secret: &str,
 ) -> Result<UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
-    report_usage_at(client, usage_base_url, user_id, agent_id, units_used, agent_secret, None).await
+    report_usage_at(
+        client,
+        usage_base_url,
+        user_id,
+        agent_id,
+        units_used,
+        agent_secret,
+        None,
+        None,
+    )
+    .await
 }
 
 /// Reports usage with an optional explicit timestamp (epoch seconds).
@@ -77,6 +109,7 @@ pub async fn report_usage_at(
     units_used: f64,
     agent_secret: &str,
     timestamp_secs: Option<f64>,
+    usage_path_prefix: Option<&str>,
 ) -> Result<UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
     use std::time::{SystemTime, UNIX_EPOCH};
     let ts_ms = timestamp_secs
@@ -96,7 +129,7 @@ pub async fn report_usage_at(
     let body_str = body.to_string();
     let ts_str = ts_ms.to_string();
     let signature = calculate_hmac_with_timestamp(&body_str, &ts_str, agent_secret);
-    let url = format!("{}/api/usage/report", usage_base_url.trim_end_matches('/'));
+    let url = build_usage_report_url(usage_base_url, usage_path_prefix);
     let resp = client
         .post(&url)
         .json(&body)
@@ -273,3 +306,31 @@ pub async fn report_completion_full(
     }
 }
 
+#[cfg(test)]
+mod url_tests {
+    use super::build_usage_report_url;
+
+    #[test]
+    fn build_usage_report_url_default() {
+        assert_eq!(
+            build_usage_report_url("http://u.test", None),
+            "http://u.test/api/usage/report"
+        );
+        assert_eq!(
+            build_usage_report_url("http://u.test/", None),
+            "http://u.test/api/usage/report"
+        );
+    }
+
+    #[test]
+    fn build_usage_report_url_custom_prefix() {
+        assert_eq!(
+            build_usage_report_url("http://u.test", Some("/usage/api/v1")),
+            "http://u.test/usage/api/v1/report"
+        );
+        assert_eq!(
+            build_usage_report_url("http://u.test", Some("usage/api/v1")),
+            "http://u.test/usage/api/v1/report"
+        );
+    }
+}

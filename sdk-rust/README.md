@@ -43,12 +43,31 @@ let ctx = parse_user_context(&headers_map);
 ### HTTP clients (`--features http`)
 
 ```rust
+use agentvend_agent_sdk::agent_vend_client::{AgentVendClient, AgentVendClientConfig};
+
+let client = AgentVendClient::try_new(AgentVendClientConfig {
+    api_url: Some("https://api.example.com".into()),
+    agent_id: Some("agent-uuid".into()),
+    agent_secret: Some("secret".into()),
+    ..Default::default()
+})?;
+
+// Or env-only: AgentVendClient::try_from_env()?
+
+client.validate_agent_key(agent_key).await;
+client.report_usage(user_id, agent_id, 1.0).await?;
+let (ok, status, body) = client.get_request_status(request_id, agent_key).await?;
+```
+
+Lower-level modules:
+
+```rust
 use agentvend_agent_sdk::validation_client;
 use agentvend_agent_sdk::usage_client;
 use agentvend_agent_sdk::gateway_client;
 
 // validate_agent_key(&client, core_base_url, agent_key, agent_secret, agent_id)
-// report_usage / report_usage_at; report_progress_simple; report_completion*, CompletionStatus
+// report_usage / report_usage_at (optional usage_path_prefix); report_progress_simple; report_completion*, CompletionStatus
 let (ok, status, body) = gateway_client::get_request_status(
     &client,
     "https://gateway.example.com",

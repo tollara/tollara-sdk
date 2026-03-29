@@ -109,12 +109,20 @@ func VerifyInboundHMACFromHeaders(agentSecret string, h http.Header, payload str
 		Plan:               h.Get(HeaderPlan),
 		Roles:              splitRolesCSV(h.Get(HeaderRoles)),
 		QuotaRemaining:     formatQuotaForSigning(h.Get(HeaderQuotaRemaining)),
-		SubscriptionActive:   subActive,
+		SubscriptionActive: subActive,
 		BillingModelType:   bm,
 		MeasurementType:    mt,
 		UnitLabel:          ul,
 	}
 	return VerifyInboundHMAC(agentSecret, req)
+}
+
+// VerifyInboundHMACFromHeadersAndGetUserContext verifies HMAC; if ok is true, ctx is from headers (trusted only when ok).
+func VerifyInboundHMACFromHeadersAndGetUserContext(agentSecret string, h http.Header, payload string) (ctx UserContext, ok bool) {
+	if !VerifyInboundHMACFromHeaders(agentSecret, h, payload) {
+		return UserContext{}, false
+	}
+	return UserContextFromHeaders(h), true
 }
 
 func formatQuotaForSigning(raw string) string {

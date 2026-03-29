@@ -4,6 +4,7 @@
 
 #![cfg(feature = "http")]
 
+use agentvend_agent_sdk::agent_vend_client::{AgentVendClient, AgentVendClientConfig};
 use agentvend_agent_sdk::gateway_client;
 use agentvend_agent_sdk::usage_client::{self, CompletionStatus};
 use agentvend_agent_sdk::validation_client;
@@ -12,6 +13,7 @@ use reqwest::Client;
 
 const AGENT_SECRET: &str = "test-agent-secret";
 const AGENT_ID: &str = "550e8400-e29b-41d4-a716-446655440000";
+const AGENT_KEY: &str = "k";
 
 // ---------- Validation client (Core API §2) ----------
 
@@ -134,6 +136,7 @@ async fn report_usage_sends_signed_request_and_returns_response() {
         1.0,
         AGENT_SECRET,
         Some(1700000000.0),
+        None,
     )
     .await;
 
@@ -142,6 +145,120 @@ async fn report_usage_sends_signed_request_and_returns_response() {
     assert_eq!(r.status.as_deref(), Some("ok"));
     assert!(!r.is_over_limit);
     assert_eq!(r.remaining_requests_per_period, 99);
+}
+
+#[tokio::test]
+async fn report_usage_respects_custom_usage_path_prefix() {
+    let mut server = mockito::Server::new();
+    let usage_base = server.url();
+
+    let _mock = server
+        .mock("POST", "/usage/api/v1/report")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}"#,
+        )
+        .create();
+
+    let client = Client::new();
+    let result = usage_client::report_usage_at(
+        &client,
+        usage_base,
+        "user-1",
+        "agent-1",
+        1.0,
+        AGENT_SECRET,
+        Some(1700000000.0),
+        Some("/usage/api/v1"),
+    )
+    .await;
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn agent_vend_client_get_request_status_uses_default_gateway_prefix() {
+    let mut server = mockito::Server::new();
+    let base = server.url();
+
+    let _mock = server
+        .mock("GET", "/api/requests/job-1/status")
+        .with_status(200)
+        .with_body(r#"{"state":"OK"}"#)
+        .create();
+
+    let http = Client::new();
+    let av = AgentVendClient::try_new(AgentVendClientConfig {
+        api_url: Some(base),
+        agent_id: Some(AGENT_ID.to_string()),
+        agent_secret: Some(AGENT_SECRET.to_string()),
+        http_client: Some(http),
+        ..Default::default()
+    })
+    .unwrap();
+
+    let (ok, code, body) = av.get_request_status("job-1", AGENT_KEY).await.unwrap();
+    assert!(ok);
+    assert_eq!(code, 200);
+    assert!(body.contains("OK"));
+}
+
+#[tokio::test]
+async fn agent_vend_client_report_usage_uses_default_usage_prefix() {
+    let mut server = mockito::Server::new();
+    let base = server.url();
+
+    let _mock = server
+        .mock("POST", "/api/usage/report")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}"#,
+        )
+        .create();
+
+    let http = Client::new();
+    let av = AgentVendClient::try_new(AgentVendClientConfig {
+        api_url: Some(base),
+        agent_id: Some(AGENT_ID.to_string()),
+        agent_secret: Some(AGENT_SECRET.to_string()),
+        http_client: Some(http),
+        ..Default::default()
+    })
+    .unwrap();
+
+    let r = av.report_usage("user-1", AGENT_ID, 1.0).await.unwrap();
+    assert_eq!(r.status.as_deref(), Some("ok"));
+}
+
+#[tokio::test]
+async fn agent_vend_client_custom_usage_path_prefix() {
+    let mut server = mockito::Server::new();
+    let base = server.url();
+
+    let _mock = server
+        .mock("POST", "/usage/api/v1/report")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}"#,
+        )
+        .create();
+
+    let http = Client::new();
+    let av = AgentVendClient::try_new(AgentVendClientConfig {
+        api_url: Some(base),
+        agent_id: Some(AGENT_ID.to_string()),
+        agent_secret: Some(AGENT_SECRET.to_string()),
+        usage_path_prefix: Some("/usage/api/v1".to_string()),
+        http_client: Some(http),
+        ..Default::default()
+    })
+    .unwrap();
+
+    let r = av.report_usage("user-1", AGENT_ID, 1.0).await.unwrap();
+    assert_eq!(r.status.as_deref(), Some("ok"));
 }
 
 #[tokio::test]

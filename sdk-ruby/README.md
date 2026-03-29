@@ -10,6 +10,23 @@ HMAC helpers and inbound verification. Use Net::HTTP, Faraday, or similar for Co
 
 See [api-overview.md](../docs/api-overview.md).
 
+## Environment variables (Java alignment)
+
+The gem does **not** read the environment. Use the same names as the Java `AgentVendClient` in your deployment config:
+
+- `AGENTVEND_API_URL`
+- `AGENTVEND_AGENT_ID` (optional depending on Core)
+- `AGENTVEND_AGENT_SECRET`
+
+There is no unified HTTP client here; use Net::HTTP, Faraday, etc., with the URLs in [sdk-api-spec.md](../docs/sdk-api-spec.md).
+
+### Verify HMAC and trusted user context in one call
+
+```ruby
+ctx = AgentVendAgentSdk.verify_signature_from_headers_and_user_context(agent_secret, headers_hash, raw_body)
+# ctx is nil if invalid; otherwise same shape as user_context_from_headers
+```
+
 ## Install
 
 ```bash

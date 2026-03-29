@@ -13,6 +13,8 @@ There is **no other doc** in this folder dedicated solely to caller vs backend *
 
 **Base URLs:** SDKs do not embed production hostnames. Callers and backends configure Gateway, Core, and Usage base URLs (and path prefixes per deployment). Async flows should use the full `progressUrl` / `callbackUrl` values returned by the platform. See [api-overview.md](./api-overview.md) and [sdk-api-spec.md](./sdk-api-spec.md).
 
+**Unified HTTP entry point:** In Java, Python, JavaScript/TypeScript, Rust (`http` feature), and .NET, look for `AgentVendClient` (or `AgentVendClient::try_new` / `createAgentVendClient`-style APIs) to configure one origin from `AGENTVEND_API_URL` (and optional split bases / path prefixes) instead of wiring each low-level client by hand.
+
 ---
 
 ## 1. Two roles in one platform
