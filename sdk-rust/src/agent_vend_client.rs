@@ -10,6 +10,9 @@ pub const ENV_API_URL: &str = "AGENTVEND_API_URL";
 pub const ENV_AGENT_ID: &str = "AGENTVEND_AGENT_ID";
 pub const ENV_AGENT_SECRET: &str = "AGENTVEND_AGENT_SECRET";
 
+/// Production API origin; used when neither `api_url` nor `AGENTVEND_API_URL` is set.
+pub const DEFAULT_API_URL: &str = "https://api.agentvend.api";
+
 pub const DEFAULT_CORE_PATH_PREFIX: &str = "/api/v1";
 pub const DEFAULT_GATEWAY_PATH_PREFIX: &str = "/api";
 
@@ -79,13 +82,14 @@ pub struct AgentVendClient {
 
 impl AgentVendClient {
     /// Build from explicit options and/or `AGENTVEND_*` environment variables.
+    /// The API origin defaults to [`DEFAULT_API_URL`] when neither `api_url` nor `AGENTVEND_API_URL` is set.
     pub fn try_new(config: AgentVendClientConfig) -> Result<Self, &'static str> {
-        let resolved = trim_trailing_slashes(&first_non_blank(
+        let mut resolved = trim_trailing_slashes(&first_non_blank(
             config.api_url.as_deref(),
             env::var(ENV_API_URL).ok().as_deref(),
         ));
         if resolved.is_empty() {
-            return Err("AgentVend API URL is required: set api_url or AGENTVEND_API_URL");
+            resolved = trim_trailing_slashes(DEFAULT_API_URL);
         }
 
         let core_base = trim_trailing_slashes(&first_non_blank(
@@ -136,7 +140,7 @@ impl AgentVendClient {
             gateway_path_prefix: gw_prefix.to_string(),
             core_root: join_url(&core_base, core_prefix),
             usage_base,
-            usage_path_prefix: usage_prefix,
+            usage_path_prefix: config.usage_path_prefix,
             agent_id,
             agent_secret,
         })
@@ -335,6 +339,20 @@ mod tests {
         })
         .unwrap();
         assert_eq!(c.usage_report_url(), "http://u.test/api/usage/report");
+    }
+
+    #[test]
+    fn try_new_uses_constant_default_when_api_url_explicit() {
+        let c = AgentVendClient::try_new(AgentVendClientConfig {
+            api_url: Some(DEFAULT_API_URL.into()),
+            agent_secret: Some("s".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(
+            c.usage_report_url(),
+            format!("{DEFAULT_API_URL}/api/usage/report")
+        );
     }
 
     #[test]

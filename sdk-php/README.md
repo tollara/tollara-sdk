@@ -6,7 +6,7 @@ HMAC signing and **inbound gateway verification** (`AgentVend\AgentSdk\Verifier`
 
 ## Configuration (base URLs)
 
-Hosts and path prefixes are **your responsibility**—nothing is hardcoded in the library. Match [sdk-api-spec.md](../docs/sdk-api-spec.md) for default vs ECS paths.
+This package does not assemble HTTP clients for you. Default production origin is **`https://api.agentvend.api`** (same as unified clients in Java/Python/JS/.NET/Rust). You may omit a configured base when your app only needs that origin; set **`AGENTVEND_API_URL`** (or your config equivalent) only to override—for example staging. Path defaults match [sdk-api-spec.md](../docs/sdk-api-spec.md) for default vs ECS layouts.
 
 See [api-overview.md](../docs/api-overview.md).
 
@@ -14,7 +14,7 @@ See [api-overview.md](../docs/api-overview.md).
 
 This package does **not** load configuration from the environment. Use the same variable names as the Java `AgentVendClient` in your app config:
 
-- `AGENTVEND_API_URL` — API origin (e.g. `https://api.agentvend.api`).
+- `AGENTVEND_API_URL` — Optional. API origin; defaults to `https://api.agentvend.api` in product terms if unset.
 - `AGENTVEND_AGENT_ID` — Agent UUID (optional for some Core flows).
 - `AGENTVEND_AGENT_SECRET` — Shared secret for outbound signing and inbound HMAC verification.
 

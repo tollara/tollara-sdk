@@ -10,8 +10,9 @@ import java.time.Instant;
 /**
  * Single entry point for AgentVend HTTP APIs (Core validate, Usage report/progress/complete, Gateway polling).
  * <p>
- * Provide {@link #apiUrl(String)} or set {@value #ENV_API_URL}; {@link Builder#agentId(String)} / {@link Builder#agentSecret(String)}
- * or {@value #ENV_AGENT_ID} / {@value #ENV_AGENT_SECRET} (secret required for signing and Core response verification).
+ * The API origin defaults to {@value #DEFAULT_API_URL} when neither {@link Builder#apiUrl(String)} nor {@value #ENV_API_URL} is set.
+ * {@link Builder#agentId(String)} / {@link Builder#agentSecret(String)} or {@value #ENV_AGENT_ID} / {@value #ENV_AGENT_SECRET}
+ * (secret required for signing and Core response verification).
  * Default path prefixes match {@code docs/sdk-api-spec.md} (default deployment); override with
  * {@link Builder#corePathPrefix(String)}, {@link Builder#gatewayPathPrefix(String)}, {@link Builder#usagePathPrefix(String)}
  * for ECS or local Docker layouts.
@@ -19,9 +20,11 @@ import java.time.Instant;
  */
 public final class AgentVendClient {
 
+    /** Production API origin; used when neither {@link Builder#apiUrl(String)} nor {@value #ENV_API_URL} is set. */
+    public static final String DEFAULT_API_URL = "https://api.agentvend.api";
+
     /**
-     * Environment variable holding the API origin (e.g. {@code https://api.example.com}).
-     * Used when {@link Builder#apiUrl(String)} is not set.
+     * Environment variable holding the API origin (e.g. staging). Optional override when {@link Builder#apiUrl(String)} is not set.
      */
     public static final String ENV_API_URL = "AGENTVEND_API_URL";
 
@@ -56,8 +59,7 @@ public final class AgentVendClient {
         String resolved = firstNonBlank(b.apiUrl, System.getenv(ENV_API_URL));
         resolved = AgentVendUrls.trimTrailingSlashes(resolved);
         if (resolved.isEmpty()) {
-            throw new IllegalStateException(
-                    "AgentVend API URL is required: set Builder.apiUrl(...) or environment variable " + ENV_API_URL);
+            resolved = DEFAULT_API_URL;
         }
 
         String coreBase = AgentVendUrls.trimTrailingSlashes(firstNonBlank(b.coreApiUrl, resolved));
@@ -181,7 +183,7 @@ public final class AgentVendClient {
         }
 
         /**
-         * Explicit API origin (overrides {@value AgentVendClient#ENV_API_URL}).
+         * Explicit API origin (overrides {@value AgentVendClient#ENV_API_URL}). When omitted and env is unset, {@value AgentVendClient#DEFAULT_API_URL} is used.
          */
         public Builder apiUrl(String apiUrl) {
             this.apiUrl = apiUrl;

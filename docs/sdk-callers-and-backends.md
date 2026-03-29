@@ -11,9 +11,9 @@ This document explains **how the AgentVend SDK is used** in the two main integra
 
 There is **no other doc** in this folder dedicated solely to caller vs backend *usage*; those files focus on API contracts and repository layout.
 
-**Base URLs:** SDKs do not embed production hostnames. Callers and backends configure Gateway, Core, and Usage base URLs (and path prefixes per deployment). Async flows should use the full `progressUrl` / `callbackUrl` values returned by the platform. See [api-overview.md](./api-overview.md) and [sdk-api-spec.md](./sdk-api-spec.md).
+**Base URLs:** Unified `AgentVendClient` APIs in Java, Python, JavaScript/TypeScript, Rust (`http` feature), and .NET default the API origin to **`https://api.agentvend.api`**. Set `AGENTVEND_API_URL` (or the constructor/builder `apiUrl` / equivalent) only to override—for example staging or local stacks. Path prefixes default per [sdk-api-spec.md](./sdk-api-spec.md); override only for non-standard deployments. Low-level helpers still take explicit bases. Async flows should use the full `progressUrl` / `callbackUrl` values returned by the platform. See [api-overview.md](./api-overview.md) and [sdk-api-spec.md](./sdk-api-spec.md).
 
-**Unified HTTP entry point:** In Java, Python, JavaScript/TypeScript, Rust (`http` feature), and .NET, look for `AgentVendClient` (or `AgentVendClient::try_new` / `createAgentVendClient`-style APIs) to configure one origin from `AGENTVEND_API_URL` (and optional split bases / path prefixes) instead of wiring each low-level client by hand.
+**Unified HTTP entry point:** Use `AgentVendClient` (or `AgentVendClient::try_new` / `AgentVendClient.Create`) so you do not have to wire each service by hand; optional env `AGENTVEND_API_URL` and optional split bases / path prefixes remain available when you need them.
 
 ---
 

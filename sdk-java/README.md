@@ -14,7 +14,7 @@ Use **`AgentVendClient`** with one API origin. The SDK appends the path prefixes
 
 | Setting | Default | Notes |
 |--------|---------|--------|
-| API origin | From env **`AGENTVEND_API_URL`**, or `Builder.apiUrl(...)` | Scheme + host (and port), e.g. `https://api.agentvend.api` — no trailing slash required |
+| API origin | **`https://api.agentvend.api`** (`AgentVendClient.DEFAULT_API_URL`) | Override with `Builder.apiUrl(...)`, or env **`AGENTVEND_API_URL`** for staging/tests — no trailing slash required |
 | Agent ID | From env **`AGENTVEND_AGENT_ID`**, or `Builder.agentId(...)` | Optional if Core can infer the agent from the key |
 | Agent secret | From env **`AGENTVEND_AGENT_SECRET`**, or `Builder.agentSecret(...)` | **Required** (Usage HMAC + Core response verification) |
 | Core prefix | `/api/v1` | `Builder.corePathPrefix(...)` for `/core/api/v1` (ECS) |
@@ -31,11 +31,11 @@ Builder values win when both are set; otherwise the SDK reads:
 
 | Variable | Purpose |
 |----------|---------|
-| **`AGENTVEND_API_URL`** | API origin if you omit `apiUrl(...)` |
+| **`AGENTVEND_API_URL`** | Optional. Overrides the default production API origin when set. |
 | **`AGENTVEND_AGENT_ID`** | Agent UUID if you omit `agentId(...)` (optional) |
 | **`AGENTVEND_AGENT_SECRET`** | Agent secret if you omit `agentSecret(...)` (**required** one way or the other) |
 
-In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_AGENT_ID`, and `ENV_AGENT_SECRET`.
+In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_AGENT_ID`, and `ENV_AGENT_SECRET`. The default base URL is `AgentVendClient.DEFAULT_API_URL`.
 
 ### Low-level clients
 
@@ -111,10 +111,9 @@ import com.agentvend.client.model.UsageReportResponse;
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
 
-// Omit .apiUrl(...) / .agentId(...) / .agentSecret(...) to use AGENTVEND_API_URL, AGENTVEND_AGENT_ID
-// (optional), and AGENTVEND_AGENT_SECRET (required) — see “Environment variables” above.
+// Default API origin is production; set .apiUrl(...) or AGENTVEND_API_URL only to override.
+// .agentSecret(...) (or AGENTVEND_AGENT_SECRET) is required.
 AgentVendClient client = AgentVendClient.builder()
-    .apiUrl("https://api.agentvend.api")
     .agentId(agentId)
     // Shared secret: signs outbound Usage calls and verifies Core validate responses (required).
     .agentSecret(agentSecret)

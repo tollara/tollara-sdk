@@ -1,12 +1,22 @@
-import { AgentVendClient, ENV_API_URL, ENV_AGENT_SECRET } from './agentVendClient';
+import { AgentVendClient, DEFAULT_API_URL, ENV_API_URL, ENV_AGENT_SECRET } from './agentVendClient';
 
 const AGENT_ID = '550e8400-e29b-41d4-a716-446655440000';
 const AGENT_SECRET = 'test-agent-secret';
 const AGENT_KEY = 'k';
 
 describe('AgentVendClient', () => {
-  it('throws without apiUrl', () => {
-    expect(() => new AgentVendClient({ agentSecret: AGENT_SECRET })).toThrow(/API URL/);
+  it('uses default production apiUrl when omitted', async () => {
+    const mockFetch = jest.fn(async (input: string | Request | URL) => {
+      const u = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      expect(u).toBe(`${DEFAULT_API_URL}/api/requests/r1/status`);
+      return new Response('{}', { status: 200 });
+    });
+    const client = new AgentVendClient({
+      agentId: AGENT_ID,
+      agentSecret: AGENT_SECRET,
+      fetch: mockFetch as unknown as typeof fetch,
+    });
+    await client.getRequestStatus('r1', AGENT_KEY);
   });
 
   it('throws without secret', () => {

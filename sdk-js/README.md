@@ -6,24 +6,20 @@ Verify HMAC, validate agent keys, report usage, progress, completion, and poll a
 
 ## Configuration (base URLs)
 
-The SDK **never hardcodes** production URLs. You pass:
+**Unified `AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Override with `apiUrl` or **`AGENTVEND_API_URL`** when pointing at staging or a local stack. Default path prefixes match [sdk-api-spec.md](../docs/sdk-api-spec.md); override `corePathPrefix`, `gatewayPathPrefix`, or `usagePathPrefix` only for non-standard deployments.
 
-- **Core:** `coreServiceUrl` (e.g. `https://api.agentvend.api/core/api/v1`) for validate.
-- **Usage:** `usageServiceUrl` for `reportUsage` (appends `/api/usage/report`). Match your deployment to [sdk-api-spec.md](../docs/sdk-api-spec.md) §3 (default vs ECS prefixes).
-- **Gateway:** `gatewayBaseUrl` + `gatewayPathPrefix` for `getRequestStatus` / `getRequestResult` (`/api` vs `/gateway/api/v1`).
-- **Progress / completion:** full `progressUrl` and `callbackUrl` strings from the async invoke response.
+**Low-level helpers** take explicit bases: **Core** `coreServiceUrl` (e.g. `{origin}/api/v1` as joined by the unified client), **Usage** `usageServiceUrl`, **Gateway** `gatewayBaseUrl` + `gatewayPathPrefix`. **Progress / completion** always use the full `progressUrl` / `callbackUrl` from the platform.
 
 See [api-overview.md](../docs/api-overview.md).
 
 ### Unified client
 
-`AgentVendClient` mirrors Java: `AGENTVEND_API_URL`, optional `AGENTVEND_AGENT_ID` / `AGENTVEND_AGENT_SECRET`, default prefixes `/api/v1`, `/api`, `/api/usage`. Pass options in the constructor to override env. Use `usagePathPrefix` for non-default Usage layouts.
+`AgentVendClient` uses optional `AGENTVEND_API_URL`, optional `AGENTVEND_AGENT_ID`, and required `AGENTVEND_AGENT_SECRET` (unless passed in the constructor). Default prefixes: `/api/v1`, `/api`, `/api/usage`.
 
 ```ts
 import { AgentVendClient } from '@agentvend/agent-sdk';
 
 const client = new AgentVendClient({
-  apiUrl: 'https://api.agentvend.api',
   agentId: 'agent-uuid',
   agentSecret: 'secret',
 });
