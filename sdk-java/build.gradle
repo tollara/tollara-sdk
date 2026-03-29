@@ -78,7 +78,7 @@ publishing {
             pom {
                 name = 'AgentVend SDK (Java)'
                 description = 'Client SDK for AgentVend - verify HMAC, validate keys, report usage, progress, completion'
-                url = 'https://github.com/maffers001/agent-hub-sdk'
+                url = 'https://github.com/maffers001/agentvend-sdk'
                 licenses {
                     license {
                         name = 'The Apache License, Version 2.0'
@@ -93,9 +93,9 @@ publishing {
                     }
                 }
                 scm {
-                    connection = 'scm:git:git://github.com/maffers001/agent-hub-sdk.git'
-                    developerConnection = 'scm:git:ssh://git@github.com/maffers001/agent-hub-sdk.git'
-                    url = 'https://github.com/maffers001/agent-hub-sdk'
+                    connection = 'scm:git:git://github.com/maffers001/agentvend-sdk.git'
+                    developerConnection = 'scm:git:ssh://git@github.com/maffers001/agentvend-sdk.git'
+                    url = 'https://github.com/maffers001/agentvend-sdk'
                 }
             }
         }

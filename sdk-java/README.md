@@ -69,6 +69,8 @@ From this directory:
 
 ## Publish to Maven Central (Sonatype Central Publisher)
 
+**Full background, Central requirements, and Gradle property reference:** [`docs/maven-central-java-sdk-publishing.md`](../docs/maven-central-java-sdk-publishing.md).
+
 Namespace **`com.agentvend`** must stay verified in [Maven Central Portal](https://central.sonatype.com/). This project uses Gradle **`maven-publish`** plus **`signing`**, uploads to Sonatype’s [OSSRH Staging API compatibility endpoint](https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/), then runs a **finalize** POST so the deployment appears under [Publishing](https://central.sonatype.com/publishing).
 
 ### 1. One-time: GPG key for signing
