@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Xunit;
 
 namespace AgentVend.AgentSdk.Tests;
@@ -38,6 +39,39 @@ public class VerifierTests
             ["x-agentvend-subscription-active"] = "false",
         };
         Assert.True(Verifier.VerifySignatureFromHeaders(Secret, headers, payload));
+    }
+
+    [Fact]
+    public void VerifyInboundHmacAndGetUserContext_ReturnsContextWhenValid()
+    {
+        var payload = "";
+        var timestamp = "1700000000";
+        var ucs = Verifier.BuildGatewayUserContextString("user1", "plan1", new[] { "role1", "role2" }, 10m, false, null, null, null);
+        var signature = Hmac.CalculateHmac(payload + timestamp + ucs, Secret);
+        var headers = new Dictionary<string, string?>
+        {
+            ["X-AgentVend-Signature"] = signature,
+            ["X-AgentVend-Timestamp"] = timestamp,
+            ["X-AgentVend-User-ID"] = "user1",
+            ["X-AgentVend-Plan"] = "plan1",
+            ["X-AgentVend-Roles"] = "role1,role2",
+            ["X-AgentVend-Quota-Remaining"] = "10",
+            ["X-AgentVend-Subscription-Active"] = "false",
+        };
+        var ctx = Verifier.VerifyInboundHmacAndGetUserContext(Secret, headers, payload);
+        Assert.NotNull(ctx);
+        Assert.Equal("user1", ctx!.UserId);
+    }
+
+    [Fact]
+    public void VerifyInboundHmacAndGetUserContext_ReturnsNullWhenInvalid()
+    {
+        var headers = new Dictionary<string, string?>
+        {
+            ["X-AgentVend-Signature"] = "bad",
+            ["X-AgentVend-Timestamp"] = "1700000000",
+        };
+        Assert.Null(Verifier.VerifyInboundHmacAndGetUserContext(Secret, headers, ""));
     }
 
     [Fact]

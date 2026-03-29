@@ -8,6 +8,17 @@ public record UsageReportResponse(string? Status, bool IsOverLimit, long Remaini
 
 public static class UsageClient
 {
+    public const string DefaultUsagePathPrefix = "/api/usage";
+
+    public static string BuildUsageReportUrl(string usageServiceUrl, string? usagePathPrefix)
+    {
+        var baseUrl = usageServiceUrl.TrimEnd('/');
+        var p = string.IsNullOrWhiteSpace(usagePathPrefix) ? DefaultUsagePathPrefix : usagePathPrefix.Trim();
+        if (!p.StartsWith('/')) p = "/" + p;
+        p = p.TrimEnd('/');
+        return $"{baseUrl}{p}/report";
+    }
+
     public static Task<bool> ReportProgressAsync(HttpClient http, string progressUrl, string requestId,
         string stage, int percentageComplete, string agentSecret, CancellationToken ct = default) =>
         ReportProgressAsync(http, progressUrl, requestId, stage, percentageComplete, null, agentSecret, ct);
@@ -58,10 +69,14 @@ public static class UsageClient
 
     public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
         string userId, string agentId, decimal unitsUsed, string agentSecret, CancellationToken ct = default) =>
-        ReportUsageAsync(http, usageServiceUrl, userId, agentId, unitsUsed, agentSecret, null, ct);
+        ReportUsageAsync(http, usageServiceUrl, userId, agentId, unitsUsed, agentSecret, null, null, ct);
+
+    public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
+        string userId, string agentId, decimal unitsUsed, string agentSecret, DateTime? timestamp, CancellationToken ct = default) =>
+        ReportUsageAsync(http, usageServiceUrl, userId, agentId, unitsUsed, agentSecret, timestamp, null, ct);
 
     public static async Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
-        string userId, string agentId, decimal unitsUsed, string agentSecret, DateTime? timestamp, CancellationToken ct = default)
+        string userId, string agentId, decimal unitsUsed, string agentSecret, DateTime? timestamp, string? usagePathPrefix, CancellationToken ct = default)
     {
         var ts = timestamp ?? DateTime.UtcNow;
         var tsMs = (long)(ts - DateTime.UnixEpoch).TotalMilliseconds;
@@ -69,8 +84,8 @@ public static class UsageClient
         var bodyStr = JsonSerializer.Serialize(body);
         var tsStr = tsMs.ToString();
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, tsStr, agentSecret);
-        var baseUrl = usageServiceUrl.TrimEnd('/');
-        var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/api/usage/report");
+        var reportUrl = BuildUsageReportUrl(usageServiceUrl, usagePathPrefix);
+        var req = new HttpRequestMessage(HttpMethod.Post, reportUrl);
         req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
         req.Headers.TryAddWithoutValidation(AgentVendHeaders.Timestamp, tsStr);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");

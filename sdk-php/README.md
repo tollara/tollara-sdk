@@ -10,6 +10,27 @@ Hosts and path prefixes are **your responsibility**—nothing is hardcoded in th
 
 See [api-overview.md](../docs/api-overview.md).
 
+## Environment variables (Java alignment)
+
+This package does **not** load configuration from the environment. Use the same variable names as the Java `AgentVendClient` in your app config:
+
+- `AGENTVEND_API_URL` — API origin (e.g. `https://api.example.com`).
+- `AGENTVEND_AGENT_ID` — Agent UUID (optional for some Core flows).
+- `AGENTVEND_AGENT_SECRET` — Shared secret for outbound signing and inbound HMAC verification.
+
+There is no unified HTTP client in this SDK; use Guzzle or similar and the paths in [sdk-api-spec.md](../docs/sdk-api-spec.md).
+
+### Verify HMAC and trusted user context in one call
+
+```php
+use AgentVend\AgentSdk\Verifier;
+
+$ctx = Verifier::verifyInboundHmacAndGetUserContext($agentSecret, $headersArray, $rawBody);
+if ($ctx !== null) {
+    // $ctx is trusted user context (same shape as parseUserContext)
+}
+```
+
 ## Install
 
 ```bash

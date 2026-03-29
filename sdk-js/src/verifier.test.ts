@@ -3,6 +3,7 @@ import {
   getUserContext,
   verifyInboundHmac,
   verifySignatureFromHeaders,
+  verifySignatureFromHeadersAndGetUserContext,
   buildGatewayUserContextString,
 } from './verifier';
 import { calculateHmac } from './hmac';
@@ -54,6 +55,37 @@ describe('verifier', () => {
       payload
     );
     expect(ok).toBe(true);
+  });
+
+  it('verifySignatureFromHeadersAndGetUserContext returns context when valid', () => {
+    const payload = '';
+    const timestamp = '1700000000';
+    const userContextString = extendedUcs(false);
+    const signature = calculateHmac(payload + timestamp + userContextString, secret);
+    const ctx = verifySignatureFromHeadersAndGetUserContext(
+      secret,
+      {
+        'x-agentvend-signature': signature,
+        'x-agentvend-timestamp': timestamp,
+        'x-agentvend-user-id': 'user1',
+        'x-agentvend-plan': 'plan1',
+        'x-agentvend-roles': 'role1,role2',
+        'x-agentvend-quota-remaining': '10',
+        'x-agentvend-subscription-active': 'false',
+      },
+      payload
+    );
+    expect(ctx).not.toBeNull();
+    expect(ctx!.userId).toBe('user1');
+  });
+
+  it('verifySignatureFromHeadersAndGetUserContext returns null when invalid', () => {
+    const ctx = verifySignatureFromHeadersAndGetUserContext(
+      secret,
+      { 'x-agentvend-signature': 'bad', 'x-agentvend-timestamp': '1700000000' },
+      ''
+    );
+    expect(ctx).toBeNull();
   });
 
   it('verifySignature accepts valid HMAC with extended context', () => {

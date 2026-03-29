@@ -123,6 +123,17 @@ final class Verifier
     }
 
     /**
+     * @param array<string, string|null> $headers
+     */
+    public static function verifyInboundHmacAndGetUserContext(string $agentSecret, array $headers, string $payload): ?UserContext
+    {
+        if (!self::verifySignatureFromHeaders($agentSecret, $headers, $payload)) {
+            return null;
+        }
+        return self::parseUserContext($headers);
+    }
+
+    /**
      * @param list<string> $roles
      */
     public static function verifySignature(

@@ -10,6 +10,27 @@ HMAC helpers and inbound gateway verification. Use your own HTTP client (or `net
 
 See [api-overview.md](../docs/api-overview.md).
 
+## Environment variables (Java alignment)
+
+This module does **not** read the environment for you. Use the same names as the Java `AgentVendClient` when wiring config (constants in package `sdk`):
+
+| Constant        | Value                 |
+|-----------------|-----------------------|
+| `sdk.EnvAPIURL` | `AGENTVEND_API_URL`   |
+| `sdk.EnvAgentID` | `AGENTVEND_AGENT_ID` |
+| `sdk.EnvAgentSecret` | `AGENTVEND_AGENT_SECRET` |
+
+There is no bundled HTTP client; combine these with your own `net/http` or other stack.
+
+### Verify HMAC and trusted user context in one call
+
+```go
+ctx, ok := sdk.VerifyInboundHMACFromHeadersAndGetUserContext(agentSecret, r.Header, string(bodyBytes))
+if ok {
+    _ = ctx.UserID // trusted only when ok is true
+}
+```
+
 ## Install
 
 ```bash

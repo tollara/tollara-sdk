@@ -15,6 +15,29 @@ Nothing is hardcoded. You pass:
 
 See [api-overview.md](../docs/api-overview.md).
 
+### Unified client
+
+`AgentVendClient.Create` matches Java: `AGENTVEND_API_URL`, optional `AGENTVEND_AGENT_ID` / `AGENTVEND_AGENT_SECRET`, default path prefixes, optional split bases and `UsagePathPrefix` on `AgentVendClientOptions`.
+
+```csharp
+var client = AgentVendClient.Create(new AgentVendClientOptions
+{
+    ApiUrl = "https://api.example.com",
+    AgentId = agentId,
+    AgentSecret = agentSecret,
+    HttpClient = http,
+});
+var report = await client.ReportUsageAsync(userId, agentId, 1m);
+var (ok, code, body) = await client.GetRequestStatusAsync(requestId, agentKey);
+```
+
+### Verify inbound HMAC and user context
+
+```csharp
+var ctx = Verifier.VerifyInboundHmacAndGetUserContext(agentSecret, headers, payload);
+if (ctx is not null) { /* trusted */ }
+```
+
 ## Install
 
 ```bash

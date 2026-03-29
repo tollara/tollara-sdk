@@ -9,6 +9,7 @@ from agentvend_agent_sdk import (
     verify_inbound_hmac,
     verify_signature,
     verify_signature_from_headers,
+    verify_signature_from_headers_and_get_user_context,
 )
 from agentvend_agent_sdk.verifier import build_gateway_user_context_string
 
@@ -55,6 +56,37 @@ def test_verify_signature_from_headers_lowercase_keys():
         "x-agentvend-subscription-active": "false",
     }
     assert verify_signature_from_headers(secret, headers, payload) is True
+
+
+def test_verify_signature_from_headers_and_get_user_context_ok():
+    secret = "my-agent-secret"
+    payload = ""
+    timestamp = "1700000000"
+    ucs = build_gateway_user_context_string(
+        "user1", "plan1", ["role1", "role2"], 10.0, False, None, None, None
+    )
+    signature = calculate_hmac(payload + timestamp + ucs, secret)
+    headers = {
+        "x-agentvend-signature": signature,
+        "x-agentvend-timestamp": timestamp,
+        "x-agentvend-user-id": "user1",
+        "x-agentvend-plan": "plan1",
+        "x-agentvend-roles": "role1,role2",
+        "x-agentvend-quota-remaining": "10",
+        "x-agentvend-subscription-active": "false",
+    }
+    ctx = verify_signature_from_headers_and_get_user_context(secret, headers, payload)
+    assert ctx is not None
+    assert ctx.user_id == "user1"
+    assert ctx.plan == "plan1"
+
+
+def test_verify_signature_from_headers_and_get_user_context_invalid():
+    headers = {
+        "x-agentvend-signature": "bad",
+        "x-agentvend-timestamp": "1700000000",
+    }
+    assert verify_signature_from_headers_and_get_user_context("my-agent-secret", headers, "") is None
 
 
 def test_owner_like_gateway_vector():

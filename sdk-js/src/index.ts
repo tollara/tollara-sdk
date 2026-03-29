@@ -4,6 +4,7 @@ export {
   verifySignature,
   verifyInboundHmac,
   verifySignatureFromHeaders,
+  verifySignatureFromHeadersAndGetUserContext,
   getUserContext,
   buildGatewayUserContextString,
   type UserContext,
@@ -15,6 +16,8 @@ export {
 export { validateAgentKey, createValidationCache, type AgentKeyValidationResult } from './validationClient';
 export { CompletionStatus } from './completionStatus';
 export {
+  buildUsageReportUrl,
+  DEFAULT_USAGE_PATH_PREFIX,
   reportProgress,
   reportCompletion,
   reportCompletionWithResult,
@@ -25,3 +28,12 @@ export {
   type UsageReportResponse,
 } from './usageClient';
 export { getRequestStatus, getRequestResult, type GatewayPollResult } from './gatewayClient';
+export {
+  AgentVendClient,
+  DEFAULT_CORE_PATH_PREFIX,
+  DEFAULT_GATEWAY_PATH_PREFIX,
+  ENV_AGENT_ID,
+  ENV_AGENT_SECRET,
+  ENV_API_URL,
+  type AgentVendClientOptions,
+} from './agentVendClient';

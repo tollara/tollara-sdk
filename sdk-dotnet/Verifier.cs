@@ -61,6 +61,13 @@ public static class Verifier
             s.BillingModelType, s.MeasurementType, s.UnitLabel);
     }
 
+    /// <summary>Verifies inbound HMAC; returns user context if valid, otherwise null.</summary>
+    public static UserContext? VerifyInboundHmacAndGetUserContext(string agentSecret, IReadOnlyDictionary<string, string?> headers, object? payload)
+    {
+        if (!VerifySignatureFromHeaders(agentSecret, headers, payload)) return null;
+        return GetUserContext(headers);
+    }
+
     public static bool VerifySignatureFromHeaders(string agentSecret, IReadOnlyDictionary<string, string?> headers, object? payload)
     {
         var signature = GetHeaderIgnoreCase(headers, AgentVendHeaders.Signature);

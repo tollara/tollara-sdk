@@ -15,6 +15,37 @@ SDK **does not embed** production hosts. You pass:
 
 See [api-overview.md](../docs/api-overview.md).
 
+### Unified client and environment variables
+
+`AgentVendClient` matches the Java client: one origin from `AGENTVEND_API_URL`, optional split bases (`core_api_url`, `gateway_api_url`, `usage_api_url`), default path prefixes `/api/v1` (Core), `/api` (Gateway), `/api/usage` (Usage before `/report`). Constructor arguments override env. Required env: `AGENTVEND_API_URL`, `AGENTVEND_AGENT_SECRET`; optional `AGENTVEND_AGENT_ID`.
+
+```python
+from agentvend_agent_sdk import AgentVendClient
+
+client = AgentVendClient(
+    api_url="https://api.example.com",
+    agent_id="agent-uuid",
+    agent_secret="secret",
+)
+# or: client = AgentVendClient.from_env()
+
+client.validate_agent_key(agent_key)
+client.report_usage(user_id, agent_id, 1.0)
+client.get_request_status(request_id, agent_key)
+```
+
+Optional `usage_path_prefix` on the client overrides the default Usage prefix (same as Java `usagePathPrefix`).
+
+### Verify signature and user context in one step
+
+```python
+from agentvend_agent_sdk import verify_signature_from_headers_and_get_user_context
+
+ctx = verify_signature_from_headers_and_get_user_context(agent_secret, headers, raw_body)
+if ctx is not None:
+    ...
+```
+
 ## Requirements
 
 Python 3.10+
@@ -98,7 +129,10 @@ from agentvend_agent_sdk import (
 )
 
 report_usage("https://usage.example.com", user_id, agent_id, 1.0, agent_secret)
-report_usage_at("https://usage.example.com", user_id, agent_id, 1.0, agent_secret, timestamp=1700000000.0)
+report_usage_at(
+    "https://usage.example.com", user_id, agent_id, 1.0, agent_secret, timestamp=1700000000.0,
+    usage_path_prefix="/api/usage",  # optional; default /api/usage
+)
 report_progress(progress_url, request_id, "stage", 50, agent_secret)
 report_completion_with_result(
     callback_url, request_id, CompletionStatus.COMPLETED, agent_secret, "ok", units=1.0

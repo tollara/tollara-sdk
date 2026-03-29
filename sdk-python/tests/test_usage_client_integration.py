@@ -9,16 +9,24 @@ import responses
 
 from agentvend_agent_sdk.completion_status import CompletionStatus
 from agentvend_agent_sdk.usage_client import (
+    DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
     report_completion_with_result,
     report_progress,
     report_usage,
     report_usage_at,
+    _usage_report_url,
     UsageReportResponse,
 )
 
 USAGE_BASE = "http://usage.test"
 AGENT_SECRET = "test-agent-secret"
+
+
+def test_usage_report_url_default_and_custom():
+    assert _usage_report_url(USAGE_BASE, None) == f"{USAGE_BASE}{DEFAULT_USAGE_PATH_PREFIX}/report"
+    assert _usage_report_url(f"{USAGE_BASE}/", None) == f"{USAGE_BASE}{DEFAULT_USAGE_PATH_PREFIX}/report"
+    assert _usage_report_url(USAGE_BASE, "/usage/api/v1") == f"{USAGE_BASE}/usage/api/v1/report"
 
 
 @responses.activate
@@ -53,6 +61,33 @@ def test_report_usage_sends_signed_request_and_returns_response():
     assert body["userId"] == "user-1"
     assert body["agentId"] == "agent-1"
     assert body["unitsUsed"] == 1.0
+
+
+@responses.activate
+def test_report_usage_custom_usage_path_prefix():
+    responses.add(
+        responses.POST,
+        f"{USAGE_BASE}/usage/api/v1/report",
+        json={
+            "status": "ok",
+            "isOverLimit": False,
+            "remainingRequestsPerPeriod": 1,
+        },
+        status=200,
+    )
+
+    result = report_usage_at(
+        USAGE_BASE,
+        "user-1",
+        "agent-1",
+        1.0,
+        AGENT_SECRET,
+        timestamp=1700000000.0,
+        usage_path_prefix="/usage/api/v1",
+    )
+
+    assert result.status == "ok"
+    assert responses.calls[0].request.url == f"{USAGE_BASE}/usage/api/v1/report"
 
 
 @responses.activate

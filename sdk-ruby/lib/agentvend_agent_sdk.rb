@@ -112,6 +112,12 @@ module AgentVendAgentSdk
     )
   end
 
+  # Verify HMAC; returns user context hash if valid, nil if invalid (do not trust headers).
+  def self.verify_signature_from_headers_and_user_context(agent_secret, headers, payload)
+    return nil unless verify_signature_from_headers(agent_secret, headers, payload)
+    user_context_from_headers(headers)
+  end
+
   def self.user_context_from_headers(headers)
     roles_csv = header_get_ci(headers, HEADERS[:roles]).to_s
     roles = roles_csv.split(",").map(&:strip).reject(&:empty?)

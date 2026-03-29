@@ -15,6 +15,31 @@ The SDK **never hardcodes** production URLs. You pass:
 
 See [api-overview.md](../docs/api-overview.md).
 
+### Unified client
+
+`AgentVendClient` mirrors Java: `AGENTVEND_API_URL`, optional `AGENTVEND_AGENT_ID` / `AGENTVEND_AGENT_SECRET`, default prefixes `/api/v1`, `/api`, `/api/usage`. Pass options in the constructor to override env. Use `usagePathPrefix` for non-default Usage layouts.
+
+```ts
+import { AgentVendClient } from '@agentvend/agent-sdk';
+
+const client = new AgentVendClient({
+  apiUrl: 'https://api.example.com',
+  agentId: 'agent-uuid',
+  agentSecret: 'secret',
+});
+await client.getRequestStatus(requestId, agentKey);
+await client.reportUsage(userId, agentId, 1);
+```
+
+### Verify signature and user context together
+
+```ts
+import { verifySignatureFromHeadersAndGetUserContext } from '@agentvend/agent-sdk';
+
+const ctx = verifySignatureFromHeadersAndGetUserContext(agentSecret, headers, rawBody);
+if (ctx) { /* trusted */ }
+```
+
 ## Install
 
 ```bash
@@ -26,8 +51,9 @@ npm install @agentvend/agent-sdk
 - `AgentVendHeaders` — canonical `X-AgentVend-*` names.
 - `verifyInboundHmac(agentSecret, InboundHmacRequest)` / `verifySignatureFromHeaders(agentSecret, headers, payload)` — inbound gateway HMAC.
 - `getUserContext(headers)` — parses headers (case-insensitive keys).
+- `AgentVendClient` — env + unified validate / usage / gateway.
 - `validateAgentKey({ coreServiceUrl, agentKey, agentId, agentSecret })`
-- `reportUsage`, `reportProgress`, `reportCompletion`
+- `reportUsage` (optional `usagePathPrefix`), `reportProgress`, `reportCompletion`
 - `getRequestStatus`, `getRequestResult` — gateway polling.
 
 ## Examples
