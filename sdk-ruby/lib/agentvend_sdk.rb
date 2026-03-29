@@ -3,7 +3,7 @@
 require "base64"
 require "openssl"
 
-module AgentVendAgentSdk
+module AgentVendSdk
   HEADERS = {
     signature: "X-AgentVend-Signature",
     timestamp: "X-AgentVend-Timestamp",

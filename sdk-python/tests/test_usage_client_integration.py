@@ -7,8 +7,8 @@ import json
 import pytest
 import responses
 
-from agentvend_agent_sdk.completion_status import CompletionStatus
-from agentvend_agent_sdk.usage_client import (
+from agentvend_sdk.completion_status import CompletionStatus
+from agentvend_sdk.usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
     report_completion_with_result,

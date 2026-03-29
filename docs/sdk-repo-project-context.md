@@ -82,7 +82,7 @@ Other language SDKs should implement the same logical surface and HMAC spec; the
 ## Naming
 
 - **Product name:** AgentVend (business name; capital V in "AgentVend").  
-- **Package/artifact names:** Use `agentvend` (lowercase) for package IDs (e.g. npm: `@agentvend/agent-sdk`, NuGet: `AgentVend.AgentSdk`, PyPI: `agentvend-agent-sdk`, Maven: `com.agentvend:agent-sdk`).  
+- **Package/artifact names:** Use `agentvend` (lowercase) for package IDs (e.g. npm: `@agentvend/agent-sdk`, NuGet: `AgentVend.AgentSdk`, PyPI: `agentvend-sdk` (Python import `agentvend_sdk`), RubyGems: `agentvend_sdk`, Maven: `com.agentvend:agent-sdk`).  
 - **HTTP headers:** `X-AgentVend-Signature`, `X-AgentVend-Timestamp`, `X-AgentVend-User-ID`, etc.
 
 ---
