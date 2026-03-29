@@ -49,7 +49,7 @@ Official reference: [Central Repository requirements](https://central.sonatype.o
   `https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/`  
   per [Publish OSSRH Staging API](https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/).
 - **Authentication:** [Central Portal user token](https://central.sonatype.org/publish/generate-portal-token/) (username + generated password), **not** legacy OSSRH tokens ([auth note](https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/)).
-- **Task `finalizeSonatypeCentralUpload`**: depends on **`publishMavenJavaPublicationToOssrhStagingApiRepository`**, then **POST**s to Sonatype’s **manual upload** endpoint so the deployment appears under [Publishing](https://central.sonatype.com/publishing). Gradle uses **`Authorization: Bearer`** where the token is **Base64(`username:password`)** for the user token, as described in Sonatype’s manual API documentation on the same page.
+- **Task `finalizeSonatypeCentralUpload`**: depends on **`publishMavenJavaPublicationToOssrhStagingApiRepository`**, then **POST**s to **`/manual/upload/defaultRepository/{namespace}`** on the same host (not the legacy `.../service/local/staging/manual/upload/...` path) so the deployment appears under [Publishing](https://central.sonatype.com/publishing). Gradle uses **`Authorization: Bearer`** where the token is **Base64(`username:password`)** for the user token, as described in Sonatype’s manual API documentation on the same page.
 
 **Same IP rule:** For “Maven-like” plugins (`maven-publish`), Sonatype states that the finalize POST must be made from the **same public IP** as the artifact upload—typically **one CI job** or **one local session** running upload then finalize.
 
@@ -124,7 +124,7 @@ This runs the Sonatype upload, then the finalize POST.
 | `mavenCentralNamespace` | `com.agentvend` — segment in the manual finalize path |
 | `mavenCentralPublishingType` | `user_managed` — Portal behavior after finalize (`user_managed`, `automatic`, `portal_api`; see Sonatype) |
 | `sonatype.stagingApiHost` | `https://ossrh-staging-api.central.sonatype.com` |
-| `sonatype.manualUploadPath` | Override if Sonatype changes the manual endpoint path; confirm against their OpenAPI / docs |
+| `sonatype.manualUploadPath` | Default `/manual/upload/defaultRepository/{namespace}`; override if Sonatype changes the path — confirm against [their docs](https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/) / OpenAPI |
 
 ---
 

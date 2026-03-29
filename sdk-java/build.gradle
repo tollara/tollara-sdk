@@ -151,7 +151,7 @@ tasks.register('finalizeSonatypeCentralUpload') {
         }
         def namespace = (findProperty('mavenCentralNamespace') ?: 'com.agentvend').toString()
         def basePath = findProperty('sonatype.manualUploadPath')?.toString()
-            ?: "/service/local/staging/manual/upload/defaultRepository/${namespace}"
+            ?: "/manual/upload/defaultRepository/${namespace}"
         def host = (findProperty('sonatype.stagingApiHost') ?: 'https://ossrh-staging-api.central.sonatype.com').toString()
         def publishingType = (findProperty('mavenCentralPublishingType') ?: 'user_managed').toString()
         def uri = URI.create("${host}${basePath}?publishing_type=${URLEncoder.encode(publishingType, java.nio.charset.StandardCharsets.UTF_8)}")
