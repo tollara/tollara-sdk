@@ -27,13 +27,31 @@ import java.util.Map;
 @Slf4j
 public class UsageServiceClient {
 
+    static final String DEFAULT_USAGE_PATH_PREFIX = "/api/usage";
+
     private final String usageServiceUrl;
+    private final String usagePathPrefix;
     private final String agentSecret;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Same as {@link #UsageServiceClient(String, String, String, HttpClient)} with usage path prefix {@code /api/usage}.
+     */
     public UsageServiceClient(String usageServiceUrl, String agentSecret, HttpClient httpClient) {
-        this.usageServiceUrl = usageServiceUrl;
+        this(usageServiceUrl, DEFAULT_USAGE_PATH_PREFIX, agentSecret, httpClient);
+    }
+
+    /**
+     * @param usageServiceUrl origin for the usage service (scheme + host [+ port], no trailing slash required)
+     * @param usagePathPrefix   e.g. {@code /api/usage} (default) or {@code /usage/api/v1} (ECS); must match deployment
+     */
+    public UsageServiceClient(String usageServiceUrl, String usagePathPrefix, String agentSecret, HttpClient httpClient) {
+        this.usageServiceUrl = usageServiceUrl != null ? AgentVendUrls.trimTrailingSlashes(usageServiceUrl) : "";
+        this.usagePathPrefix =
+                (usagePathPrefix == null || usagePathPrefix.isEmpty())
+                        ? DEFAULT_USAGE_PATH_PREFIX
+                        : normalizeUsagePrefix(usagePathPrefix);
         this.agentSecret = agentSecret;
         this.httpClient = httpClient;
         this.objectMapper = new ObjectMapper();
@@ -42,6 +60,14 @@ public class UsageServiceClient {
         this.objectMapper.registerModule(module);
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         this.objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    }
+
+    private static String normalizeUsagePrefix(String p) {
+        String x = p.trim();
+        if (!x.startsWith("/")) {
+            x = "/" + x;
+        }
+        return AgentVendUrls.trimTrailingSlashes(x);
     }
 
     /**
@@ -209,11 +235,10 @@ public class UsageServiceClient {
             Map<String, String> headers = Map.of(
                     AgentVendHeaders.SIGNATURE, signature,
                     AgentVendHeaders.TIMESTAMP, String.valueOf(timestampLong));
-            String baseUrl = usageServiceUrl != null ? usageServiceUrl.replaceAll("/$", "") : "";
-            if (baseUrl.isEmpty()) {
+            if (usageServiceUrl == null || usageServiceUrl.isEmpty()) {
                 throw new IllegalArgumentException("usageServiceUrl must not be null or empty");
             }
-            String url = baseUrl + "/api/usage/report";
+            String url = AgentVendUrls.join(AgentVendUrls.join(usageServiceUrl, usagePathPrefix), "/report");
             HttpResponse<String> response = HttpSupport.postJson(httpClient, url, requestBody, headers);
             if (response.statusCode() >= 200 && response.statusCode() < 300 && response.body() != null) {
                 return objectMapper.readValue(response.body(), UsageReportResponse.class);
