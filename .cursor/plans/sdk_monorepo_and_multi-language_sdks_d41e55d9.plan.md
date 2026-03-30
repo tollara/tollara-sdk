@@ -13,7 +13,7 @@ This plan is for the **SDK monorepo** (e.g. `agent-hub-sdk`). The **Java code im
 
 ## 1. Repository and naming
 
-- **Repo**: This is the SDK monorepo (e.g. `agent-hub-sdk` or `marketplace-sdks`). The Java code imported from Agent Hub lives in `**client/`** and `**lib/**`; both must be refactored into `**sdk-java/**`. There is no dependency on the Agent Hub repo.
+- **Repo**: This is the SDK monorepo (e.g. `agent-hub-sdk` or `marketplace-sdks`). The Java code imported from Agent Hub lives in `**client/`** and `**lib/`**; both must be refactored into `**sdk-java/`**. There is no dependency on the Agent Hub repo.
 - **Package/product name placeholder**: Use a single placeholder everywhere so you can find-replace when the product name is finalized. Suggested placeholder: `marketplace`. Replace with the final name (e.g. `agenthub`, `agent-hub`) in:
   - Package names (npm: `@marketplace/agent-sdk`, NuGet: `Marketplace.AgentSdk`, PyPI: `marketplace-agent-sdk`, Maven: `com.marketplace:agent-sdk`, etc.)
   - Namespaces, module paths, and human-facing labels in docs
@@ -256,7 +256,7 @@ OpenClaw plugins are TypeScript modules, installed via `openclaw plugins install
 
 - Ensure root README + PACKAGE_NAME.md exist.
 - Add `docs/hmac-spec.md` (and optional `api-overview.md`) with test vector(s).
-- sdk-java: Refactor `**client/`** and `**lib/`** into `**sdk-java/**`; remove any agent-hub dependency; publish with placeholder groupId/artifactId.
+- sdk-java: Refactor `**client/`** and `**lib/`** into `**sdk-java/`**; remove any agent-hub dependency; publish with placeholder groupId/artifactId.
 - Implement each of sdk-js, sdk-dotnet, sdk-python, sdk-go, sdk-rust, sdk-ruby, sdk-php with the unified API surface and HMAC spec.
 - Implement integration-n8n (nodes + credentials).
 - Implement integration-openclaw (Mode A: tools + skill; Mode B: backend handler or SDK usage).
