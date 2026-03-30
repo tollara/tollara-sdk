@@ -67,6 +67,59 @@ From this directory:
 ./gradlew build
 ```
 
+## Publish to Maven Central (Sonatype Central Publisher)
+
+**Full background, Central requirements, and Gradle property reference:** [`docs/maven-central-java-sdk-publishing.md`](../docs/maven-central-java-sdk-publishing.md).
+
+Namespace **`com.agentvend`** must stay verified in [Maven Central Portal](https://central.sonatype.com/). This project uses Gradle **`maven-publish`** plus **`signing`**, uploads to Sonatype’s [OSSRH Staging API compatibility endpoint](https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/), then runs a **finalize** POST so the deployment appears under [Publishing](https://central.sonatype.com/publishing).
+
+### 1. One-time: GPG key for signing
+
+Maven Central requires a **GPG signature** (`.asc`) for each published file. Follow [Sonatype’s GPG guide](https://central.sonatype.org/publish/requirements/gpg/): create a key, protect it with a passphrase, and **publish the public key** to a supported keyserver (for example `keyserver.ubuntu.com`).
+
+### 2. One-time: Portal user token
+
+In the Portal, [generate a user token](https://central.sonatype.org/publish/generate-portal-token/) (username + password). You will use these as Maven credentials (not your login password).
+
+### 3. Configure secrets (do not commit)
+
+Prefer **`%USERPROFILE%\.gradle\gradle.properties`** (Windows) or **`~/.gradle/gradle.properties`** with:
+
+```properties
+mavenCentralUsername=<token username>
+mavenCentralPassword=<token password>
+
+# POM developer (override the build defaults)
+mavenCentralDeveloperName=Your Name
+mavenCentralDeveloperEmail=you@example.com
+```
+
+**CI:** set environment variables instead: `MAVEN_CENTRAL_PUBLISH_USERNAME`, `MAVEN_CENTRAL_PUBLISH_PASSWORD`, and for in-memory signing `SIGNING_KEY` (armored private key) and `SIGNING_PASSWORD`. Optional: `signingKey` / `signingPassword` Gradle properties.
+
+**Local signing with GPG:** if you do not use `SIGNING_KEY`, configure the [Gradle signing plugin](https://docs.gradle.org/current/userguide/signing_plugin.html) via `signing.keyId`, `signing.password`, and a secret key export as in the Gradle docs.
+
+### 4. Release version
+
+[Maven Central does not accept](https://central.sonatype.org/publish/requirements/) versions ending in `-SNAPSHOT` for the main repository. Before a release, set `version` in `build.gradle` to a proper release (for example `1.0.0`), tag in Git, then publish.
+
+### 5. Upload and finalize
+
+From `sdk-java`:
+
+```bash
+./gradlew finalizeSonatypeCentralUpload
+```
+
+That runs **`publishMavenJavaPublicationToOssrhStagingApiRepository`** (signed artifacts + checksums) and then **`finalizeSonatypeCentralUpload`** (POST to Sonatype so the bundle shows in the Portal). The finalize step **must use the same public IP** as the upload (run both in one CI job or one local session).
+
+Optional Gradle properties: `mavenCentralNamespace` (default `com.agentvend`), `mavenCentralPublishingType` (`user_managed` vs `automatic` — see Sonatype docs), `sonatype.manualUploadPath` / `sonatype.stagingApiHost` if Sonatype changes URLs (confirm against their OpenAPI if needed).
+
+### 6. Release in the Portal
+
+Open [central.sonatype.com/publishing](https://central.sonatype.com/publishing): validate the deployment, then publish to Maven Central (or use `publishing_type=automatic` on the manual endpoint if you automate that).
+
+**POM note:** the build declares **Apache License 2.0** and SCM pointing at this repo. If your license differs, update the `pom { licenses { ... } }` block in `build.gradle` and add a matching `LICENSE` file at the repository root.
+
 ## Examples
 
 ### Verify inbound HMAC (agent backend)
