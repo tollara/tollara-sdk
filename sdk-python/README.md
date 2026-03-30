@@ -8,18 +8,13 @@ Verify HMAC on incoming gateway requests, validate agent keys, report usage, pro
 
 ### Recommended: single `AgentVendClient`
 
-Use **`AgentVendClient`** with one API origin. The SDK applies the path prefixes from [sdk-api-spec.md](../docs/sdk-api-spec.md) (default deployment). Override prefixes when using ECS layouts or local Docker.
+Use **`AgentVendClient`** with one API **origin** (scheme + host, optional port). The client uses the default AgentVend API URL layout; for details see the [AgentVend documentation](https://agentvend.ai/docs).
 
 | Setting | Default | Notes |
 |--------|---------|--------|
 | API origin | **`https://api.agentvend.api`** (`AgentVendClient.DEFAULT_API_URL`) | Override with `api_url=...`, or env **`AGENTVEND_API_URL`** for staging/tests — no trailing slash required |
 | Agent ID | From env **`AGENTVEND_AGENT_ID`**, or `agent_id=...` | Optional if Core can infer the agent from the key |
 | Agent secret | From env **`AGENTVEND_AGENT_SECRET`**, or `agent_secret=...` | **Required** (Usage HMAC + Core response verification) |
-| Core prefix | `/core/api/v1` | `core_path_prefix=` override for custom deployments/tests |
-| Gateway prefix | `/api` | `gateway_path_prefix=` for `/gateway/api/v1` (ECS) |
-| Usage prefix | `/api/usage` | `usage_path_prefix=` for `/usage/api/v1` (ECS) |
-
-**Split hosts (optional):** `core_api_url`, `gateway_api_url`, and `usage_api_url` each default to the main API URL when unset.
 
 **Progress / completion** still use the **full** `progress_url` / `callback_url` strings from the gateway (including query params).
 
@@ -37,9 +32,9 @@ In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_AGENT_I
 
 ### Low-level helpers
 
-`validate_agent_key`, `report_usage`, `get_request_status`, and related functions remain available. They now take a single `base_url` and use SDK defaults for service paths; path-prefix overrides are available for tests/dev.
+`validate_agent_key`, `report_usage`, `get_request_status`, and related functions remain available. They take a single `base_url` using the SDK’s default URL layout for AgentVend services.
 
-See [api-overview.md](../docs/api-overview.md).
+More detail: [AgentVend documentation](https://agentvend.ai/docs).
 
 ## Requirements
 
@@ -115,7 +110,7 @@ result = client.get_request_result(request_id, agent_key)
 
 ## Low-level functions (explicit URLs per call)
 
-Use these when you are not using `AgentVendClient`, or when services live on different origins.
+Use these when you are not using `AgentVendClient`, or when you pass an explicit `base_url` per call.
 
 ### Verify HMAC (low-level)
 
@@ -178,7 +173,6 @@ from agentvend_sdk import (
 report_usage("https://api.agentvend.api", user_id, agent_id, 1.0, agent_secret)
 report_usage_at(
     "https://api.agentvend.api", user_id, agent_id, 1.0, agent_secret, timestamp=1700000000.0,
-    usage_path_prefix="/api/usage",
 )
 report_progress(progress_url, request_id, "stage", 50, agent_secret)
 report_completion_with_result(
@@ -207,4 +201,4 @@ pip install -e ".[dev,http]"
 pytest
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
+For HMAC signing and HTTP API layout, see the [AgentVend documentation](https://agentvend.ai/docs).
