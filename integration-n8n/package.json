@@ -1,0 +1,50 @@
+{
+  "name": "n8n-nodes-agentvend",
+  "version": "1.0.0",
+  "description": "n8n community nodes for AgentVend: Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Key",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "agentvend"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/agentvend/agentvend-sdk",
+  "author": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agentvend/agentvend-sdk.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/AgentvendApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/AgentvendTrigger/AgentvendTrigger.node.js",
+      "dist/nodes/AgentvendInvoke/AgentvendInvoke.node.js",
+      "dist/nodes/AgentvendProgress/AgentvendProgress.node.js",
+      "dist/nodes/AgentvendComplete/AgentvendComplete.node.js",
+      "dist/nodes/AgentvendValidateKey/AgentvendValidateKey.node.js"
+    ],
+    "packageId": "n8n-nodes-agentvend"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "n8n-workflow": "^1.0.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@agentvend/agent-sdk": "file:../sdk-js"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

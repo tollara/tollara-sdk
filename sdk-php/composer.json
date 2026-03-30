@@ -1,0 +1,14 @@
+{
+  "name": "agentvend/agent-sdk",
+  "description": "AgentVend SDK - verify HMAC, validate keys, report usage",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "AgentVend\\AgentSdk\\": "src/"
+    }
+  },
+  "require": {
+    "php": ">=8.1"
+  }
+}
