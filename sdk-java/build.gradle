@@ -1,10 +1,18 @@
+import java.net.URI
+import java.net.URLEncoder
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.util.Base64
+
 plugins {
     id 'java-library'
     id 'maven-publish'
+    id 'signing'
 }
 
 group = 'com.agentvend'
-version = '1.0.0-SNAPSHOT'
+version = '0.0.1'
 
 repositories {
     mavenCentral()
@@ -51,6 +59,15 @@ java {
     withJavadocJar()
 }
 
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+def mavenCentralUsername = findProperty('mavenCentralUsername') ?: System.getenv('MAVEN_CENTRAL_PUBLISH_USERNAME')
+def mavenCentralPassword = findProperty('mavenCentralPassword') ?: System.getenv('MAVEN_CENTRAL_PUBLISH_PASSWORD')
+def signingKeyAscii = System.getenv('SIGNING_KEY') ?: findProperty('signingKey')
+def signingPassword = System.getenv('SIGNING_PASSWORD') ?: findProperty('signingPassword')?.toString()
+
 publishing {
     publications {
         mavenJava(MavenPublication) {
@@ -61,9 +78,95 @@ publishing {
             pom {
                 name = 'AgentVend SDK (Java)'
                 description = 'Client SDK for AgentVend - verify HMAC, validate keys, report usage, progress, completion'
-                url = 'https://github.com/agentvend/agentvend-sdk'
+                url = 'https://github.com/maffers001/agentvend-sdk'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'agentvend'
+                        name = (findProperty('mavenCentralDeveloperName') ?: 'AgentVend').toString()
+                        email = (findProperty('mavenCentralDeveloperEmail') ?: 'support@agentvend.ai')
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/maffers001/agentvend-sdk.git'
+                    developerConnection = 'scm:git:ssh://git@github.com/maffers001/agentvend-sdk.git'
+                    url = 'https://github.com/maffers001/agentvend-sdk'
+                }
             }
         }
+    }
+    repositories {
+        maven {
+            name = 'ossrhStagingApi'
+            url = uri('https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/')
+            if (mavenCentralUsername != null && mavenCentralPassword != null) {
+                credentials {
+                    username = mavenCentralUsername.toString()
+                    password = mavenCentralPassword.toString()
+                }
+            }
+        }
+    }
+}
+
+signing {
+    if (signingKeyAscii) {
+        def keyId = findProperty('signing.keyId')?.toString()
+        if (keyId) {
+            useInMemoryPgpKeys(keyId, signingKeyAscii.toString(), signingPassword ?: '')
+        } else {
+            useInMemoryPgpKeys(signingKeyAscii.toString(), signingPassword ?: '')
+        }
+    }
+    sign publishing.publications.mavenJava
+}
+
+tasks.named('signMavenJavaPublication').configure {
+    onlyIf {
+        gradle.taskGraph.allTasks.any { t ->
+            t.name.contains('OssrhStagingApi') || t.name == 'finalizeSonatypeCentralUpload'
+        }
+    }
+}
+
+/**
+ * After {@code publishMavenJavaPublicationToOssrhStagingApiRepository}, Sonatype requires a follow-up POST so the
+ * deployment appears in the Central Publisher Portal (same machine / IP as the upload). See
+ * https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
+ */
+tasks.register('finalizeSonatypeCentralUpload') {
+    group = 'publishing'
+    description = 'POST staging deployment to Central Publisher Portal (run after publish to ossrhStagingApi, same IP).'
+    dependsOn 'publishMavenJavaPublicationToOssrhStagingApiRepository'
+    doLast {
+        def user = findProperty('mavenCentralUsername') ?: System.getenv('MAVEN_CENTRAL_PUBLISH_USERNAME')
+        def pass = findProperty('mavenCentralPassword') ?: System.getenv('MAVEN_CENTRAL_PUBLISH_PASSWORD')
+        if (!user || !pass) {
+            throw new GradleException('Set mavenCentralUsername/mavenCentralPassword or MAVEN_CENTRAL_PUBLISH_USERNAME / MAVEN_CENTRAL_PUBLISH_PASSWORD')
+        }
+        def namespace = (findProperty('mavenCentralNamespace') ?: 'com.agentvend').toString()
+        def basePath = findProperty('sonatype.manualUploadPath')?.toString()
+            ?: "/manual/upload/defaultRepository/${namespace}"
+        def host = (findProperty('sonatype.stagingApiHost') ?: 'https://ossrh-staging-api.central.sonatype.com').toString()
+        def publishingType = (findProperty('mavenCentralPublishingType') ?: 'user_managed').toString()
+        def uri = URI.create("${host}${basePath}?publishing_type=${URLEncoder.encode(publishingType, java.nio.charset.StandardCharsets.UTF_8)}")
+        def token = Base64.encoder.encodeToString("${user}:${pass}".getBytes('UTF-8'))
+        def client = HttpClient.newHttpClient()
+        def request = HttpRequest.newBuilder()
+            .uri(uri)
+            .header('Authorization', "Bearer ${token}")
+            .POST(HttpRequest.BodyPublishers.noBody())
+            .build()
+        def response = client.send(request, HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() >= 300) {
+            throw new GradleException("finalizeSonatypeCentralUpload failed: HTTP ${response.statusCode()} ${response.body()}")
+        }
+        logger.lifecycle("finalizeSonatypeCentralUpload: HTTP ${response.statusCode()} ${response.body()}")
     }
 }
 
