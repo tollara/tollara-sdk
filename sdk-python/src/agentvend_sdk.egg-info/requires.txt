@@ -1,0 +1,9 @@
+
+[dev]
+pytest>=7.0
+requests
+responses>=0.24
+build
+
+[http]
+requests

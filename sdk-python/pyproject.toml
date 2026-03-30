@@ -1,14 +1,27 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentvend-sdk"
-version = "1.0.0"
+version = "0.0.1"
 description = "AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion"
+authors = [{ name = "AgentVend", email = "support@agentvend.ai" }]
 readme = "README.md"
 requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 dependencies = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://www.agentvend.ai"
+Documentation = "https://agentvend.ai/docs"
 
 [project.optional-dependencies]
 http = ["requests"]
