@@ -1,3 +1,27 @@
+Metadata-Version: 2.4
+Name: agentvend-sdk
+Version: 0.0.2
+Summary: AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion
+Author-email: AgentVend <support@agentvend.ai>
+License-Expression: Apache-2.0
+Project-URL: Homepage, https://www.agentvend.ai
+Project-URL: Documentation, https://agentvend.ai/docs
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Provides-Extra: http
+Requires-Dist: requests; extra == "http"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: requests; extra == "dev"
+Requires-Dist: responses>=0.24; extra == "dev"
+Requires-Dist: build; extra == "dev"
+Dynamic: license-file
+
 # AgentVend SDK (Python)
 
 **Package:** `agentvend-sdk` (PyPI). **Import:** `import agentvend_sdk` (replaces the former `agentvend-agent-sdk` / `agentvend_agent_sdk` names).
