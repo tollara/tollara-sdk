@@ -6,7 +6,7 @@ n8n nodes for AgentVend: webhook trigger with HMAC verification, invoke agent, p
 
 ## Install in n8n
 
-1. Build the SDK first (from repo root): `cd sdk-js && npm run build`
+1. Build the SDK first (from repo root): `cd sdk-typescript && npm run build`
 2. Install this package: `cd integration-n8n && npm install && npm run build`
 3. In n8n: Settings → Community Nodes → Install `n8n-nodes-agentvend` (or install from local path).
 
@@ -34,4 +34,4 @@ npm ci
 npm run build
 ```
 
-Depends on `@agentvend/agent-sdk` (local `../sdk-js`). Build sdk-js first.
+Depends on `@agentvend/agent-sdk` (local `../sdk-typescript`). Build the TypeScript SDK first.

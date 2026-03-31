@@ -23,7 +23,7 @@ This document records the **context and outcomes** from a multi-turn working ses
 
 ### 2.1 Monorepo structure
 
-- **Conclusion:** A **flat layout**—one top-level directory per SDK or integration (`sdk-java`, `sdk-js`, `sdk-python`, `sdk-dotnet`, `sdk-go`, `sdk-rust`, `sdk-ruby`, `sdk-php`, `integration-n8n`, `integration-openclaw`)—fits distinct release artifacts and independent versioning/CI.
+- **Conclusion:** A **flat layout**—one top-level directory per SDK or integration (`sdk-java`, `sdk-typescript`, `sdk-python`, `sdk-dotnet`, `sdk-go`, `sdk-rust`, `sdk-ruby`, `sdk-php`, `integration-n8n`, `integration-openclaw`)—fits distinct release artifacts and independent versioning/CI.
 
 ### 2.2 Plan vs reality (Java location)
 
@@ -78,7 +78,7 @@ This document records the **context and outcomes** from a multi-turn working ses
 
 ### 3.5 Other SDKs and integrations (from plan implementation)
 
-- **sdk-js**, **sdk-dotnet**, **sdk-go**, **sdk-ruby**, **sdk-php**, **integration-n8n**, **integration-openclaw** — foundational packages, HMAC/verifier/client stubs or implementations per plan; **n8n** typings required pragmatic assertions/`@ts-expect-error` in places for strict `n8n-workflow` types.
+- **sdk-typescript**, **sdk-dotnet**, **sdk-go**, **sdk-ruby**, **sdk-php**, **integration-n8n**, **integration-openclaw** — foundational packages, HMAC/verifier/client stubs or implementations per plan; **n8n** typings required pragmatic assertions/`@ts-expect-error` in places for strict `n8n-workflow` types.
 - **CI:** `.github/workflows/ci.yml` — per-folder jobs; Java job uses **`gradle/actions/gradle-build-action`** with **`build-root-directory: sdk-java`** when wrapper-only workflow is used.
 
 ---

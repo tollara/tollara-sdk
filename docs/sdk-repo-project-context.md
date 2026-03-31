@@ -90,7 +90,7 @@ Other language SDKs should implement the same logical surface and HMAC spec; the
 ## What this repo contains (SDK monorepo)
 
 - **docs/** – Shared specs: `hmac-spec.md`, optional `api-overview.md` (and test vectors).  
-- **sdk-java**, **sdk-js**, **sdk-dotnet**, **sdk-python**, **sdk-go**, **sdk-rust**, **sdk-ruby**, **sdk-php** – One directory per language; same logical API surface and HMAC behavior.  
+- **sdk-java**, **sdk-typescript**, **sdk-dotnet**, **sdk-python**, **sdk-go**, **sdk-rust**, **sdk-ruby**, **sdk-php** – One directory per language; same logical API surface and HMAC behavior.  
 - **integration-n8n** – n8n community nodes (trigger with HMAC verification, invoke, progress, complete, validate key).  
 - **integration-openclaw** – OpenClaw plugin: Mode A = caller (invoke agents), Mode B = backend (verify HMAC, report usage).  
 
@@ -102,7 +102,7 @@ Each `sdk-*` and `integration-*` is self-contained (own build, deps, tests). No 
 
 1. Add `docs/hmac-spec.md` and `docs/api-overview.md` (and test vectors).  
 2. **sdk-java** – Client and vendored lib are already in this repo; no external platform dependency; publish under placeholder.  
-3. **sdk-js** – Full surface + HMAC; then use in n8n and OpenClaw.  
+3. **sdk-typescript** – Full surface + HMAC; then use in n8n and OpenClaw.  
 4. **integration-n8n** – Nodes (use JS SDK or same HMAC spec).  
 5. **integration-openclaw** – Mode A (tools + skill), then Mode B (handler or SDK-based).  
 6. Remaining SDKs (C#, Python, Go, Rust, Ruby, PHP) in any order.

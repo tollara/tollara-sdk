@@ -42,7 +42,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@agentvend/agent-sdk": "file:../sdk-js"
+    "@agentvend/agent-sdk": "file:../sdk-typescript"
   },
   "peerDependencies": {
     "n8n-workflow": "*"

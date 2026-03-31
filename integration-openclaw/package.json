@@ -11,7 +11,7 @@
   "keywords": ["openclaw", "agentvend"],
   "license": "MIT",
   "dependencies": {
-    "@agentvend/agent-sdk": "file:../sdk-js"
+    "@agentvend/agent-sdk": "file:../sdk-typescript"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

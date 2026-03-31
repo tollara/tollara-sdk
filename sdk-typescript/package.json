@@ -1,9 +1,18 @@
 {
   "name": "@agentvend/agent-sdk",
   "version": "1.0.0",
-  "description": "AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion",
+  "description": "AgentVend TypeScript SDK (published as JavaScript with .d.ts) — HMAC verification, agent key validation, usage, progress, completion, gateway polling",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "jest",

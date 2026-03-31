@@ -1,20 +1,47 @@
-# AgentVend SDK (JavaScript/TypeScript)
+# AgentVend SDK (TypeScript)
+
+Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate agent keys, report usage, progress and completion, and poll async job status on the gateway. This package is implemented in **TypeScript**, compiled to **CommonJS** for Node and browsers, and ships **declaration files** (`.d.ts`) so JavaScript and TypeScript consumers get the same API and types.
 
 **Package:** `@agentvend/agent-sdk`
 
-Verify HMAC, validate agent keys, report usage, progress, completion, and poll async job status on the gateway.
+## Configuration
 
-## Configuration (base URLs)
+### Recommended: single `AgentVendClient`
 
-**Unified `AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Override with `apiUrl` or **`AGENTVEND_API_URL`** when pointing at staging or a local stack. Default path prefixes match [sdk-api-spec.md](../docs/sdk-api-spec.md); override `corePathPrefix`, `gatewayPathPrefix`, or `usagePathPrefix` only for non-standard deployments.
+Use **`AgentVendClient`** with one API origin. The SDK appends the path prefixes from [sdk-api-spec.md](../docs/sdk-api-spec.md) (default deployment). Override prefixes when using ECS layouts or local Docker.
 
-**Low-level helpers** take explicit bases: **Core** `coreServiceUrl` (e.g. `{origin}/api/v1` as joined by the unified client), **Usage** `usageServiceUrl`, **Gateway** `gatewayBaseUrl` + `gatewayPathPrefix`. **Progress / completion** always use the full `progressUrl` / `callbackUrl` from the platform.
+| Setting | Default | Notes |
+|--------|---------|--------|
+| API origin | **`https://api.agentvend.api`** (`DEFAULT_API_URL`) | Override with `apiUrl`, or env **`AGENTVEND_API_URL`** for staging or local stacks |
+| Agent ID | From env **`AGENTVEND_AGENT_ID`**, or constructor `agentId` | Optional if Core can infer the agent from the key |
+| Agent secret | From env **`AGENTVEND_AGENT_SECRET`**, or constructor `agentSecret` | **Required** (Usage HMAC + Core response verification) |
+| Core prefix | `/api/v1` | `corePathPrefix` for non-default paths (e.g. ECS) |
+| Gateway prefix | `/api` | `gatewayPathPrefix` for non-default paths |
+| Usage prefix | `/api/usage` | `usagePathPrefix` before `/report` |
+
+Split hosts (optional): `coreApiUrl`, `gatewayApiUrl`, and `usageApiUrl` each default to the main API URL when unset.
+
+**Progress / completion** still use the **full** `progressUrl` / `callbackUrl` strings from the gateway (including query params).
 
 See [api-overview.md](../docs/api-overview.md).
 
-### Unified client
+### Environment variables
 
-`AgentVendClient` uses optional `AGENTVEND_API_URL`, optional `AGENTVEND_AGENT_ID`, and required `AGENTVEND_AGENT_SECRET` (unless passed in the constructor). Default prefixes: `/api/v1`, `/api`, `/api/usage`.
+Constructor options win when set; otherwise the SDK reads `process.env` when available:
+
+| Variable | Purpose |
+|----------|---------|
+| **`AGENTVEND_API_URL`** | Optional. Overrides the default production API origin when set. |
+| **`AGENTVEND_AGENT_ID`** | Agent UUID if you omit `agentId` (optional). |
+| **`AGENTVEND_AGENT_SECRET`** | Agent secret if you omit `agentSecret` (**required** one way or the other). |
+
+In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_AGENT_ID`, and `ENV_AGENT_SECRET`. The default base URL is `AgentVendClient.DEFAULT_API_URL`.
+
+### Low-level helpers
+
+`validateAgentKey`, `reportUsage`, `reportProgress`, `reportCompletion`, `getRequestStatus`, and `getRequestResult` accept explicit base URLs if you do not use `AgentVendClient`.
+
+### Unified client example
 
 ```ts
 import { AgentVendClient } from '@agentvend/agent-sdk';
@@ -33,7 +60,9 @@ await client.reportUsage(userId, agentId, 1);
 import { verifySignatureFromHeadersAndGetUserContext } from '@agentvend/agent-sdk';
 
 const ctx = verifySignatureFromHeadersAndGetUserContext(agentSecret, headers, rawBody);
-if (ctx) { /* trusted */ }
+if (ctx) {
+  /* trusted */
+}
 ```
 
 ## Install
@@ -41,6 +70,8 @@ if (ctx) { /* trusted */ }
 ```bash
 npm install @agentvend/agent-sdk
 ```
+
+JavaScript projects use the same package; types are optional at compile time.
 
 ## API highlights
 
@@ -52,12 +83,14 @@ npm install @agentvend/agent-sdk
 - `reportUsage` (optional `usagePathPrefix`), `reportProgress`, `reportCompletion`
 - `getRequestStatus`, `getRequestResult` — gateway polling.
 
+Exported types include `UserContext`, `InboundHmacRequest`, `AgentVendClientOptions`, `UsageReportResponse`, and others (see `src/index.ts`).
+
 ## Examples
 
 ### Verify HMAC (backend)
 
 ```ts
-import { verifySignatureFromHeaders, getUserContext, AgentVendHeaders } from '@agentvend/agent-sdk';
+import { verifySignatureFromHeaders, getUserContext } from '@agentvend/agent-sdk';
 
 const agentSecret = 'your-agent-secret';
 const valid = verifySignatureFromHeaders(agentSecret, req.headers, rawBodyString);
@@ -134,12 +167,16 @@ const res = await getRequestResult({
 });
 ```
 
-## Build & test
+## Build and test
+
+From this directory:
 
 ```bash
 npm ci
 npm run build
 npm test
 ```
+
+The build runs `tsc` with `declaration: true`; publishable artifacts live under `dist/`.
 
 See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).

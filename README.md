@@ -14,7 +14,7 @@ For API and HMAC details, see [docs/](docs/).
 | Language / integration | Install | Description |
 |------------------------|--------|-------------|
 | **Java** | `sdk-java/` — see [sdk-java/README.md](sdk-java/README.md) | Maven: `com.agentvend:agent-sdk` |
-| **JavaScript/TypeScript** | `npm install @agentvend/agent-sdk` | [sdk-js/README.md](sdk-js/README.md) |
+| **TypeScript / JavaScript** | `npm install @agentvend/agent-sdk` | [sdk-typescript/README.md](sdk-typescript/README.md) — TypeScript sources, CommonJS output and `.d.ts` |
 | **C#** | `dotnet add package AgentVend.AgentSdk` | [sdk-dotnet/README.md](sdk-dotnet/README.md) |
 | **Python** | `pip install agentvend-sdk` | [sdk-python/README.md](sdk-python/README.md) |
 | **Go** | `go get github.com/agentvend/agent-sdk-go` | [sdk-go/README.md](sdk-go/README.md) |
@@ -38,7 +38,7 @@ See [CHANGELOG.md](CHANGELOG.md). Pre-release development uses **1.0.0**; gatewa
 Each `sdk-*` and `integration-*` folder is self-contained. From repo root:
 
 - **sdk-java**: `cd sdk-java && ./gradlew build`
-- **sdk-js**: `cd sdk-js && npm ci && npm test`
+- **sdk-typescript**: `cd sdk-typescript && npm ci && npm test`
 - **sdk-dotnet**: `cd sdk-dotnet && dotnet build` and `cd sdk-dotnet/AgentVend.AgentSdk.Tests && dotnet test` (when .NET SDK is installed)
 - **sdk-python**: `cd sdk-python && pip install -e . && pytest`
 - **sdk-go**: `cd sdk-go && go build ./...`
