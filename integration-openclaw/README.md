@@ -23,8 +23,8 @@ openclaw plugins install ./integration-openclaw
 ## Config (openclaw.plugin.json / plugin config)
 
 - **mode:** `caller` | `backend`
-- **Caller:** `gatewayUrl`, `agentKey`; optional: `coreServiceUrl`, `usageServiceUrl`
-- **Backend:** `agentSecret`, `usageServiceUrl`; optional: `coreServiceUrl`
+- **Caller:** `gatewayUrl`, `agentKey`
+- **Backend:** `agentSecret`; optional `apiUrl` (AgentVend API origin, default production) for usage reporting
 
 ## Mode A – Caller
 
@@ -52,7 +52,7 @@ if (!verified) return res.status(401).send(error);
 // ... run your agent logic ...
 
 await reportUsageIfNeeded(
-  { usageServiceUrl: '...', agentSecret: '...' },
+  { agentSecret: '...' },
   { userId: userContext.userId!, agentId: '...', unitsUsed: 1 }
 );
 ```

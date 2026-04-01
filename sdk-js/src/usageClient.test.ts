@@ -17,21 +17,12 @@ describe('usageClient', () => {
       expect(buildUsageReportUrl('http://u.test/')).toBe('http://u.test/api/usage/report');
     });
 
-    it('joins custom prefix without double slashes', () => {
-      expect(buildUsageReportUrl('http://u.test', '/usage/api/v1')).toBe(
-        'http://u.test/usage/api/v1/report'
-      );
-      expect(buildUsageReportUrl('http://u.test', 'usage/api/v1')).toBe(
-        'http://u.test/usage/api/v1/report'
-      );
-    });
-
     it('exports default constant', () => {
       expect(DEFAULT_USAGE_PATH_PREFIX).toBe('/api/usage');
     });
   });
 
-  it('reportUsage posts to custom usagePathPrefix', async () => {
+  it('reportUsage posts to default usage report path', async () => {
     const calls: string[] = [];
     const mockFetch: typeof fetch = async (input, init) => {
       const url =
@@ -56,16 +47,15 @@ describe('usageClient', () => {
     };
 
     await reportUsage({
-      usageServiceUrl: 'http://u.test',
+      baseUrl: 'http://u.test',
       userId: 'u1',
       agentId: 'a1',
       unitsUsed: 2,
       agentSecret: 's',
-      usagePathPrefix: '/custom/prefix',
       fetch: mockFetch,
     });
 
-    expect(calls).toEqual(['http://u.test/custom/prefix/report']);
+    expect(calls).toEqual(['http://u.test/api/usage/report']);
   });
 
   it('reportUsage signs payload with explicit timestamp', async () => {
@@ -92,7 +82,7 @@ describe('usageClient', () => {
     });
 
     await reportUsage({
-      usageServiceUrl: 'http://u.test',
+      baseUrl: 'http://u.test',
       userId: 'u1',
       agentId: 'a1',
       unitsUsed: 3,
@@ -106,7 +96,7 @@ describe('usageClient', () => {
     const mockFetch: typeof fetch = async () => new Response('nope', { status: 500, statusText: 'Internal' });
     await expect(
       reportUsage({
-        usageServiceUrl: 'http://u.test',
+        baseUrl: 'http://u.test',
         userId: 'u1',
         agentId: 'a1',
         unitsUsed: 1,

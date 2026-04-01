@@ -37,13 +37,13 @@ export function verifyRequest(
 }
 
 export async function reportUsageIfNeeded(
-  config: Pick<PluginConfig, 'usageServiceUrl' | 'agentSecret'>,
+  config: Pick<PluginConfig, 'apiUrl' | 'agentSecret'>,
   params: { userId: string; agentId: string; unitsUsed: number }
 ): Promise<void> {
-  const { usageServiceUrl, agentSecret } = config;
-  if (!usageServiceUrl || !agentSecret) return;
+  const { apiUrl, agentSecret } = config;
+  if (!agentSecret) return;
   await reportUsage({
-    usageServiceUrl,
+    ...(apiUrl ? { baseUrl: apiUrl } : {}),
     userId: params.userId,
     agentId: params.agentId,
     unitsUsed: params.unitsUsed,

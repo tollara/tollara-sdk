@@ -1,10 +1,9 @@
 /**
- * Caller-side gateway polling for async jobs (docs/sdk-api-spec.md §1.3–1.4).
+ * Caller-side gateway polling for async jobs.
  */
 
-function normalizeGatewayBase(url: string): string {
-  return url.replace(/\/$/, '');
-}
+import { DEFAULT_API_URL, DEFAULT_GATEWAY_PATH_PREFIX } from './constants';
+import { resolveBaseUrl } from './urls';
 
 function normalizePrefix(prefix: string): string {
   if (!prefix) return '';
@@ -12,8 +11,9 @@ function normalizePrefix(prefix: string): string {
   return p.replace(/\/$/, '');
 }
 
-function buildUrl(gatewayBaseUrl: string, gatewayPathPrefix: string, suffix: string): string {
-  return `${normalizeGatewayBase(gatewayBaseUrl)}${normalizePrefix(gatewayPathPrefix)}${suffix}`;
+function buildUrl(origin: string, gatewayPathPrefix: string, suffix: string): string {
+  const base = resolveBaseUrl(origin, DEFAULT_API_URL);
+  return `${base}${normalizePrefix(gatewayPathPrefix)}${suffix}`;
 }
 
 export interface GatewayPollResult {
@@ -26,14 +26,14 @@ export interface GatewayPollResult {
  * GET .../requests/{requestId}/status with Bearer agent key.
  */
 export async function getRequestStatus(params: {
-  gatewayBaseUrl: string;
-  gatewayPathPrefix: string;
+  /** API origin; defaults to `https://api.agentvend.api`. */
+  baseUrl?: string | null;
   requestId: string;
   agentKey: string;
   fetch?: typeof globalThis.fetch;
 }): Promise<GatewayPollResult> {
-  const { gatewayBaseUrl, gatewayPathPrefix, requestId, agentKey, fetch: fetchFn = fetch } = params;
-  const url = buildUrl(gatewayBaseUrl, gatewayPathPrefix, `/requests/${requestId}/status`);
+  const { baseUrl, requestId, agentKey, fetch: fetchFn = fetch } = params;
+  const url = buildUrl(baseUrl ?? DEFAULT_API_URL, DEFAULT_GATEWAY_PATH_PREFIX, `/requests/${requestId}/status`);
   try {
     const res = await fetchFn(url, {
       method: 'GET',
@@ -50,14 +50,14 @@ export async function getRequestStatus(params: {
  * GET .../requests/{requestId}/result with Bearer agent key.
  */
 export async function getRequestResult(params: {
-  gatewayBaseUrl: string;
-  gatewayPathPrefix: string;
+  /** API origin; defaults to `https://api.agentvend.api`. */
+  baseUrl?: string | null;
   requestId: string;
   agentKey: string;
   fetch?: typeof globalThis.fetch;
 }): Promise<GatewayPollResult> {
-  const { gatewayBaseUrl, gatewayPathPrefix, requestId, agentKey, fetch: fetchFn = fetch } = params;
-  const url = buildUrl(gatewayBaseUrl, gatewayPathPrefix, `/requests/${requestId}/result`);
+  const { baseUrl, requestId, agentKey, fetch: fetchFn = fetch } = params;
+  const url = buildUrl(baseUrl ?? DEFAULT_API_URL, DEFAULT_GATEWAY_PATH_PREFIX, `/requests/${requestId}/result`);
   try {
     const res = await fetchFn(url, {
       method: 'GET',

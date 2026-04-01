@@ -26,20 +26,12 @@ export class AgentvendApi implements ICredentialType {
       description: 'Base URL of the gateway service (for Invoke)',
     },
     {
-      displayName: 'Core Service URL',
-      name: 'coreServiceUrl',
+      displayName: 'API URL',
+      name: 'apiUrl',
       type: 'string',
-      default: 'http://localhost:8081/api/v1',
-      placeholder: 'https://core.example.com/api/v1',
-      description: 'Base URL of the core service (for Validate Key)',
-    },
-    {
-      displayName: 'Usage Service URL',
-      name: 'usageServiceUrl',
-      type: 'string',
-      default: 'http://localhost:8084',
-      placeholder: 'https://usage.example.com',
-      description: 'Base URL of the usage service (for Report, Progress, Complete)',
+      default: 'https://api.agentvend.api',
+      placeholder: 'https://api.agentvend.api',
+      description: 'AgentVend API origin (validate key, usage, polling); defaults to production',
     },
   ];
 }

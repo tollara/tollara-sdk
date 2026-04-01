@@ -66,30 +66,6 @@ describe('AgentVendClient', () => {
     expect(out.status).toBe('ok');
   });
 
-  it('custom usagePathPrefix is used for report', async () => {
-    const base = 'http://localhost:58890';
-    const mockFetch = jest.fn(async (input: string | Request | URL) => {
-      const u = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      expect(u).toBe(`${base}/usage/api/v1/report`);
-      return new Response(
-        JSON.stringify({
-          status: 'ok',
-          isOverLimit: false,
-          remainingRequestsPerPeriod: 1,
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
-    });
-    const client = new AgentVendClient({
-      apiUrl: base,
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
-      usagePathPrefix: '/usage/api/v1',
-      fetch: mockFetch as unknown as typeof fetch,
-    });
-    await client.reportUsage('user-1', AGENT_ID, 1);
-  });
-
   it('validateAgentKey uses default core prefix and returns parsed result', async () => {
     const base = 'http://localhost:58891';
     const responseBody = JSON.stringify({
