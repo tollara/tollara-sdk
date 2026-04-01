@@ -1,4 +1,5 @@
 import { AgentVendClient, DEFAULT_API_URL, ENV_API_URL, ENV_AGENT_SECRET } from './agentVendClient';
+import { calculateHmac } from './hmac';
 
 const AGENT_ID = '550e8400-e29b-41d4-a716-446655440000';
 const AGENT_SECRET = 'test-agent-secret';
@@ -87,6 +88,43 @@ describe('AgentVendClient', () => {
       fetch: mockFetch as unknown as typeof fetch,
     });
     await client.reportUsage('user-1', AGENT_ID, 1);
+  });
+
+  it('validateAgentKey uses default core prefix and returns parsed result', async () => {
+    const base = 'http://localhost:58891';
+    const responseBody = JSON.stringify({
+      valid: true,
+      userId: 'user-1',
+      agentId: AGENT_ID,
+      plan: 'basic',
+      roles: ['user'],
+      quotaRemaining: 5,
+      subscriptionActive: true,
+    });
+    const ts = '1700000000';
+    const signature = calculateHmac(responseBody + ts, AGENT_SECRET);
+
+    const mockFetch = jest.fn(async (input: string | Request | URL) => {
+      const u = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      expect(u).toBe(`${base}/api/v1/agent-keys/validate`);
+      return new Response(responseBody, {
+        status: 200,
+        headers: {
+          'X-AgentVend-Signature': signature,
+          'X-AgentVend-Timestamp': ts,
+        },
+      });
+    });
+
+    const client = new AgentVendClient({
+      apiUrl: base,
+      agentId: AGENT_ID,
+      agentSecret: AGENT_SECRET,
+      fetch: mockFetch as unknown as typeof fetch,
+    });
+    const out = await client.validateAgentKey('agent-key-1');
+    expect(out).not.toBeNull();
+    expect(out?.userId).toBe('user-1');
   });
 
   it('reads apiUrl and secret from process.env when omitted', async () => {
