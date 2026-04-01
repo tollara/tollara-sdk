@@ -8,11 +8,16 @@
     <PackageTags>agentvend;sdk;hmac</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="AgentVend.AgentSdk.Tests" />
+  </ItemGroup>
+  <!-- Nested test project lives under this folder; SDK default globs would compile its *.cs here. -->
+  <ItemGroup>
+    <Compile Remove="AgentVend.AgentSdk.Tests/**/*.cs" />
   </ItemGroup>
 </Project>

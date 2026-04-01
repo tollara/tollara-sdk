@@ -14,6 +14,12 @@ out/
 .nuxt/
 .output/
 
+# .NET / MSBuild (sdk-dotnet and any future C# projects)
+obj/
+.vs/
+*.csproj.user
+TestResults/
+
 # Environment variables
 .env
 .env.local

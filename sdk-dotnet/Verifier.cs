@@ -76,7 +76,7 @@ public static class Verifier
         var rolesHeader = GetHeaderIgnoreCase(headers, AgentVendHeaders.Roles);
         var roles = string.IsNullOrEmpty(rolesHeader)
             ? Array.Empty<string>()
-            : rolesHeader.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+            : rolesHeader.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
         decimal? quota = null;
         var q = GetHeaderIgnoreCase(headers, AgentVendHeaders.QuotaRemaining);
         if (!string.IsNullOrEmpty(q) && decimal.TryParse(q, NumberStyles.Any, CultureInfo.InvariantCulture, out var qv))
@@ -130,7 +130,7 @@ public static class Verifier
         var rolesHeader = GetHeaderIgnoreCase(headers, AgentVendHeaders.Roles);
         var roles = string.IsNullOrEmpty(rolesHeader)
             ? Array.Empty<string>()
-            : rolesHeader.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+            : rolesHeader.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
         decimal? quotaRemaining = null;
         var q = GetHeaderIgnoreCase(headers, AgentVendHeaders.QuotaRemaining);
         if (!string.IsNullOrEmpty(q) && decimal.TryParse(q, NumberStyles.Any, CultureInfo.InvariantCulture, out var qv))
