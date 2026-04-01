@@ -2,19 +2,18 @@
 
 **Package:** `@agentvend/agent-sdk`
 
-Verify HMAC, validate agent keys, report usage, progress, completion, and poll async job status on the gateway.
+Verify inbound HMAC, validate agent keys, report usage, progress, and completion, and poll async job status.
 
-## Configuration (base URLs)
+## API base URL
 
-**Unified `AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Override with `apiUrl` or **`AGENTVEND_API_URL`** when pointing at staging or a local stack. Default path prefixes match [sdk-api-spec.md](../docs/sdk-api-spec.md); override `corePathPrefix`, `gatewayPathPrefix`, or `usagePathPrefix` only for non-standard deployments.
+By default, all requests use the production API origin **`https://api.agentvend.api`**. Override when needed:
 
-**Low-level helpers** take explicit bases: **Core** `coreServiceUrl` (e.g. `{origin}/api/v1` as joined by the unified client), **Usage** `usageServiceUrl`, **Gateway** `gatewayBaseUrl` + `gatewayPathPrefix`. **Progress / completion** always use the full `progressUrl` / `callbackUrl` from the platform.
+- **`AgentVendClient`:** pass `apiUrl`, or set environment variable **`AGENTVEND_API_URL`**
+- **Standalone helpers:** pass optional `baseUrl` on each call (same default when omitted)
 
-See [api-overview.md](../docs/api-overview.md).
+## Unified client (recommended)
 
-### Unified client
-
-`AgentVendClient` uses optional `AGENTVEND_API_URL`, optional `AGENTVEND_AGENT_ID`, and required `AGENTVEND_AGENT_SECRET` (unless passed in the constructor). Default prefixes: `/api/v1`, `/api`, `/api/usage`.
+`AgentVendClient` uses optional **`AGENTVEND_AGENT_ID`**, required **`AGENTVEND_AGENT_SECRET`** (unless passed in the constructor), and optional **`AGENTVEND_API_URL`**.
 
 ```ts
 import { AgentVendClient } from '@agentvend/agent-sdk';
@@ -25,6 +24,7 @@ const client = new AgentVendClient({
 });
 await client.getRequestStatus(requestId, agentKey);
 await client.reportUsage(userId, agentId, 1);
+await client.validateAgentKey(agentKey);
 ```
 
 ### Verify signature and user context together
@@ -44,20 +44,20 @@ npm install @agentvend/agent-sdk
 
 ## API highlights
 
-- `AgentVendHeaders` — canonical `X-AgentVend-*` names.
-- `verifyInboundHmac(agentSecret, InboundHmacRequest)` / `verifySignatureFromHeaders(agentSecret, headers, payload)` — inbound gateway HMAC.
-- `getUserContext(headers)` — parses headers (case-insensitive keys).
-- `AgentVendClient` — env + unified validate / usage / gateway.
-- `validateAgentKey({ coreServiceUrl, agentKey, agentId, agentSecret })`
-- `reportUsage` (optional `usagePathPrefix`), `reportProgress`, `reportCompletion`
-- `getRequestStatus`, `getRequestResult` — gateway polling.
+- `AgentVendHeaders` — canonical `X-AgentVend-*` names
+- `verifyInboundHmac` / `verifySignatureFromHeaders` — inbound gateway HMAC
+- `getUserContext` — parses headers (case-insensitive keys)
+- `AgentVendClient` — validate key, usage, gateway polling
+- `validateAgentKey({ agentKey, agentId, agentSecret, baseUrl? })` — optional `baseUrl` defaults to production
+- `reportUsage`, `reportProgress`, `reportCompletion` — usage service
+- `getRequestStatus`, `getRequestResult` — async job polling
 
 ## Examples
 
 ### Verify HMAC (backend)
 
 ```ts
-import { verifySignatureFromHeaders, getUserContext, AgentVendHeaders } from '@agentvend/agent-sdk';
+import { verifySignatureFromHeaders, getUserContext } from '@agentvend/agent-sdk';
 
 const agentSecret = 'your-agent-secret';
 const valid = verifySignatureFromHeaders(agentSecret, req.headers, rawBodyString);
@@ -72,12 +72,13 @@ if (valid) {
 import { validateAgentKey } from '@agentvend/agent-sdk';
 
 const result = await validateAgentKey({
-  coreServiceUrl: 'https://api.agentvend.api/core/api/v1',
   agentKey: 'bearer-token',
   agentId: 'agent-id',
   agentSecret: 'agent-secret',
 });
 ```
+
+`baseUrl` is optional (defaults to `https://api.agentvend.api`). Set it for a non-production environment.
 
 ### Report usage
 
@@ -85,7 +86,6 @@ const result = await validateAgentKey({
 import { reportUsage } from '@agentvend/agent-sdk';
 
 await reportUsage({
-  usageServiceUrl: 'https://api.agentvend.api',
   userId: 'u1',
   agentId: 'a1',
   unitsUsed: 1,
@@ -94,6 +94,8 @@ await reportUsage({
 ```
 
 ### Progress and completion (async)
+
+URLs come from the platform (`progress_url`, `callback_url`).
 
 ```ts
 import { CompletionStatus, reportProgress, reportCompletionWithResult } from '@agentvend/agent-sdk';
@@ -120,19 +122,11 @@ await reportCompletionWithResult({
 ```ts
 import { getRequestStatus, getRequestResult } from '@agentvend/agent-sdk';
 
-const st = await getRequestStatus({
-  gatewayBaseUrl: 'https://api.agentvend.api',
-  gatewayPathPrefix: '/api',
-  requestId,
-  agentKey,
-});
-const res = await getRequestResult({
-  gatewayBaseUrl: 'https://api.agentvend.api',
-  gatewayPathPrefix: '/api',
-  requestId,
-  agentKey,
-});
+const st = await getRequestStatus({ requestId, agentKey });
+const res = await getRequestResult({ requestId, agentKey });
 ```
+
+Optional `baseUrl` on each call if not using the default API origin.
 
 ## Build & test
 
@@ -142,4 +136,4 @@ npm run build
 npm test
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
+See [HMAC spec](https://github.com/agentvend/agentvend-sdk/blob/master/docs/hmac-spec.md) and [API spec](https://github.com/agentvend/agentvend-sdk/blob/master/docs/sdk-api-spec.md) for protocol details.

@@ -21,13 +21,13 @@ export class AgentvendValidateKey implements INodeType {
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('agentvendApi');
-    const coreServiceUrl = (credentials as { coreServiceUrl?: string }).coreServiceUrl as string;
+    const apiUrl = (credentials as { apiUrl?: string }).apiUrl as string;
     const agentSecret = (credentials as { agentSecret?: string }).agentSecret as string;
     const agentKey = this.getNodeParameter('agentKey', 0) as string;
     const agentId = (this.getNodeParameter('agentId', 0) as string) || undefined;
 
     const result = await validateAgentKey({
-      coreServiceUrl,
+      baseUrl: apiUrl,
       agentKey,
       agentId: agentId ?? null,
       agentSecret,

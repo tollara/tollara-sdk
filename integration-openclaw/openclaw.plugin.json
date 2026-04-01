@@ -20,13 +20,9 @@
         "type": "string",
         "description": "Agent key for invoke (caller mode)"
       },
-      "coreServiceUrl": {
+      "apiUrl": {
         "type": "string",
-        "description": "Core service URL (optional, for validate key)"
-      },
-      "usageServiceUrl": {
-        "type": "string",
-        "description": "Usage service URL (caller: status/completion; backend: report usage)"
+        "description": "AgentVend API origin (optional; defaults to https://api.agentvend.api). Used when reporting usage in backend mode."
       },
       "agentSecret": {
         "type": "string",

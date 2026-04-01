@@ -1,5 +1,7 @@
 import { AgentVendHeaders } from './agentVendHeaders';
+import { DEFAULT_API_URL, DEFAULT_CORE_PATH_PREFIX } from './constants';
 import { calculateHmac, constantTimeEquals } from './hmac';
+import { joinUrl, resolveBaseUrl } from './urls';
 
 export interface AgentKeyValidationResult {
   userId: string | null;
@@ -21,22 +23,25 @@ interface CachedResult {
 }
 
 /**
- * Validates an agent key via the core service and verifies response HMAC.
- * Optional in-memory cache with 60s TTL.
+ * Validates an agent key via the AgentVend API and verifies response HMAC.
+ * Uses `baseUrl` (default production API origin) + `/api/v1/agent-keys/validate`.
+ * Optional in-memory cache with 60s TTL via {@link createValidationCache}.
  */
 export async function validateAgentKey(
   params: {
-    coreServiceUrl: string;
+    /** API origin; defaults to `https://api.agentvend.api`. */
+    baseUrl?: string | null;
     agentKey: string;
     agentId: string | null;
     agentSecret: string;
     fetch?: typeof globalThis.fetch;
   }
 ): Promise<AgentKeyValidationResult | null> {
-  const { coreServiceUrl, agentKey, agentId, agentSecret, fetch: fetchFn = fetch } = params;
+  const { baseUrl, agentKey, agentId, agentSecret, fetch: fetchFn = fetch } = params;
   if (!agentKey?.trim()) return null;
 
-  const url = `${coreServiceUrl.replace(/\/$/, '')}/agent-keys/validate`;
+  const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
+  const url = `${joinUrl(origin, DEFAULT_CORE_PATH_PREFIX)}/agent-keys/validate`;
   const body = JSON.stringify({ agentKey, agentId, agentSecret });
 
   let res: Response;

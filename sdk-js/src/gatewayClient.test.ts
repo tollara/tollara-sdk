@@ -8,8 +8,7 @@ describe('gatewayClient', () => {
       text: async () => '{"state":"PENDING"}',
     });
     const r = await getRequestStatus({
-      gatewayBaseUrl: 'https://gw.example.com',
-      gatewayPathPrefix: '/api',
+      baseUrl: 'https://gw.example.com',
       requestId: 'job-1',
       agentKey: 'key-abc',
       fetch: fetchMock as unknown as typeof fetch,
@@ -26,21 +25,20 @@ describe('gatewayClient', () => {
     );
   });
 
-  it('getRequestResult builds ecs-style path', async () => {
+  it('getRequestResult builds path under baseUrl', async () => {
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
       text: async () => '{}',
     });
     await getRequestResult({
-      gatewayBaseUrl: 'https://gw.example.com/',
-      gatewayPathPrefix: '/gateway/api/v1',
+      baseUrl: 'https://gw.example.com/',
       requestId: 'r2',
       agentKey: 'k',
       fetch: fetchMock as unknown as typeof fetch,
     });
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://gw.example.com/gateway/api/v1/requests/r2/result',
+      'https://gw.example.com/api/requests/r2/result',
       expect.any(Object)
     );
   });

@@ -1,13 +1,15 @@
 import { AgentVendHeaders } from './agentVendHeaders';
 import { CompletionStatus } from './completionStatus';
+import { DEFAULT_API_URL, DEFAULT_USAGE_PATH_PREFIX } from './constants';
 import { calculateHmacWithTimestamp } from './hmac';
+import { resolveBaseUrl } from './urls';
 
-/** Default path prefix before `/report` (matches Java `AgentVendUrls.DEFAULT_USAGE_PATH_PREFIX`). */
-export const DEFAULT_USAGE_PATH_PREFIX = '/api/usage';
+export { DEFAULT_USAGE_PATH_PREFIX } from './constants';
 
-export function buildUsageReportUrl(usageServiceUrl: string, usagePathPrefix = DEFAULT_USAGE_PATH_PREFIX): string {
-  const base = usageServiceUrl.replace(/\/$/, '');
-  let p = (usagePathPrefix ?? DEFAULT_USAGE_PATH_PREFIX).trim();
+/** Builds `{baseUrl}/api/usage/report` using the default usage path. */
+export function buildUsageReportUrl(baseUrl: string): string {
+  const base = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
+  let p = DEFAULT_USAGE_PATH_PREFIX.trim();
   if (!p.startsWith('/')) p = `/${p}`;
   p = p.replace(/\/$/, '');
   return `${base}${p}/report`;
@@ -151,28 +153,26 @@ export interface UsageReportResponse {
 }
 
 /**
- * POST to usage service /api/usage/report with signed body.
+ * POST usage report with signed body (`{baseUrl}/api/usage/report`).
  */
 export async function reportUsage(
   params: {
-    usageServiceUrl: string;
+    /** API origin; defaults to `https://api.agentvend.api`. */
+    baseUrl?: string | null;
     userId: string;
     agentId: string;
     unitsUsed: number;
     timestamp?: number | Date | null;
-    /** Path prefix before `/report`; default `/api/usage`. */
-    usagePathPrefix?: string;
     agentSecret: string;
     fetch?: typeof globalThis.fetch;
   }
 ): Promise<UsageReportResponse> {
   const {
-    usageServiceUrl,
+    baseUrl,
     userId,
     agentId,
     unitsUsed,
     timestamp,
-    usagePathPrefix,
     agentSecret,
     fetch: fetchFn = fetch,
   } = params;
@@ -185,7 +185,7 @@ export async function reportUsage(
   const timestampStr = String(ts);
   const signature = calculateHmacWithTimestamp(bodyString, timestampStr, agentSecret);
 
-  const url = buildUsageReportUrl(usageServiceUrl, usagePathPrefix);
+  const url = buildUsageReportUrl(baseUrl ?? DEFAULT_API_URL);
 
   const res = await fetchFn(url, {
     method: 'POST',

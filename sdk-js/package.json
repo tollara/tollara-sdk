@@ -1,6 +1,6 @@
 {
   "name": "@agentvend/agent-sdk",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -20,6 +20,19 @@
   "keywords": ["agentvend", "sdk", "hmac"],
   "author": "",
   "license": "MIT",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentvend/agentvend-sdk.git",
+    "directory": "sdk-js"
+  },
+  "bugs": {
+    "url": "https://github.com/agentvend/agentvend-sdk/issues"
+  },
+  "homepage": "https://github.com/agentvend/agentvend-sdk/tree/master/sdk-js#readme",
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.0",

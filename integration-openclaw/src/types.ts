@@ -2,8 +2,8 @@ export interface PluginConfig {
   mode: 'caller' | 'backend';
   gatewayUrl?: string;
   agentKey?: string;
-  coreServiceUrl?: string;
-  usageServiceUrl?: string;
+  /** AgentVend API origin; defaults to production when unset (usage reporting in backend mode). */
+  apiUrl?: string;
   agentSecret?: string;
 }
 

@@ -2,7 +2,7 @@ import { AgentVendHeaders } from './agentVendHeaders';
 import { calculateHmac } from './hmac';
 import { createValidationCache, validateAgentKey } from './validationClient';
 
-const CORE_BASE = 'http://core.test/api/v1';
+const CORE_BASE = 'http://core.test';
 const AGENT_ID = '550e8400-e29b-41d4-a716-446655440000';
 const AGENT_SECRET = 'test-agent-secret';
 
@@ -36,7 +36,7 @@ describe('validationClient', () => {
       });
 
     const result = await validateAgentKey({
-      coreServiceUrl: CORE_BASE,
+      baseUrl: CORE_BASE,
       agentKey: 'bearer-token',
       agentId: AGENT_ID,
       agentSecret: AGENT_SECRET,
@@ -59,7 +59,7 @@ describe('validationClient', () => {
   it('returns null when agent key is blank', async () => {
     const fetchMock = jest.fn();
     const result = await validateAgentKey({
-      coreServiceUrl: CORE_BASE,
+      baseUrl: CORE_BASE,
       agentKey: '   ',
       agentId: AGENT_ID,
       agentSecret: AGENT_SECRET,
@@ -72,7 +72,7 @@ describe('validationClient', () => {
   it('returns null when response is not ok', async () => {
     const fetchMock: typeof fetch = async () => new Response('unauthorized', { status: 401 });
     const result = await validateAgentKey({
-      coreServiceUrl: CORE_BASE,
+      baseUrl: CORE_BASE,
       agentKey: 'bad',
       agentId: AGENT_ID,
       agentSecret: AGENT_SECRET,
@@ -92,7 +92,7 @@ describe('validationClient', () => {
         },
       });
     const result = await validateAgentKey({
-      coreServiceUrl: CORE_BASE,
+      baseUrl: CORE_BASE,
       agentKey: 'k',
       agentId: AGENT_ID,
       agentSecret: AGENT_SECRET,
@@ -107,7 +107,7 @@ describe('validationClient', () => {
     const signature = calculateHmac(responseBody + timestamp, AGENT_SECRET);
     const fetchMock = jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      expect(url).toBe(`${CORE_BASE}/agent-keys/validate`);
+      expect(url).toBe(`${CORE_BASE}/api/v1/agent-keys/validate`);
       expect(init?.method).toBe('POST');
       expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
       expect(JSON.parse(String(init?.body))).toEqual({
@@ -125,7 +125,7 @@ describe('validationClient', () => {
     });
 
     const result = await validateAgentKey({
-      coreServiceUrl: CORE_BASE,
+      baseUrl: CORE_BASE,
       agentKey: 'the-agent-key',
       agentId: AGENT_ID,
       agentSecret: AGENT_SECRET,
