@@ -201,4 +201,27 @@ pip install -e ".[dev,http]"
 pytest
 ```
 
+## Release (PyPI)
+
+1. **Version** — Bump `version` in [`pyproject.toml`](pyproject.toml) under `[project]` (PEP 440 / SemVer). Each upload must use a **new** version; PyPI will reject duplicates.
+2. **Verify** — Run tests (see above). Optionally run from a clean tree.
+3. **Build distributions** — Install tooling if needed (`pip install build twine`), then from `sdk-python`:
+
+   ```bash
+   python -m build
+   ```
+
+   This creates `dist/*.whl` and `dist/*.tar.gz`.
+4. **Check** — `twine check dist/*`
+5. **Upload** — Use [PyPI](https://pypi.org/) (or [Test PyPI](https://test.pypi.org/) for a dry run):
+
+   ```bash
+   twine upload dist/*
+   ```
+
+   Configure credentials via `~/.pypirc`, environment variables, or a **trusted publisher** / API token as described in [PyPI’s publishing docs](https://packaging.python.org/en/latest/guides/distributing-packages-using-setuptools/#upload-your-distributions).
+6. **Tag** — Tag the Git commit that matches the released version.
+
+Project metadata (name `agentvend-sdk`, license, URLs) lives in `pyproject.toml`.
+
 For HMAC signing and HTTP API layout, see the [AgentVend documentation](https://agentvend.ai/docs).

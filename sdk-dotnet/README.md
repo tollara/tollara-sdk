@@ -1,8 +1,10 @@
 # AgentVend SDK (.NET)
 
-**Package:** `AgentVend.AgentSdk` (NuGet)
+**Package:** `AgentVend.AgentSdk` (NuGet), **version** `0.0.1`.
 
 Verify HMAC, validate agent keys, report usage, progress, completion, and poll job status on the gateway.
+
+On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve; use the [sdk-dotnet folder](https://github.com/maffers001/agentvend-sdk/tree/master/sdk-dotnet) in the repository for the same files with working links.
 
 ## Configuration (base URLs)
 
@@ -90,9 +92,32 @@ var (ok, code, body) = await GatewayClient.GetRequestStatusAsync(
 
 ## Tests
 
+From the `sdk-dotnet` directory:
+
 ```bash
-cd AgentVend.AgentSdk.Tests
-dotnet test
+dotnet test AgentVend.AgentSdk.Tests/AgentVend.AgentSdk.Tests.csproj
 ```
+
+## Release (NuGet.org)
+
+1. **Version** — Set `<Version>` in `AgentVend.AgentSdk.csproj` to a new **SemVer** value (e.g. `0.0.2`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
+2. **Verify** — Run tests (command above).
+3. **Pack** — From `sdk-dotnet`:
+
+   ```bash
+   dotnet pack AgentVend.AgentSdk.csproj -c Release
+   ```
+
+   This writes `bin/Release/AgentVend.AgentSdk.<version>.nupkg` and a matching **`.snupkg`** (symbols).
+4. **Publish** — Create an [API key](https://www.nuget.org/account/apikeys) on nuget.org (scope: push for `AgentVend.AgentSdk`). Push **both** packages:
+
+   ```bash
+   dotnet nuget push bin/Release/AgentVend.AgentSdk.<version>.nupkg   --api-key <KEY> --source https://api.nuget.org/v3/index.json
+   dotnet nuget push bin/Release/AgentVend.AgentSdk.<version>.snupkg --api-key <KEY> --source https://api.nuget.org/v3/index.json
+   ```
+
+5. **After upload** — Wait for indexing, then confirm on [nuget.org/packages/AgentVend.AgentSdk](https://www.nuget.org/packages/AgentVend.AgentSdk). Tag the Git commit that matches the release.
+
+Package metadata (license, repo URL, readme embedded in the package) is defined in the `.csproj`.
 
 See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).

@@ -136,4 +136,23 @@ npm run build
 npm test
 ```
 
+## Release (npm)
+
+Package name: **`@agentvend/agent-sdk`** ([npm scoped packages](https://docs.npmjs.com/about-scopes-and-packages)).
+
+1. **Version** — Bump `"version"` in [`package.json`](package.json) (SemVer). npm will not let you publish the same version twice.
+2. **Verify** — `npm ci`, `npm test`, and `npm run build` (or rely on `prepublishOnly`, which runs `build` on `npm publish`).
+3. **Login** — `npm login` on the machine that will publish, or use an **automation token** / `NPM_TOKEN` in CI (see [access tokens](https://docs.npmjs.com/about-access-tokens) and [CI workflows](https://docs.npmjs.com/using-private-packages-in-a-ci-cd-workflow)).
+4. **Publish** — From `sdk-js`:
+
+   ```bash
+   npm publish --access public
+   ```
+
+   The first publish of a **scoped** package to the public registry must use `--access public` (subsequent publishes can omit it if the package is already public).
+
+5. **Tag** — Tag the Git commit that matches the published version.
+
+Optional: `npm publish --dry-run` to inspect the tarball without uploading. `repository`, `files` (`dist`, `README.md`), and `prepublishOnly` are already set in `package.json`.
+
 See [HMAC spec](https://github.com/agentvend/agentvend-sdk/blob/master/docs/hmac-spec.md) and [API spec](https://github.com/agentvend/agentvend-sdk/blob/master/docs/sdk-api-spec.md) for protocol details.
