@@ -6,6 +6,13 @@ namespace AgentVend;
 /// <summary>Caller-side gateway polling (sdk-api-spec §1.3–1.4).</summary>
 public static class GatewayClient
 {
+    /// <summary>Poll status using the SDK default API origin and gateway path prefix (same as <see cref="AgentVendClient"/>).</summary>
+    public static Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(HttpClient http, string requestId,
+        string agentKey, CancellationToken ct = default) =>
+        GetRequestStatusAsync(http, AgentVendClient.DefaultApiUrl, AgentVendClient.DefaultGatewayPathPrefix, requestId,
+            agentKey, ct);
+
+    /// <summary>Poll status against explicit gateway base and path prefix (for custom or local stacks).</summary>
     public static async Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(
         HttpClient http,
         string gatewayBaseUrl,
@@ -18,6 +25,13 @@ public static class GatewayClient
         return await GetAsync(http, url, agentKey, ct);
     }
 
+    /// <summary>Fetch result using the SDK default API origin and gateway path prefix (same as <see cref="AgentVendClient"/>).</summary>
+    public static Task<(bool Ok, int StatusCode, string Body)> GetRequestResultAsync(HttpClient http, string requestId,
+        string agentKey, CancellationToken ct = default) =>
+        GetRequestResultAsync(http, AgentVendClient.DefaultApiUrl, AgentVendClient.DefaultGatewayPathPrefix, requestId,
+            agentKey, ct);
+
+    /// <summary>Fetch result against explicit gateway base and path prefix (for custom or local stacks).</summary>
     public static async Task<(bool Ok, int StatusCode, string Body)> GetRequestResultAsync(
         HttpClient http,
         string gatewayBaseUrl,

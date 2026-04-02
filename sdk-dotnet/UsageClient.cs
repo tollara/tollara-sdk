@@ -67,6 +67,12 @@ public static class UsageClient
         return res.IsSuccessStatusCode;
     }
 
+    /// <summary>Report usage using the SDK default API origin and usage path prefix (same as <see cref="AgentVendClient"/>).</summary>
+    public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string userId, string agentId, decimal unitsUsed,
+        string agentSecret, CancellationToken ct = default) =>
+        ReportUsageAsync(http, AgentVendClient.DefaultApiUrl, userId, agentId, unitsUsed, agentSecret, null, null, ct);
+
+    /// <summary>Report usage against an explicit usage service origin (for custom or local stacks).</summary>
     public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
         string userId, string agentId, decimal unitsUsed, string agentSecret, CancellationToken ct = default) =>
         ReportUsageAsync(http, usageServiceUrl, userId, agentId, unitsUsed, agentSecret, null, null, ct);
