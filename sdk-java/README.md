@@ -43,10 +43,12 @@ In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_AGENT_I
 
 ## Install
 
+Use the same version as `version` in [`build.gradle`](build.gradle) (below matches the repo as of this README).
+
 **Gradle:**
 
 ```kotlin
-implementation("com.agentvend:agent-sdk:1.0.0")
+implementation("com.agentvend:agent-sdk:0.0.1")
 ```
 
 **Maven:**
@@ -55,7 +57,7 @@ implementation("com.agentvend:agent-sdk:1.0.0")
 <dependency>
   <groupId>com.agentvend</groupId>
   <artifactId>agent-sdk</artifactId>
-  <version>1.0.0</version>
+  <version>0.0.1</version>
 </dependency>
 ```
 
@@ -70,6 +72,14 @@ From this directory:
 ## Publish to Maven Central (Sonatype Central Publisher)
 
 **Full background, Central requirements, and Gradle property reference:** [`docs/maven-central-java-sdk-publishing.md`](../docs/maven-central-java-sdk-publishing.md).
+
+**Release checklist (short):**
+
+1. Bump `version` in `build.gradle` to a **non-snapshot** release (Maven Central rejects `-SNAPSHOT` for this flow).
+2. Run `./gradlew test` and fix failures.
+3. Commit; optionally tag `v<version>` in Git **after** the artifacts are accepted.
+4. Follow steps 1–6 below (signing, credentials, `./gradlew finalizeSonatypeCentralUpload`, Portal release).
+5. Update consumer docs (this README’s **Install** section) to the new version when you cut a release.
 
 Namespace **`com.agentvend`** must stay verified in [Maven Central Portal](https://central.sonatype.com/). This project uses Gradle **`maven-publish`** plus **`signing`**, uploads to Sonatype’s [OSSRH Staging API compatibility endpoint](https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/), then runs a **finalize** POST so the deployment appears under [Publishing](https://central.sonatype.com/publishing).
 
