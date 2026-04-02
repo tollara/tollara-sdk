@@ -17,6 +17,12 @@ public record AgentKeyValidationResult(
 
 public static class ValidationClient
 {
+    /// <summary>Validate using the SDK default API origin and Core path prefix (same as <see cref="AgentVendClient"/>).</summary>
+    public static Task<AgentKeyValidationResult?> ValidateAgentKeyAsync(HttpClient http, string agentKey, string? agentId,
+        string agentSecret, CancellationToken ct = default) =>
+        ValidateAgentKeyAsync(http, DefaultCoreServiceRoot(), agentKey, agentId, agentSecret, ct);
+
+    /// <summary>Validate against an explicit Core service base (include path prefix, e.g. custom or local stack).</summary>
     public static async Task<AgentKeyValidationResult?> ValidateAgentKeyAsync(HttpClient http, string coreServiceUrl,
         string agentKey, string? agentId, string agentSecret, CancellationToken ct = default)
     {
@@ -46,5 +52,16 @@ public static class ValidationClient
             root.TryGetProperty("measurementType", out var mt) && mt.ValueKind == JsonValueKind.String ? mt.GetString() : null,
             root.TryGetProperty("unitLabel", out var ul) && ul.ValueKind == JsonValueKind.String ? ul.GetString() : null
         );
+    }
+
+    private static string DefaultCoreServiceRoot() =>
+        JoinBaseAndPrefix(AgentVendClient.DefaultApiUrl, AgentVendClient.DefaultCorePathPrefix);
+
+    private static string JoinBaseAndPrefix(string baseUrl, string pathPrefix)
+    {
+        var b = baseUrl.Trim().TrimEnd('/');
+        if (string.IsNullOrEmpty(pathPrefix)) return b;
+        var p = pathPrefix.StartsWith('/') ? pathPrefix : "/" + pathPrefix;
+        return b + p;
     }
 }
