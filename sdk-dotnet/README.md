@@ -1,6 +1,6 @@
 # AgentVend SDK (.NET)
 
-**Package:** `AgentVend.AgentSdk` (NuGet), **version** `0.0.2`.
+**Package:** `AgentVend.AgentSdk` (NuGet), **version** `0.0.3`.
 
 Verify HMAC, validate agent keys, report usage, progress, completion, and poll job status on the gateway.
 
@@ -15,6 +15,17 @@ On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve
 **Progress / completion** always use the full `progressUrl` / `callbackUrl` strings from the platform.
 
 See [api-overview.md](../docs/api-overview.md) and [sdk-api-spec.md](../docs/sdk-api-spec.md) in the repository for path layout details.
+
+## HMAC (aligned with other SDKs)
+
+Normative details and test vectors: [hmac-spec.md](../docs/hmac-spec.md) in this repository.
+
+- **Outbound to usage** (report / progress / completion) and **core validate response** verification use the same rule: canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; timestamp is the numeric string in `X-AgentVend-Timestamp`), then **`Base64(HMAC-SHA256(canonical, agentSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp` for that path.
+- **Gateway → agent inbound** verification builds `payload + timestamp + userContextString` (see hmac-spec); `Verifier` uses `Hmac.CalculateHmac` on the fully built canonical string.
+
+## Completion status (usage API)
+
+JSON `status` for async completion must be uppercase **`COMPLETED`** or **`FAILED`** (sdk-api-spec §3.3). Use `CompletionStatus.Completed` / `.Failed` with **`ToApiString()`** when building bodies (the unified and low-level clients do this). Do not rely on default `System.Text.Json` enum serialization for API payloads.
 
 ### Unified client
 
@@ -103,9 +114,17 @@ From the `sdk-dotnet` directory:
 dotnet test AgentVend.AgentSdk.Tests/AgentVend.AgentSdk.Tests.csproj
 ```
 
+## Changelog (high level)
+
+### 0.0.3
+
+- **HMAC API:** `Hmac.ValidateHmacWithTimestamp` and `Hmac.ValidateHmacCanonical` clarify the timestamped vs full-canonical flows (same behavior as Java / JS / Python). `Hmac.ValidateHmacSignature` is **obsolete** (still works; prefer the new names).
+- **Tests:** Unit tests cover the hmac-spec outbound test vector and timestamped verify/sign agreement.
+- **Completion status:** Documented that API JSON uses uppercase tokens; `ToApiString()` remains the supported way to set `status` in payloads.
+
 ## Release (NuGet.org)
 
-1. **Version** — Set `<Version>` in `AgentVend.AgentSdk.csproj` to a new **SemVer** value (e.g. `0.0.3`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
+1. **Version** — Set `<Version>` in `AgentVend.AgentSdk.csproj` to a new **SemVer** value (e.g. `0.0.4`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
 2. **Verify** — Run tests (command above).
 3. **Pack** — From `sdk-dotnet`:
 

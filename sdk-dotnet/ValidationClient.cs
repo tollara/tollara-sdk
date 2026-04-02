@@ -36,7 +36,7 @@ public static class ValidationClient
         var signature = res.Headers.TryGetValues(AgentVendHeaders.Signature, out var sig) ? string.Join("", sig) : null;
         var timestamp = res.Headers.TryGetValues(AgentVendHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
-        if (!Hmac.ValidateHmacSignature(signature, responseText + timestamp, agentSecret)) return null;
+        if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, agentSecret)) return null;
         var doc = JsonDocument.Parse(responseText);
         var root = doc.RootElement;
         if (root.TryGetProperty("valid", out var v) && !v.GetBoolean()) return null;
