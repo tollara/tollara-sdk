@@ -15,4 +15,8 @@ public class InboundHmacRequest {
     /** Raw body string or object serialized with the verifier's ObjectMapper. */
     Object payload;
     SignedUserContext signedUserContext;
+    /**
+     * {@link AgentVendHeaders#SIGNING_VERSION}: when {@code "2"}, {@link com.agentvend.common.util.GatewayHmacUserContext#buildV2} is used for signing.
+     */
+    String signingVersion;
 }
