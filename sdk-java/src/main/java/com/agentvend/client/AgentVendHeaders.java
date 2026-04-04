@@ -17,4 +17,9 @@ public final class AgentVendHeaders {
     public static final String BILLING_MODEL = "X-AgentVend-Billing-Model";
     public static final String MEASUREMENT_TYPE = "X-AgentVend-Measurement-Type";
     public static final String UNIT_LABEL = "X-AgentVend-Unit-Label";
+
+    /**
+     * Gateway HMAC user-context schema: {@code 2} = v2 suffix (leading {@code "2"}, no quota segment; see docs/sdk-api-spec.md §4).
+     */
+    public static final String SIGNING_VERSION = "X-AgentVend-Signing-Version";
 }

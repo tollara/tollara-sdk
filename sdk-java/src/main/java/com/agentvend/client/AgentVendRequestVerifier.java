@@ -51,7 +51,8 @@ public class AgentVendRequestVerifier {
                 s.isSubscriptionActive(),
                 s.getBillingModelType(),
                 s.getMeasurementType(),
-                s.getUnitLabel());
+                s.getUnitLabel(),
+                request.getSigningVersion());
     }
 
     public boolean verifyInboundHmac(Function<String, String> getHeader, String payload) {
@@ -73,6 +74,7 @@ public class AgentVendRequestVerifier {
                 .timestamp(headerFrom(getHeader, AgentVendHeaders.TIMESTAMP))
                 .payload(payload)
                 .signedUserContext(signed)
+                .signingVersion(headerFrom(getHeader, AgentVendHeaders.SIGNING_VERSION))
                 .build());
     }
 
@@ -202,6 +204,17 @@ public class AgentVendRequestVerifier {
     public boolean verifyHmacSignature(String signature, String timestamp, Object payload,
             String userId, String plan, List<String> roles, BigDecimal quotaRemaining,
             boolean subscriptionActive, String billingModelType, String measurementType, String unitLabel) {
+        return verifyHmacSignature(signature, timestamp, payload, userId, plan, roles, quotaRemaining,
+                subscriptionActive, billingModelType, measurementType, unitLabel, null);
+    }
+
+    /**
+     * @param signingVersion {@link AgentVendHeaders#SIGNING_VERSION} value; {@code "2"} selects HMAC user-context v2 (no quota segment).
+     */
+    public boolean verifyHmacSignature(String signature, String timestamp, Object payload,
+            String userId, String plan, List<String> roles, BigDecimal quotaRemaining,
+            boolean subscriptionActive, String billingModelType, String measurementType, String unitLabel,
+            String signingVersion) {
         if (signature == null || timestamp == null || agentSecret == null || agentSecret.isEmpty()) {
             log.warn("Missing required parameters for HMAC verification");
             return false;
@@ -211,9 +224,16 @@ public class AgentVendRequestVerifier {
             String payloadString = payloadToString(payload);
 
             long timestampLong = Long.parseLong(timestamp);
-            String userContextString = GatewayHmacUserContext.build(
-                    userId, plan, roles, quotaRemaining, subscriptionActive,
-                    billingModelType, measurementType, unitLabel);
+            String userContextString;
+            if ("2".equals(signingVersion)) {
+                userContextString = GatewayHmacUserContext.buildV2(
+                        userId, plan, roles, subscriptionActive,
+                        billingModelType, measurementType, unitLabel);
+            } else {
+                userContextString = GatewayHmacUserContext.build(
+                        userId, plan, roles, quotaRemaining, subscriptionActive,
+                        billingModelType, measurementType, unitLabel);
+            }
             String dataToSign = payloadString + timestampLong + userContextString;
 
             String expectedSignature = HmacUtils.calculateHmac(dataToSign, agentSecret);

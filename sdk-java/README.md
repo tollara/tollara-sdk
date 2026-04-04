@@ -1,6 +1,6 @@
 # AgentVend SDK (Java)
 
-Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate agent keys, report usage, progress/completion, and poll async job status on the gateway.
+Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate agent keys, **usage pre-flight** (`estimateUsage`), report usage, progress/completion, and poll async job status on the gateway.
 
 **Package:** `com.agentvend:agent-sdk`
 
@@ -134,7 +134,7 @@ Open [central.sonatype.com/publishing](https://central.sonatype.com/publishing):
 
 ### Verify inbound HMAC (agent backend)
 
-Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed.
+Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed. When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses HMAC user-context **v2** (leading `"2"`, no quota segment); see [sdk-api-spec.md §4](../docs/sdk-api-spec.md).
 
 ```java
 import com.agentvend.client.AgentVendRequestVerifier;
@@ -169,6 +169,7 @@ import com.agentvend.client.AgentKeyValidationClient;
 import com.agentvend.client.AgentVendClient;
 import com.agentvend.client.GatewayHttpResponse;
 import com.agentvend.client.model.CompletionStatus;
+import com.agentvend.client.model.UsageEstimateResult;
 import com.agentvend.client.model.UsageReportResponse;
 
 import java.math.BigDecimal;
@@ -185,6 +186,15 @@ AgentVendClient client = AgentVendClient.builder()
 // Validate a caller’s agent key; verify response HMAC inside the client.
 AgentKeyValidationClient.AgentKeyValidationResult validation =
         client.validateAgentKey("bearer-token");
+
+// Pre-flight: Core POST /agent-keys/estimate-usage (same body trust as validate; no Bearer).
+// Verifies response HMAC on 200 / 403 / 429 when signature headers are present.
+UsageEstimateResult estimate = client.estimateUsage("bearer-token", new BigDecimal("1"));
+if (estimate != null) {
+    boolean allowed = estimate.isWouldAllow(); // would AgentVend allow the task to complete based on available usage limits?
+    int status = estimate.getHttpStatus();
+    // estimate.getSufficientCredits(), getWouldExceedCap(), getBreakdown(), …
+}
 
 // Record billed units for a user/agent (signed with agent secret).
 UsageReportResponse usageResp = client.reportUsage(userId, agentId, BigDecimal.ONE);

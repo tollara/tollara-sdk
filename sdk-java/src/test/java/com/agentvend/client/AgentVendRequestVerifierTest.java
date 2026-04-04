@@ -20,6 +20,75 @@ class AgentVendRequestVerifierTest {
     private static final String SECRET_OWNER = "test-agent-secret";
 
     @Test
+    void verifyInboundHmac_acceptsGatewayHmacV2_whenSigningVersionHeaderIs2() throws Exception {
+        String payload = "";
+        String timestamp = "1700000000";
+        SignedUserContext signed = SignedUserContext.builder()
+                .userId("user1")
+                .plan("plan1")
+                .roles(List.of("role1", "role2"))
+                .quotaRemaining(null)
+                .subscriptionActive(false)
+                .build();
+        String userContextString = GatewayHmacUserContext.buildV2(
+                signed.getUserId(),
+                signed.getPlan(),
+                signed.getRoles(),
+                signed.isSubscriptionActive(),
+                signed.getBillingModelType(),
+                signed.getMeasurementType(),
+                signed.getUnitLabel());
+        String dataToSign = payload + Long.parseLong(timestamp) + userContextString;
+        String signature = HmacUtils.calculateHmac(dataToSign, SECRET);
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put(AgentVendHeaders.SIGNATURE, signature);
+        headers.put(AgentVendHeaders.TIMESTAMP, timestamp);
+        headers.put(AgentVendHeaders.SIGNING_VERSION, "2");
+        headers.put(AgentVendHeaders.USER_ID, "user1");
+        headers.put(AgentVendHeaders.PLAN, "plan1");
+        headers.put(AgentVendHeaders.ROLES, "role1,role2");
+        headers.put(AgentVendHeaders.SUBSCRIPTION_ACTIVE, "false");
+
+        AgentVendRequestVerifier verifier = new AgentVendRequestVerifier(SECRET);
+        assertThat(verifier.verifyInboundHmac(headers::get, payload)).isTrue();
+    }
+
+    @Test
+    void verifyInboundHmac_rejectsV1Canonical_whenGatewaySentV2Signature() throws Exception {
+        String payload = "";
+        String timestamp = "1700000000";
+        SignedUserContext signed = SignedUserContext.builder()
+                .userId("user1")
+                .plan("plan1")
+                .roles(List.of("role1", "role2"))
+                .quotaRemaining(null)
+                .subscriptionActive(false)
+                .build();
+        String userContextV2 = GatewayHmacUserContext.buildV2(
+                signed.getUserId(),
+                signed.getPlan(),
+                signed.getRoles(),
+                signed.isSubscriptionActive(),
+                null,
+                null,
+                null);
+        String dataToSign = payload + Long.parseLong(timestamp) + userContextV2;
+        String signature = HmacUtils.calculateHmac(dataToSign, SECRET);
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put(AgentVendHeaders.SIGNATURE, signature);
+        headers.put(AgentVendHeaders.TIMESTAMP, timestamp);
+        headers.put(AgentVendHeaders.USER_ID, "user1");
+        headers.put(AgentVendHeaders.PLAN, "plan1");
+        headers.put(AgentVendHeaders.ROLES, "role1,role2");
+        headers.put(AgentVendHeaders.SUBSCRIPTION_ACTIVE, "false");
+
+        AgentVendRequestVerifier verifier = new AgentVendRequestVerifier(SECRET);
+        assertThat(verifier.verifyInboundHmac(headers::get, payload)).isFalse();
+    }
+
+    @Test
     void verifyInboundHmac_acceptsHmacSpecVectorExtended() throws Exception {
         String payload = "";
         String timestamp = "1700000000";
