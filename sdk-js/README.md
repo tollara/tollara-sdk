@@ -2,14 +2,14 @@
 
 **Package:** `@agentvend/agent-sdk`
 
-Verify inbound HMAC, validate agent keys, report usage, progress, and completion, and poll async job status.
+Verify inbound HMAC, validate agent keys, run usage pre-flight checks, report usage, progress, and completion, and poll async job status.
 
-## API base URL
+## API origin
 
-By default, all requests use the production API origin **`https://api.agentvend.api`**. Override when needed:
+By default, the SDK uses the production AgentVend API origin. Override when needed (non-production or private deployments):
 
-- **`AgentVendClient`:** pass `apiUrl`, or set environment variable **`AGENTVEND_API_URL`**
-- **Standalone helpers:** pass optional `baseUrl` on each call (same default when omitted)
+- **`AgentVendClient`:** pass `apiUrl`, or set **`AGENTVEND_API_URL`**
+- **Standalone helpers:** optional `baseUrl` on each call (same default when omitted)
 
 ## Unified client (recommended)
 
@@ -25,9 +25,16 @@ const client = new AgentVendClient({
 await client.getRequestStatus(requestId, agentKey);
 await client.reportUsage(userId, agentId, 1);
 await client.validateAgentKey(agentKey);
+const estimate = await client.estimateUsage(agentKey, 1);
+if (estimate) {
+  const allowed = estimate.wouldAllow;
+  const status = estimate.httpStatus;
+}
 ```
 
 ### Verify signature and user context together
+
+When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses the newer user-context suffix (no quota segment in the signed material). `verifySignatureFromHeaders` reads that header automatically.
 
 ```ts
 import { verifySignatureFromHeadersAndGetUserContext } from '@agentvend/agent-sdk';
@@ -44,11 +51,12 @@ npm install @agentvend/agent-sdk
 
 ## API highlights
 
-- `AgentVendHeaders` — canonical `X-AgentVend-*` names
+- `AgentVendHeaders` — canonical `X-AgentVend-*` names (including signing-version for gateway HMAC v2)
+- `buildGatewayUserContextString` / `buildGatewayUserContextStringV2` — inbound suffix helpers
 - `verifyInboundHmac` / `verifySignatureFromHeaders` — inbound gateway HMAC
 - `getUserContext` — parses headers (case-insensitive keys)
-- `AgentVendClient` — validate key, usage, gateway polling
-- `validateAgentKey({ agentKey, agentId, agentSecret, baseUrl? })` — optional `baseUrl` defaults to production
+- `AgentVendClient` — validate key, estimate usage, usage reporting, gateway polling
+- `validateAgentKey` / `estimateUsage` — Core calls with response HMAC verification
 - `reportUsage`, `reportProgress`, `reportCompletion` — usage service
 - `getRequestStatus`, `getRequestResult` — async job polling
 
@@ -78,7 +86,22 @@ const result = await validateAgentKey({
 });
 ```
 
-`baseUrl` is optional (defaults to `https://api.agentvend.api`). Set it for a non-production environment.
+Optional `baseUrl` when not using the default production origin.
+
+### Usage estimate (caller)
+
+Same trust model as validate: JSON body with the agent key (no separate bearer on Core). Response HMAC is verified for success and typical denial statuses when signature headers are present.
+
+```ts
+import { estimateUsage } from '@agentvend/agent-sdk';
+
+const est = await estimateUsage({
+  agentKey: 'bearer-token',
+  agentId: 'agent-id',
+  agentSecret: 'agent-secret',
+  estimatedUnits: 1,
+});
+```
 
 ### Report usage
 
@@ -126,7 +149,7 @@ const st = await getRequestStatus({ requestId, agentKey });
 const res = await getRequestResult({ requestId, agentKey });
 ```
 
-Optional `baseUrl` on each call if not using the default API origin.
+Optional `baseUrl` on each call when not using the default origin.
 
 ## Build & test
 
@@ -155,4 +178,4 @@ Package name: **`@agentvend/agent-sdk`** ([npm scoped packages](https://docs.npm
 
 Optional: `npm publish --dry-run` to inspect the tarball without uploading. `repository`, `files` (`dist`, `README.md`), and `prepublishOnly` are already set in `package.json`.
 
-See [HMAC spec](https://github.com/agentvend/agentvend-sdk/blob/master/docs/hmac-spec.md) and [API spec](https://github.com/agentvend/agentvend-sdk/blob/master/docs/sdk-api-spec.md) for protocol details.
+Protocol details: [AgentVend documentation](https://agentvend.ai/docs).

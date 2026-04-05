@@ -10,6 +10,8 @@ export const AgentVendHeaders = {
   BILLING_MODEL: 'X-AgentVend-Billing-Model',
   MEASUREMENT_TYPE: 'X-AgentVend-Measurement-Type',
   UNIT_LABEL: 'X-AgentVend-Unit-Label',
+  /** Gateway HMAC user-context schema: `2` = v2 suffix (leading `2`, no quota segment). */
+  SIGNING_VERSION: 'X-AgentVend-Signing-Version',
 } as const;
 
 export type AgentVendHeaderName = (typeof AgentVendHeaders)[keyof typeof AgentVendHeaders];

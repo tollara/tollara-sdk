@@ -12,7 +12,47 @@ from agentvend_sdk import (
     verify_signature_from_headers,
     verify_signature_from_headers_and_get_user_context,
 )
-from agentvend_sdk.verifier import build_gateway_user_context_string
+from agentvend_sdk.verifier import build_gateway_user_context_string, build_gateway_user_context_string_v2
+
+
+def test_verify_inbound_hmac_accepts_gateway_hmac_v2_when_signing_version_header_is_2():
+    secret = "my-agent-secret"
+    payload = ""
+    timestamp = "1700000000"
+    ucs = build_gateway_user_context_string_v2(
+        "user1", "plan1", ["role1", "role2"], False, None, None, None
+    )
+    data_to_sign = payload + timestamp + ucs
+    signature = calculate_hmac(data_to_sign, secret)
+    headers = {
+        "x-agentvend-signature": signature,
+        "x-agentvend-timestamp": timestamp,
+        "x-agentvend-signing-version": "2",
+        "x-agentvend-user-id": "user1",
+        "x-agentvend-plan": "plan1",
+        "x-agentvend-roles": "role1,role2",
+        "x-agentvend-subscription-active": "false",
+    }
+    assert verify_signature_from_headers(secret, headers, payload) is True
+
+
+def test_verify_inbound_hmac_rejects_v1_when_signature_is_v2_without_header():
+    secret = "my-agent-secret"
+    payload = ""
+    timestamp = "1700000000"
+    ucs = build_gateway_user_context_string_v2(
+        "user1", "plan1", ["role1", "role2"], False, None, None, None
+    )
+    signature = calculate_hmac(payload + timestamp + ucs, secret)
+    headers = {
+        "x-agentvend-signature": signature,
+        "x-agentvend-timestamp": timestamp,
+        "x-agentvend-user-id": "user1",
+        "x-agentvend-plan": "plan1",
+        "x-agentvend-roles": "role1,role2",
+        "x-agentvend-subscription-active": "false",
+    }
+    assert verify_signature_from_headers(secret, headers, payload) is False
 
 
 def test_verify_inbound_hmac_extended_vector():

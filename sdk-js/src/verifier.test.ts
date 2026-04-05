@@ -1,3 +1,4 @@
+import { AgentVendHeaders } from './agentVendHeaders';
 import {
   verifySignature,
   getUserContext,
@@ -5,6 +6,7 @@ import {
   verifySignatureFromHeaders,
   verifySignatureFromHeadersAndGetUserContext,
   buildGatewayUserContextString,
+  buildGatewayUserContextStringV2,
 } from './verifier';
 import { calculateHmac } from './hmac';
 
@@ -13,6 +15,49 @@ describe('verifier', () => {
 
   const extendedUcs = (subActive: boolean) =>
     buildGatewayUserContextString('user1', 'plan1', ['role1', 'role2'], 10, subActive, null, null, null);
+
+  it('verifySignatureFromHeaders accepts gateway HMAC v2 when signing version is 2', () => {
+    const payload = '';
+    const timestamp = '1700000000';
+    const ucs = buildGatewayUserContextStringV2('user1', 'plan1', ['role1', 'role2'], false, null, null, null);
+    const signature = calculateHmac(payload + timestamp + ucs, secret);
+    expect(
+      verifySignatureFromHeaders(
+        secret,
+        {
+          [AgentVendHeaders.SIGNATURE.toLowerCase()]: signature,
+          [AgentVendHeaders.TIMESTAMP.toLowerCase()]: timestamp,
+          [AgentVendHeaders.SIGNING_VERSION.toLowerCase()]: '2',
+          'x-agentvend-user-id': 'user1',
+          'x-agentvend-plan': 'plan1',
+          'x-agentvend-roles': 'role1,role2',
+          'x-agentvend-subscription-active': 'false',
+        },
+        payload
+      )
+    ).toBe(true);
+  });
+
+  it('verifySignatureFromHeaders rejects v2 signature without signing version header', () => {
+    const payload = '';
+    const timestamp = '1700000000';
+    const ucs = buildGatewayUserContextStringV2('user1', 'plan1', ['role1', 'role2'], false, null, null, null);
+    const signature = calculateHmac(payload + timestamp + ucs, secret);
+    expect(
+      verifySignatureFromHeaders(
+        secret,
+        {
+          'x-agentvend-signature': signature,
+          'x-agentvend-timestamp': timestamp,
+          'x-agentvend-user-id': 'user1',
+          'x-agentvend-plan': 'plan1',
+          'x-agentvend-roles': 'role1,role2',
+          'x-agentvend-subscription-active': 'false',
+        },
+        payload
+      )
+    ).toBe(false);
+  });
 
   it('verifyInboundHmac accepts extended canonical string', () => {
     const payload = '';

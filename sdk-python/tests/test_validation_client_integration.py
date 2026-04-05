@@ -7,7 +7,12 @@ import json
 import pytest
 import responses
 
-from agentvend_sdk.validation_client import validate_agent_key, AgentKeyValidationResult
+from agentvend_sdk.validation_client import (
+    validate_agent_key,
+    estimate_usage,
+    AgentKeyValidationResult,
+    UsageEstimateResult,
+)
 from agentvend_sdk.hmac_utils import calculate_hmac
 
 CORE_BASE = "http://core.test"
@@ -205,3 +210,80 @@ def test_validate_agent_key_custom_core_path_prefix():
         core_path_prefix="/api/v1",
     )
     assert responses.calls[0].request.url == f"{CORE_BASE}/api/v1/agent-keys/validate"
+
+
+@responses.activate
+def test_estimate_usage_returns_result_when_core_returns_200_with_valid_hmac():
+    response_body = {
+        "sufficientCredits": True,
+        "wouldExceedCap": False,
+        "wouldAllow": True,
+        "estimatedCost": 0.1,
+        "remainingCredits": None,
+        "remainingSpendingCap": None,
+        "billingModelType": "SUBSCRIPTION",
+        "measurementType": "PER_REQUEST",
+        "unitLabel": "request",
+        "breakdown": None,
+        "estimateSchemaVersion": 1,
+        "timestamp": 1700000000,
+    }
+    body_str = json.dumps(response_body, separators=(",", ":"))
+    timestamp = "1700000000"
+    signature = calculate_hmac(body_str + timestamp, AGENT_SECRET)
+
+    responses.add(
+        responses.POST,
+        f"{CORE_BASE}/core/api/v1/agent-keys/estimate-usage",
+        body=body_str,
+        status=200,
+        headers={
+            "Content-Type": "application/json",
+            "X-AgentVend-Signature": signature,
+            "X-AgentVend-Timestamp": timestamp,
+        },
+    )
+
+    result = estimate_usage(
+        CORE_BASE, "key-1", AGENT_SECRET, 1.5, agent_id=AGENT_ID
+    )
+
+    assert result is not None
+    assert isinstance(result, UsageEstimateResult)
+    assert result.http_status == 200
+    assert result.would_allow is True
+    assert result.sufficient_credits is True
+    assert result.estimate_schema_version == 1
+    assert result.timestamp == 1700000000
+    assert result.billing_model_type == "SUBSCRIPTION"
+
+
+@responses.activate
+def test_estimate_usage_returns_none_when_hmac_invalid():
+    response_body = {
+        "sufficientCredits": False,
+        "wouldExceedCap": True,
+        "wouldAllow": False,
+        "estimateSchemaVersion": 1,
+        "timestamp": 1700000000,
+    }
+    body_str = json.dumps(response_body, separators=(",", ":"))
+
+    responses.add(
+        responses.POST,
+        f"{CORE_BASE}/core/api/v1/agent-keys/estimate-usage",
+        body=body_str,
+        status=200,
+        headers={
+            "Content-Type": "application/json",
+            "X-AgentVend-Signature": "bad",
+            "X-AgentVend-Timestamp": "1700000000",
+        },
+    )
+
+    assert estimate_usage(CORE_BASE, "k", AGENT_SECRET, 1.0, agent_id=AGENT_ID) is None
+
+
+def test_estimate_usage_returns_none_when_units_not_positive():
+    assert estimate_usage(CORE_BASE, "k", AGENT_SECRET, 0, agent_id=AGENT_ID) is None
+    assert estimate_usage(CORE_BASE, "k", AGENT_SECRET, -1, agent_id=AGENT_ID) is None

@@ -13,4 +13,7 @@ public static class AgentVendHeaders
     public const string BillingModel = "X-AgentVend-Billing-Model";
     public const string MeasurementType = "X-AgentVend-Measurement-Type";
     public const string UnitLabel = "X-AgentVend-Unit-Label";
+
+    /// <summary>Gateway HMAC user-context schema: <c>2</c> = v2 suffix (leading <c>2</c>, no quota segment).</summary>
+    public const string SigningVersion = "X-AgentVend-Signing-Version";
 }

@@ -12,3 +12,4 @@ class AgentVendHeaders:
     BILLING_MODEL = "X-AgentVend-Billing-Model"
     MEASUREMENT_TYPE = "X-AgentVend-Measurement-Type"
     UNIT_LABEL = "X-AgentVend-Unit-Label"
+    SIGNING_VERSION = "X-AgentVend-Signing-Version"
