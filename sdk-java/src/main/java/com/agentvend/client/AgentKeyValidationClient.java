@@ -1,5 +1,6 @@
 package com.agentvend.client;
 
+import com.agentvend.client.model.UsageEstimateResult;
 import com.agentvend.common.util.HmacUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -12,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.Objects;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.util.Collections;
@@ -131,6 +133,93 @@ public class AgentKeyValidationClient {
         return null;
     }
 
+    /**
+     * Pre-flight usage estimate for an agent key (Core {@code POST /agent-keys/estimate-usage}). Same trust model as
+     * {@link #validateAgentKey(String)}: no Bearer; body carries {@code agentKey} and optional {@code agentId} /
+     * {@code agentSecret}. Verifies HMAC on the raw response body when {@code X-AgentVend-Signature} and
+     * {@code X-AgentVend-Timestamp} are present (200 / 403 / 429).
+     *
+     * @param agentKey       caller's agent API key (required)
+     * @param estimatedUnits positive units to estimate (decimals allowed when the product allows)
+     * @return parsed {@link com.agentvend.client.model.UsageEstimateResult} with HTTP status set from the response, or {@code null} on error / failed verification
+     */
+    public UsageEstimateResult estimateUsage(String agentKey, BigDecimal estimatedUnits) {
+        Objects.requireNonNull(estimatedUnits, "estimatedUnits");
+        if (agentKey == null || agentKey.isEmpty()) {
+            log.warn("Agent key is null or empty");
+            return null;
+        }
+        if (estimatedUnits.signum() <= 0) {
+            log.warn("estimatedUnits must be positive");
+            return null;
+        }
+        String estimateUrl = coreServiceUrl + "/agent-keys/estimate-usage";
+        EstimateUsageRequest request = new EstimateUsageRequest(agentKey, agentId, agentSecret, estimatedUnits);
+        int maxRetries = 5;
+        long retryDelayMs = 200;
+        for (int attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                String bodyJson = objectMapper.writeValueAsString(request);
+                HttpResponse<String> response = HttpSupport.postJson(httpClient, estimateUrl, bodyJson, Map.of());
+
+                int code = response.statusCode();
+                String responseText = response.body() != null ? response.body() : "";
+
+                if (code == 200 || code == 403 || code == 429) {
+                    if (responseText.isEmpty()) {
+                        log.warn("Empty estimate response body for status {}", code);
+                        return null;
+                    }
+                    String signature =
+                            response.headers().firstValue(AgentVendHeaders.SIGNATURE).orElse(null);
+                    String timestampStr =
+                            response.headers().firstValue(AgentVendHeaders.TIMESTAMP).orElse(null);
+                    if (signature != null && timestampStr != null) {
+                        if (!HmacUtils.validateHmacSignature(signature, responseText + timestampStr, agentSecret)) {
+                            log.warn("Invalid HMAC signature in estimate-usage response");
+                            return null;
+                        }
+                    } else if (code == 200) {
+                        log.warn("Missing HMAC signature or timestamp in estimate-usage response");
+                        return null;
+                    } else {
+                        log.warn("Missing HMAC signature or timestamp in estimate-usage response (status {})", code);
+                        return null;
+                    }
+                    UsageEstimateResult parsed = objectMapper.readValue(responseText, UsageEstimateResult.class);
+                    parsed.setHttpStatus(code);
+                    return parsed;
+                }
+                if (code >= 400 && code < 500) {
+                    log.warn("HTTP client error estimate-usage: {}", code);
+                    return null;
+                }
+                return null;
+            } catch (IOException e) {
+                log.warn("Timeout/connection error estimate-usage, attempt {}/{}: {}", attempt + 1, maxRetries, e.getMessage());
+                if (attempt < maxRetries - 1) {
+                    try {
+                        long jitter = (long) (Math.random() * 20);
+                        Thread.sleep(retryDelayMs * (1L << attempt) + jitter);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return null;
+                    }
+                } else {
+                    log.error("Error estimate-usage after {} attempts: {}", maxRetries, e.getMessage(), e);
+                    return null;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            } catch (Exception e) {
+                log.error("Error estimate-usage: {}", e.getMessage(), e);
+                return null;
+            }
+        }
+        return null;
+    }
+
     public void clearCache() {
         cache.clear();
     }
@@ -147,12 +236,23 @@ public class AgentKeyValidationClient {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    private static class EstimateUsageRequest {
+        private String agentKey;
+        private String agentId;
+        private String agentSecret;
+        private BigDecimal estimatedUnits;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     private static class ValidationResponse {
         private boolean valid;
         private String userId;
         private String agentId;
         private String plan;
         private List<String> roles;
+        /** Absent when {@code validationSchemaVersion} is 2 (see docs/sdk-api-spec.md §2.1). */
         private BigDecimal quotaRemaining;
         private boolean subscriptionActive;
         private String billingModelType;
@@ -160,6 +260,8 @@ public class AgentKeyValidationClient {
         private String unitLabel;
         private long timestamp;
         private String error;
+        /** When {@code 2}, signed body omits {@code quotaRemaining}. */
+        private Integer validationSchemaVersion;
     }
 
     @Data

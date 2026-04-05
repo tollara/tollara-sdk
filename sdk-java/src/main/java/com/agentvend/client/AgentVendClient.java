@@ -3,6 +3,8 @@ package com.agentvend.client;
 import com.agentvend.client.model.CompletionStatus;
 import com.agentvend.client.model.UsageReportResponse;
 
+import com.agentvend.client.model.UsageEstimateResult;
+
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
 import java.time.Instant;
@@ -110,6 +112,13 @@ public final class AgentVendClient {
      */
     public AgentKeyValidationClient.AgentKeyValidationResult validateAgentKey(String agentKey) {
         return core.validateAgentKey(agentKey);
+    }
+
+    /**
+     * Usage pre-check for an agent key (Core {@code /agent-keys/estimate-usage}). See {@link AgentKeyValidationClient#estimateUsage(String, BigDecimal)}.
+     */
+    public UsageEstimateResult estimateUsage(String agentKey, BigDecimal estimatedUnits) {
+        return core.estimateUsage(agentKey, estimatedUnits);
     }
 
     public void clearValidationCache() {

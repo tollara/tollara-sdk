@@ -2,7 +2,7 @@
 
 **Package:** `agentvend-sdk` (PyPI). **Import:** `import agentvend_sdk` (replaces the former `agentvend-agent-sdk` / `agentvend_agent_sdk` names).
 
-Verify HMAC on incoming gateway requests, validate agent keys, report usage, progress/completion, and poll async job status on the gateway.
+Verify HMAC on incoming gateway requests, validate agent keys, run usage pre-flight checks, report usage, progress/completion, and poll async job status on the gateway.
 
 ## Configuration
 
@@ -56,7 +56,7 @@ pip install agentvend-sdk[http]
 
 ### Verify inbound HMAC (agent backend)
 
-Pass a **header map** (keys matched case-insensitively) and the **raw body** the gateway signed (same bytes as in the canonical string). Header names follow `AgentVendHeaders` (`X-AgentVend-*`).
+Pass a **header map** (keys matched case-insensitively) and the **raw body** the gateway signed (same bytes as in the canonical string). Header names follow `AgentVendHeaders` (`X-AgentVend-*`). When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses the newer user-context suffix (no quota segment in the signed material).
 
 **Preferred:** verify and read user context in one step (`None` if the HMAC is invalid):
 
@@ -95,6 +95,11 @@ client = AgentVendClient(
 )
 
 validation = client.validate_agent_key("bearer-token")
+
+estimate = client.estimate_usage("bearer-token", 1.0)
+if estimate is not None:
+    allowed = estimate.would_allow
+    status = estimate.http_status
 
 usage_resp = client.report_usage(user_id, agent_id, 1.0)
 
@@ -151,12 +156,14 @@ req = InboundHmacRequest(
 assert verify_inbound_hmac(agent_secret, req)
 ```
 
-### Validate agent key (low-level)
+### Validate agent key and usage estimate (low-level)
 
 ```python
-from agentvend_sdk import validate_agent_key
+from agentvend_sdk import validate_agent_key, estimate_usage
 
-result = validate_agent_key("https://api.agentvend.api", "bearer-token", "agent-secret", agent_id="agent-uuid")
+# Pass your Core service base URL (same layout as the unified client’s Core target).
+result = validate_agent_key(core_base_url, "bearer-token", "agent-secret", agent_id="agent-uuid")
+est = estimate_usage(core_base_url, "bearer-token", "agent-secret", 1.0, agent_id="agent-uuid")
 ```
 
 ### Report usage, progress, completion (low-level)
@@ -170,9 +177,9 @@ from agentvend_sdk import (
     report_completion_with_result,
 )
 
-report_usage("https://api.agentvend.api", user_id, agent_id, 1.0, agent_secret)
+report_usage(usage_service_base_url, user_id, agent_id, 1.0, agent_secret)
 report_usage_at(
-    "https://api.agentvend.api", user_id, agent_id, 1.0, agent_secret, timestamp=1700000000.0,
+    usage_service_base_url, user_id, agent_id, 1.0, agent_secret, timestamp=1700000000.0,
 )
 report_progress(progress_url, request_id, "stage", 50, agent_secret)
 report_completion_with_result(
@@ -185,12 +192,8 @@ report_completion_with_result(
 ```python
 from agentvend_sdk import get_request_status, get_request_result
 
-st = get_request_status(
-    "https://api.agentvend.api", request_id, agent_key
-)
-res = get_request_result(
-    "https://api.agentvend.api", request_id, agent_key
-)
+st = get_request_status(gateway_base_url, request_id, agent_key)
+res = get_request_result(gateway_base_url, request_id, agent_key)
 ```
 
 ## Tests (from source)

@@ -12,7 +12,7 @@ plugins {
 }
 
 group = 'com.agentvend'
-version = '0.0.1'
+version = '0.0.2'
 
 repositories {
     mavenCentral()
@@ -61,6 +61,8 @@ java {
 
 tasks.withType(Javadoc).configureEach {
     options.encoding = 'UTF-8'
+    // SDK is not fully annotated for doclint; Lombok-generated members are invisible to javadoc {@link #...}.
+    (options as org.gradle.external.javadoc.StandardJavadocDocletOptions).addBooleanOption('Xdoclint:none', true)
 }
 
 def mavenCentralUsername = findProperty('mavenCentralUsername') ?: System.getenv('MAVEN_CENTRAL_PUBLISH_USERNAME')

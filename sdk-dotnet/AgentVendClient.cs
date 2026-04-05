@@ -98,6 +98,9 @@ public sealed class AgentVendClient
     public Task<AgentKeyValidationResult?> ValidateAgentKeyAsync(string agentKey, CancellationToken ct = default) =>
         ValidationClient.ValidateAgentKeyAsync(_http, _coreRoot, agentKey, _agentId, _agentSecret, ct);
 
+    public Task<UsageEstimateResult?> EstimateUsageAsync(string agentKey, decimal estimatedUnits, CancellationToken ct = default) =>
+        ValidationClient.EstimateUsageAsync(_http, _coreRoot, agentKey, estimatedUnits, _agentId, _agentSecret, ct);
+
     public Task<UsageReportResponse> ReportUsageAsync(string userId, string agentId, decimal unitsUsed, CancellationToken ct = default) =>
         UsageClient.ReportUsageAsync(_http, _usageBase, userId, agentId, unitsUsed, _agentSecret, null, _usagePathPrefix, ct);
 

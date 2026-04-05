@@ -25,6 +25,8 @@ export interface VerifySignatureInput {
   billingModelType?: string | null;
   measurementType?: string | null;
   unitLabel?: string | null;
+  /** When `2`, uses HMAC user-context v2 (see AgentVendHeaders.SIGNING_VERSION). */
+  signingVersion?: string | null;
 }
 
 /** User fields that participate in inbound HMAC userContextString (docs/hmac-spec.md). */
@@ -44,6 +46,7 @@ export interface InboundHmacRequest {
   timestamp: string;
   payload: string | object | null;
   signedUserContext: SignedUserContext;
+  signingVersion?: string | null;
 }
 
 /** Loose header map (e.g. Node/Express lowercases keys). */
@@ -90,6 +93,26 @@ export function buildGatewayUserContextString(
   return u + p + r + q + sub + b + m + ul;
 }
 
+/** Gateway HMAC user-context v2: leading `2`, then userId, plan, roles, subscription, billing fields (no quota). */
+export function buildGatewayUserContextStringV2(
+  userId: string | null,
+  plan: string | null,
+  roles: string[],
+  subscriptionActive: boolean,
+  billingModelType: string | null,
+  measurementType: string | null,
+  unitLabel: string | null
+): string {
+  const u = userId ?? '';
+  const p = plan ?? '';
+  const r = roles?.length ? roles.join(',') : '';
+  const sub = subscriptionActive ? 'true' : 'false';
+  const b = billingModelType ?? '';
+  const m = measurementType ?? '';
+  const ul = unitLabel ?? '';
+  return '2' + u + p + r + sub + b + m + ul;
+}
+
 /**
  * Verifies HMAC on an inbound gateway request.
  * Canonical string: payload + timestamp + userContextString (see docs/hmac-spec.md).
@@ -107,21 +130,33 @@ export function verifySignature(agentSecret: string, input: VerifySignatureInput
     billingModelType,
     measurementType,
     unitLabel,
+    signingVersion,
   } = input;
   if (!signature || !timestamp || !agentSecret) return false;
   try {
     const payloadString =
       payload == null ? '' : typeof payload === 'string' ? payload : JSON.stringify(payload);
-    const userContextString = buildGatewayUserContextString(
-      userId,
-      plan,
-      roles ?? [],
-      quotaRemaining,
-      subscriptionActive,
-      billingModelType ?? null,
-      measurementType ?? null,
-      unitLabel ?? null
-    );
+    const userContextString =
+      signingVersion === '2'
+        ? buildGatewayUserContextStringV2(
+            userId,
+            plan,
+            roles ?? [],
+            subscriptionActive,
+            billingModelType ?? null,
+            measurementType ?? null,
+            unitLabel ?? null
+          )
+        : buildGatewayUserContextString(
+            userId,
+            plan,
+            roles ?? [],
+            quotaRemaining,
+            subscriptionActive,
+            billingModelType ?? null,
+            measurementType ?? null,
+            unitLabel ?? null
+          );
     const dataToSign = payloadString + timestamp + userContextString;
     const expectedSignature = calculateHmac(dataToSign, agentSecret);
     return constantTimeEquals(expectedSignature, signature);
@@ -147,6 +182,7 @@ export function verifyInboundHmac(agentSecret: string, request: InboundHmacReque
     billingModelType: s.billingModelType,
     measurementType: s.measurementType,
     unitLabel: s.unitLabel,
+    signingVersion: request.signingVersion,
   });
 }
 
@@ -185,19 +221,19 @@ export function verifySignatureFromHeaders(
     measurementType: measurement && measurement !== '' ? measurement : null,
     unitLabel: unit && unit !== '' ? unit : null,
   };
+  const signingVersion = headerGet(headers, AgentVendHeaders.SIGNING_VERSION);
   return verifyInboundHmac(agentSecret, {
     signature,
     timestamp,
     payload,
     signedUserContext,
+    signingVersion: signingVersion && signingVersion !== '' ? signingVersion : null,
   });
 }
 
 /**
- * Parses X-AgentVend-* headers into UserContext (case-insensitive header names).
- */
-/**
  * Verifies inbound HMAC; if valid returns user context, else `null` (do not trust headers).
+ * Parses `X-AgentVend-*` headers into {@link UserContext} (case-insensitive header names).
  */
 export function verifySignatureFromHeadersAndGetUserContext(
   agentSecret: string,

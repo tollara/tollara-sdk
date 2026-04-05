@@ -24,6 +24,8 @@ from .usage_client import (
 from .validation_client import (
     DEFAULT_CORE_PATH_PREFIX,
     AgentKeyValidationResult,
+    UsageEstimateResult,
+    estimate_usage,
     validate_agent_key,
 )
 
@@ -141,6 +143,19 @@ class AgentVendClient:
             self._agent_id,
             core_path_prefix=self._core_path_prefix,
             session=self._session,
+        )
+
+    def estimate_usage(
+        self, agent_key: str, estimated_units: float, *, session: Optional["requests.Session"] = None
+    ) -> Optional[UsageEstimateResult]:
+        return estimate_usage(
+            self._core_base,
+            agent_key,
+            self._agent_secret,
+            estimated_units,
+            self._agent_id,
+            core_path_prefix=self._core_path_prefix,
+            session=session or self._session,
         )
 
     def report_usage(
