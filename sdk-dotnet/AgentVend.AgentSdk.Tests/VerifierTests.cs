@@ -9,6 +9,45 @@ public class VerifierTests
     private const string SecretOwner = "test-agent-secret";
 
     [Fact]
+    public void VerifySignatureFromHeaders_AcceptsGatewayHmacV2_WhenSigningVersionIs2()
+    {
+        var payload = "";
+        var timestamp = "1700000000";
+        var ucs = Verifier.BuildGatewayUserContextStringV2("user1", "plan1", new[] { "role1", "role2" }, false, null, null, null);
+        var signature = Hmac.CalculateHmac(payload + timestamp + ucs, Secret);
+        var headers = new Dictionary<string, string?>
+        {
+            ["X-AgentVend-Signature"] = signature,
+            ["X-AgentVend-Timestamp"] = timestamp,
+            [AgentVendHeaders.SigningVersion] = "2",
+            ["X-AgentVend-User-ID"] = "user1",
+            ["X-AgentVend-Plan"] = "plan1",
+            ["X-AgentVend-Roles"] = "role1,role2",
+            ["X-AgentVend-Subscription-Active"] = "false",
+        };
+        Assert.True(Verifier.VerifySignatureFromHeaders(Secret, headers, payload));
+    }
+
+    [Fact]
+    public void VerifySignatureFromHeaders_RejectsV2Signature_WithoutSigningVersionHeader()
+    {
+        var payload = "";
+        var timestamp = "1700000000";
+        var ucs = Verifier.BuildGatewayUserContextStringV2("user1", "plan1", new[] { "role1", "role2" }, false, null, null, null);
+        var signature = Hmac.CalculateHmac(payload + timestamp + ucs, Secret);
+        var headers = new Dictionary<string, string?>
+        {
+            ["X-AgentVend-Signature"] = signature,
+            ["X-AgentVend-Timestamp"] = timestamp,
+            ["X-AgentVend-User-ID"] = "user1",
+            ["X-AgentVend-Plan"] = "plan1",
+            ["X-AgentVend-Roles"] = "role1,role2",
+            ["X-AgentVend-Subscription-Active"] = "false",
+        };
+        Assert.False(Verifier.VerifySignatureFromHeaders(Secret, headers, payload));
+    }
+
+    [Fact]
     public void VerifyInboundHmac_AcceptsExtendedVector()
     {
         var payload = "";

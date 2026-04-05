@@ -38,6 +38,7 @@ class InboundHmacRequest:
     timestamp: str
     payload: Any
     signed_user_context: SignedUserContext
+    signing_version: Optional[str] = None
 
 
 def _header_get_ci(headers: Dict[str, Optional[str]], canonical_name: str) -> Optional[str]:
@@ -106,6 +107,26 @@ def build_gateway_user_context_string(
     return u + p + r + q + sub + b + m + ul
 
 
+def build_gateway_user_context_string_v2(
+    user_id: Optional[str],
+    plan: Optional[str],
+    roles: List[str],
+    subscription_active: bool,
+    billing_model_type: Optional[str],
+    measurement_type: Optional[str],
+    unit_label: Optional[str],
+) -> str:
+    """Gateway HMAC user-context v2: leading ``2``, no quota segment."""
+    u = user_id or ""
+    p = plan or ""
+    r = ",".join(roles) if roles else ""
+    sub = "true" if subscription_active else "false"
+    b = billing_model_type or ""
+    m = measurement_type or ""
+    ul = unit_label or ""
+    return "2" + u + p + r + sub + b + m + ul
+
+
 def verify_inbound_hmac(agent_secret: str, request: InboundHmacRequest) -> bool:
     s = request.signed_user_context
     return verify_signature(
@@ -121,6 +142,7 @@ def verify_inbound_hmac(agent_secret: str, request: InboundHmacRequest) -> bool:
         s.billing_model_type,
         s.measurement_type,
         s.unit_label,
+        signing_version=request.signing_version,
     )
 
 
@@ -151,6 +173,7 @@ def verify_signature_from_headers(
         measurement_type=mt if mt else None,
         unit_label=ul if ul else None,
     )
+    sv = _header_get_ci(headers, AgentVendHeaders.SIGNING_VERSION)
     return verify_inbound_hmac(
         agent_secret,
         InboundHmacRequest(
@@ -158,6 +181,7 @@ def verify_signature_from_headers(
             timestamp=timestamp,
             payload=payload,
             signed_user_context=signed,
+            signing_version=sv if sv else None,
         ),
     )
 
@@ -175,21 +199,33 @@ def verify_signature(
     billing_model_type: Optional[str] = None,
     measurement_type: Optional[str] = None,
     unit_label: Optional[str] = None,
+    signing_version: Optional[str] = None,
 ) -> bool:
     if not signature or not timestamp or not agent_secret:
         return False
     try:
         payload_string = "" if payload is None else (payload if isinstance(payload, str) else json.dumps(payload))
-        user_context_string = build_gateway_user_context_string(
-            user_id,
-            plan,
-            roles,
-            quota_remaining,
-            subscription_active,
-            billing_model_type,
-            measurement_type,
-            unit_label,
-        )
+        if signing_version == "2":
+            user_context_string = build_gateway_user_context_string_v2(
+                user_id,
+                plan,
+                roles,
+                subscription_active,
+                billing_model_type,
+                measurement_type,
+                unit_label,
+            )
+        else:
+            user_context_string = build_gateway_user_context_string(
+                user_id,
+                plan,
+                roles,
+                quota_remaining,
+                subscription_active,
+                billing_model_type,
+                measurement_type,
+                unit_label,
+            )
         data_to_sign = payload_string + timestamp + user_context_string
         expected = calculate_hmac(data_to_sign, agent_secret)
         return constant_time_equals(expected, signature)

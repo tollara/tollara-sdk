@@ -7,13 +7,20 @@ export {
   verifySignatureFromHeadersAndGetUserContext,
   getUserContext,
   buildGatewayUserContextString,
+  buildGatewayUserContextStringV2,
   type UserContext,
   type VerifySignatureInput,
   type SignedUserContext,
   type InboundHmacRequest,
   type HeaderBag,
 } from './verifier';
-export { validateAgentKey, createValidationCache, type AgentKeyValidationResult } from './validationClient';
+export {
+  validateAgentKey,
+  estimateUsage,
+  createValidationCache,
+  type AgentKeyValidationResult,
+  type UsageEstimateResult,
+} from './validationClient';
 export { CompletionStatus } from './completionStatus';
 export {
   buildUsageReportUrl,

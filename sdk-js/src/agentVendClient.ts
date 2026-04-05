@@ -13,7 +13,12 @@ import {
   reportUsage,
   type UsageReportResponse,
 } from './usageClient';
-import { validateAgentKey, type AgentKeyValidationResult } from './validationClient';
+import {
+  estimateUsage,
+  validateAgentKey,
+  type AgentKeyValidationResult,
+  type UsageEstimateResult,
+} from './validationClient';
 import { resolveBaseUrl } from './urls';
 
 export const ENV_API_URL = 'AGENTVEND_API_URL';
@@ -90,6 +95,17 @@ export class AgentVendClient {
       agentKey,
       agentId: this.agentId,
       agentSecret: this.agentSecret,
+      fetch: this.fetchFn,
+    });
+  }
+
+  async estimateUsage(agentKey: string, estimatedUnits: number): Promise<UsageEstimateResult | null> {
+    return estimateUsage({
+      baseUrl: this.apiOrigin,
+      agentKey,
+      agentId: this.agentId,
+      agentSecret: this.agentSecret,
+      estimatedUnits,
       fetch: this.fetchFn,
     });
   }

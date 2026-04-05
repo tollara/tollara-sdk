@@ -2,11 +2,11 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>AgentVend.AgentSdk</PackageId>
-    <Version>0.0.3</Version>
+    <Version>0.0.4</Version>
     <Title>AgentVend Agent SDK</Title>
     <Authors>AgentVend</Authors>
     <Copyright>Copyright © AgentVend 2026</Copyright>
-    <Description>AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion</Description>
+    <Description>AgentVend SDK - verify HMAC, validate keys, usage estimate, report usage, progress, completion</Description>
     <PackageTags>agentvend;sdk;hmac</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/maffers001/agentvend-sdk/tree/master/sdk-dotnet</PackageProjectUrl>

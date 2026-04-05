@@ -31,7 +31,8 @@ public record InboundHmacRequest(
     string Signature,
     string Timestamp,
     object? Payload,
-    SignedUserContext SignedUserContext
+    SignedUserContext SignedUserContext,
+    string? SigningVersion = null
 );
 
 public static class Verifier
@@ -53,12 +54,27 @@ public static class Verifier
         return $"{userId ?? ""}{plan ?? ""}{r}{q}{sub}{billingModelType ?? ""}{measurementType ?? ""}{unitLabel ?? ""}";
     }
 
+    /// <summary>HMAC user-context v2: literal <c>2</c> then userId, plan, roles, subscription, billing fields (no quota).</summary>
+    public static string BuildGatewayUserContextStringV2(
+        string? userId,
+        string? plan,
+        IReadOnlyList<string>? roles,
+        bool subscriptionActive,
+        string? billingModelType,
+        string? measurementType,
+        string? unitLabel)
+    {
+        var r = roles != null ? string.Join(",", roles) : "";
+        var sub = subscriptionActive ? "true" : "false";
+        return $"2{userId ?? ""}{plan ?? ""}{r}{sub}{billingModelType ?? ""}{measurementType ?? ""}{unitLabel ?? ""}";
+    }
+
     public static bool VerifyInboundHmac(string agentSecret, InboundHmacRequest request)
     {
         var s = request.SignedUserContext;
         return VerifySignature(agentSecret, request.Signature, request.Timestamp, request.Payload,
             s.UserId, s.Plan, s.Roles, s.QuotaRemaining, s.SubscriptionActive,
-            s.BillingModelType, s.MeasurementType, s.UnitLabel);
+            s.BillingModelType, s.MeasurementType, s.UnitLabel, request.SigningVersion);
     }
 
     /// <summary>Verifies inbound HMAC; returns user context if valid, otherwise null.</summary>
@@ -96,20 +112,26 @@ public static class Verifier
             string.IsNullOrEmpty(mt) ? null : mt,
             string.IsNullOrEmpty(ul) ? null : ul
         );
-        return VerifyInboundHmac(agentSecret, new InboundHmacRequest(signature, timestamp, payload, signed));
+        var signingVersion = GetHeaderIgnoreCase(headers, AgentVendHeaders.SigningVersion);
+        return VerifyInboundHmac(agentSecret, new InboundHmacRequest(signature, timestamp, payload, signed,
+            string.IsNullOrEmpty(signingVersion) ? null : signingVersion));
     }
 
     public static bool VerifySignature(string agentSecret, string signature, string timestamp,
         object? payload, string? userId, string? plan, IReadOnlyList<string>? roles, decimal? quotaRemaining,
-        bool subscriptionActive, string? billingModelType = null, string? measurementType = null, string? unitLabel = null)
+        bool subscriptionActive, string? billingModelType = null, string? measurementType = null, string? unitLabel = null,
+        string? signingVersion = null)
     {
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp) || string.IsNullOrEmpty(agentSecret))
             return false;
         try
         {
             var payloadString = payload == null ? "" : payload is string s ? s : JsonSerializer.Serialize(payload);
-            var userContextString = BuildGatewayUserContextString(
-                userId, plan, roles, quotaRemaining, subscriptionActive, billingModelType, measurementType, unitLabel);
+            var userContextString = signingVersion == "2"
+                ? BuildGatewayUserContextStringV2(userId, plan, roles, subscriptionActive, billingModelType,
+                    measurementType, unitLabel)
+                : BuildGatewayUserContextString(
+                    userId, plan, roles, quotaRemaining, subscriptionActive, billingModelType, measurementType, unitLabel);
             var dataToSign = payloadString + timestamp + userContextString;
             var expected = Hmac.CalculateHmac(dataToSign, agentSecret);
             return Hmac.ConstantTimeEquals(expected, signature);

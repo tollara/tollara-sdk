@@ -1,5 +1,6 @@
 package com.agentvend.client;
 
+import com.agentvend.client.model.UsageEstimateResult;
 import com.agentvend.common.util.HmacUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -127,5 +128,63 @@ class AgentKeyValidationClientIntegrationTest {
         AgentKeyValidationClient.AgentKeyValidationResult result = client.validateAgentKey("expired-key");
 
         assertThat(result).isNull();
+    }
+
+    @Test
+    void estimateUsage_returnsResult_whenCoreReturns200WithValidHmac() throws Exception {
+        String responseBody = """
+            {"sufficientCredits":true,"wouldExceedCap":false,"wouldAllow":true,"estimatedCost":0.1,"remainingCredits":null,"remainingSpendingCap":null,"billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":null,"estimateSchemaVersion":1,"timestamp":1700000000}
+            """.trim();
+        String timestamp = "1700000000";
+        String canonical = responseBody + timestamp;
+        String signature = HmacUtils.calculateHmac(canonical, AGENT_SECRET);
+
+        wireMock.stubFor(
+                post(urlPathEqualTo("/api/v1/agent-keys/estimate-usage"))
+                        .withRequestBody(matchingJsonPath("$.agentKey"))
+                        .withRequestBody(matchingJsonPath("$.estimatedUnits"))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
+                                .withHeader("X-AgentVend-Signature", signature)
+                                .withHeader("X-AgentVend-Timestamp", timestamp)
+                                .withBody(responseBody))
+        );
+
+        UsageEstimateResult result = client.estimateUsage("key-1", new BigDecimal("1.5"));
+
+        assertThat(result).isNotNull();
+        assertThat(result.getHttpStatus()).isEqualTo(200);
+        assertThat(result.isWouldAllow()).isTrue();
+        assertThat(result.isSufficientCredits()).isTrue();
+        assertThat(result.getEstimateSchemaVersion()).isEqualTo(1);
+        assertThat(result.getTimestamp()).isEqualTo(1700000000L);
+        assertThat(result.getBillingModelType()).isEqualTo("SUBSCRIPTION");
+    }
+
+    @Test
+    void estimateUsage_returnsNull_whenHmacInvalid() throws Exception {
+        String responseBody = """
+            {"sufficientCredits":false,"wouldExceedCap":true,"wouldAllow":false,"estimatedCost":null,"remainingCredits":null,"remainingSpendingCap":null,"billingModelType":"PREPAID","measurementType":null,"unitLabel":null,"breakdown":null,"estimateSchemaVersion":1,"timestamp":1700000000}
+            """.trim();
+        String timestamp = "1700000000";
+        String badSig = HmacUtils.calculateHmac(responseBody + timestamp, "wrong-secret");
+
+        wireMock.stubFor(
+                post(urlPathEqualTo("/api/v1/agent-keys/estimate-usage"))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withHeader("X-AgentVend-Signature", badSig)
+                                .withHeader("X-AgentVend-Timestamp", timestamp)
+                                .withBody(responseBody))
+        );
+
+        assertThat(client.estimateUsage("k", BigDecimal.ONE)).isNull();
+    }
+
+    @Test
+    void estimateUsage_returnsNull_whenEstimatedUnitsNotPositive() {
+        assertThat(client.estimateUsage("k", BigDecimal.ZERO)).isNull();
+        assertThat(client.estimateUsage("k", new BigDecimal("-1"))).isNull();
     }
 }

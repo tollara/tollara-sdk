@@ -1,3 +1,6 @@
+# npm pack output (e.g. `npm pack` in sdk-js)
+sdk-js/*.tgz
+
 # Dependencies
 node_modules/
 npm-debug.log
@@ -117,6 +120,7 @@ bin/
 /.nb-gradle/
 
 # Python
+*.egg-info/
 __pycache__/
 *.py[cod]
 *$py.class

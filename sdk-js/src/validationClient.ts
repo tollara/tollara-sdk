@@ -1,6 +1,6 @@
 import { AgentVendHeaders } from './agentVendHeaders';
 import { DEFAULT_API_URL, DEFAULT_CORE_PATH_PREFIX } from './constants';
-import { calculateHmac, constantTimeEquals } from './hmac';
+import { calculateHmac, constantTimeEquals, validateHmacSignature } from './hmac';
 import { joinUrl, resolveBaseUrl } from './urls';
 
 export interface AgentKeyValidationResult {
@@ -13,6 +13,22 @@ export interface AgentKeyValidationResult {
   billingModelType: string | null;
   measurementType: string | null;
   unitLabel: string | null;
+}
+
+export interface UsageEstimateResult {
+  sufficientCredits: boolean;
+  wouldExceedCap: boolean;
+  wouldAllow: boolean;
+  estimatedCost: number | null;
+  remainingCredits: number | null;
+  remainingSpendingCap: number | null;
+  billingModelType: string | null;
+  measurementType: string | null;
+  unitLabel: string | null;
+  breakdown: Record<string, unknown> | null;
+  estimateSchemaVersion: number;
+  timestamp: number;
+  httpStatus: number;
 }
 
 const CACHE_TTL_MS = 60_000;
@@ -97,6 +113,76 @@ export async function validateAgentKey(
     billingModelType: data.billingModelType ?? null,
     measurementType: data.measurementType ?? null,
     unitLabel: data.unitLabel ?? null,
+  };
+}
+
+/**
+ * Usage pre-flight for an agent key (Core). Same trust model as {@link validateAgentKey}: JSON body, response HMAC.
+ * Verifies signatures on 200 / 403 / 429 when `X-AgentVend-Signature` and `X-AgentVend-Timestamp` are present.
+ */
+export async function estimateUsage(params: {
+  baseUrl?: string | null;
+  agentKey: string;
+  agentId: string | null;
+  agentSecret: string;
+  estimatedUnits: number;
+  fetch?: typeof globalThis.fetch;
+}): Promise<UsageEstimateResult | null> {
+  const { baseUrl, agentKey, agentId, agentSecret, estimatedUnits, fetch: fetchFn = fetch } = params;
+  if (!agentKey?.trim()) return null;
+  if (estimatedUnits == null || !Number.isFinite(estimatedUnits) || estimatedUnits <= 0) return null;
+
+  const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
+  const url = `${joinUrl(origin, DEFAULT_CORE_PATH_PREFIX)}/agent-keys/estimate-usage`;
+  const body = JSON.stringify({ agentKey, agentId, agentSecret, estimatedUnits });
+
+  let res: Response;
+  try {
+    res = await fetchFn(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+  } catch {
+    return null;
+  }
+
+  const code = res.status;
+  if (code !== 200 && code !== 403 && code !== 429) return null;
+
+  const responseText = await res.text();
+  if (!responseText.trim()) return null;
+
+  const signature = res.headers.get(AgentVendHeaders.SIGNATURE);
+  const timestamp = res.headers.get(AgentVendHeaders.TIMESTAMP);
+  if (!signature || !timestamp) return null;
+  if (!validateHmacSignature(signature, responseText + timestamp, agentSecret)) return null;
+
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(responseText) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+
+  const br = data.breakdown;
+  const breakdown =
+    br != null && typeof br === 'object' && !Array.isArray(br) ? (br as Record<string, unknown>) : null;
+
+  return {
+    sufficientCredits: Boolean(data.sufficientCredits),
+    wouldExceedCap: Boolean(data.wouldExceedCap),
+    wouldAllow: Boolean(data.wouldAllow),
+    estimatedCost: typeof data.estimatedCost === 'number' ? data.estimatedCost : null,
+    remainingCredits: typeof data.remainingCredits === 'number' ? data.remainingCredits : null,
+    remainingSpendingCap: typeof data.remainingSpendingCap === 'number' ? data.remainingSpendingCap : null,
+    billingModelType: typeof data.billingModelType === 'string' ? data.billingModelType : null,
+    measurementType: typeof data.measurementType === 'string' ? data.measurementType : null,
+    unitLabel: typeof data.unitLabel === 'string' ? data.unitLabel : null,
+    breakdown,
+    estimateSchemaVersion: typeof data.estimateSchemaVersion === 'number' ? data.estimateSchemaVersion : 0,
+    timestamp: typeof data.timestamp === 'number' ? data.timestamp : 0,
+    httpStatus: code,
   };
 }
 

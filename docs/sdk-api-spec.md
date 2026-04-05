@@ -1,6 +1,6 @@
 # AgentVend SDK – API specification
 
-This document specifies the exact HTTP APIs that the AgentVend SDK calls. Use it in the **agentvend-sdk** project to implement clients in any language. Base URLs for each service are configurable; path prefixes depend on deployment (default vs ECS).
+This document specifies the exact HTTP APIs that the AgentVend (Agent Hub) SDK calls. Use it in the **agent-hub-sdk** / AgentVend SDK project to implement clients in any language. Base URLs for each service are configurable; path prefixes depend on deployment (default vs ECS vs Docker).
 
 **Services and path prefixes:**
 
@@ -11,6 +11,8 @@ This document specifies the exact HTTP APIs that the AgentVend SDK calls. Use it
 | Usage | `/api/usage` (controller under `/`) | `/usage/api/v1` (controller path empty) |
 
 Full URL = `{baseUrl}{pathPrefix}{path}`. Example: Core validate = `{coreBaseUrl}/api/v1/agent-keys/validate` (default) or `{coreBaseUrl}/core/api/v1/agent-keys/validate` (ECS).
+
+**Docker / no servlet context-path:** Some core deployments use `context-path: /`. In that case paths are still exposed as `/api/v1/agent-keys/validate`, `/api/v1/agent-keys/estimate-usage`, etc. (single segment after the host:port base URL). Do not duplicate `/api/v1` if your configured `coreBaseUrl` already ends with it.
 
 ---
 
@@ -79,7 +81,7 @@ The SDK uses these when acting as a **caller** (invoking an agent).
 
 ## 2. Core – Validate agent key
 
-Used by both callers and backends to validate an agent key and get user/plan/quota. Response is HMAC-signed; the SDK **must** verify the signature.
+Used by both callers and backends to validate an agent key and get user/plan/entitlement snapshot. Response is HMAC-signed; the SDK **must** verify the signature. Numeric pre-flight uses **estimate** endpoints (§2.2–2.3), not `quotaRemaining` on validate.
 
 ### 2.1 Validate agent key
 
@@ -110,13 +112,13 @@ Used by both callers and backends to validate an agent key and get user/plan/quo
 | `valid` | boolean | `true` if key is valid. |
 | `userId` | string | External user ID. |
 | `agentId` | string | Agent UUID. |
-| `plan` | string | Plan name (lowercase subscription plan for subscribers; e.g. `"basic"`, `"owner"`). Aligned with gateway invoke-context. |
+| `plan` | string | Lowercase `SubscriptionPlan` name for subscribers (e.g. `"basic"`); `"owner"` for agent owner with no user product. |
 | `roles` | string[] | User roles (may be empty). |
-| `quotaRemaining` | number | Remaining quota. Aligned with subscription DTO / invoke-context (not legacy tier-as-plan). |
+| `validationSchemaVersion` | number | **`2`** on success; indicates signed JSON shape (no `quotaRemaining` field). |
 | `subscriptionActive` | boolean | Whether subscription is active. |
-| `billingModelType` | string | Optional. `SUBSCRIPTION`, `USAGE_POSTPAID`, `USAGE_INSTANT`, `PREPAID`, or absent/null (e.g. agent owner). |
-| `measurementType` | string | Optional. `PER_REQUEST`, `PER_TIME_UNIT`, `PER_TOKEN`, `PER_BYTE`, or absent/null. |
-| `unitLabel` | string | Optional human/config label (e.g. `request`, `token`), or absent/null. |
+| `billingModelType` | string | Optional. `SUBSCRIPTION`, `USAGE_POSTPAID`, `USAGE_INSTANT`, `PREPAID`; omitted/null for owner path. |
+| `measurementType` | string | Optional. e.g. `PER_REQUEST`, `PER_TIME_UNIT`, `PER_TOKEN`, `PER_BYTE`; omitted/null when not applicable. |
+| `unitLabel` | string | Optional config label (e.g. `request`, `token`). |
 | `timestamp` | number | Unix epoch seconds (same as header). |
 | `error` | string | Present only on error (e.g. invalid key). |
 
@@ -130,6 +132,78 @@ Used by both callers and backends to validate an agent key and get user/plan/quo
 2. Compute `expectedSignature = Base64(HMAC-SHA256(canonical, agentSecret))`.
 3. Compare `expectedSignature` with `X-AgentVend-Signature` using **constant-time** comparison.
 4. If they differ, treat the response as invalid and do not trust the body.
+
+### 2.2 Usage estimate (JWT)
+
+**Request**
+
+- **Method:** `POST`
+- **URL:** `{coreBaseUrl}{corePathPrefix}/billing/usage/estimate`
+- **Headers:** `Content-Type: application/json`, `Authorization: Bearer {userOrServiceJwt}`
+- **Body (JSON):**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `userId` | string (UUID) | yes | Internal core user id (not Cognito sub). |
+| `agentId` | string (UUID) | yes | Agent id. |
+| `estimatedUnits` | number | yes | Positive; units to pre-check. |
+
+**Authorization:** The principal must be allowed to estimate for `userId` (typically the end user for themselves, or a service/gateway principal with appropriate role).
+
+**Response body (JSON)** — same shape for JWT and agent-key paths (agent-key adds fields in §2.3).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `sufficientCredits` | boolean | **PREPAID:** enough credits for this `estimatedUnits`. Other models: `true` when credits are not used for the check. |
+| `wouldExceedCap` | boolean | **Spending cap / surplus:** `true` when this estimate would be rejected for the same reasons as usage **record** (cumulative overage cost over cap, or surplus overage units on the request when a cap applies). **USAGE_INSTANT:** spend would exceed cap when configured. |
+| `wouldAllow` | boolean | `true` iff core would return **200** for this estimate (aligned with `sufficientCredits` / `wouldExceedCap` gating). |
+| `estimatedCost` | number or null | Estimated charge for this chunk where applicable. |
+| `remainingCredits` | number or null | **PREPAID:** balance before charge; other models often `null`. |
+| `remainingSpendingCap` | number or null | Headroom under cap after this estimate when applicable. |
+| `billingModelType` | string | e.g. `PREPAID`, `SUBSCRIPTION`, `USAGE_POSTPAID`, `USAGE_INSTANT`. |
+| `measurementType` | string or null | e.g. `PER_REQUEST`, `PER_TIME_UNIT`, `PER_TOKEN`, `PER_BYTE`. |
+| `unitLabel` | string or null | Config label (e.g. `request`). |
+| `breakdown` | object or null | Calculator snapshot for **SUBSCRIPTION** / **USAGE_POSTPAID**; synthetic view for **PREPAID**; **null** for **USAGE_INSTANT**. See table below. |
+
+**`breakdown` object** (when present): mirrors the usage cost calculation for that estimate — numeric fields such as `unitsUsed`, `baseUnitsUsed`, `overageUnits`, `chargeableOverageUnits`, `surplusOverageUnits`, `overageCost`, `totalOverageCost`, `unitsRemaining`, `remainingSpendingCap`, `totalUnitsUsedThisCycle`, plus booleans `isOverLimit`, `isOverage`, `isOverageAllowed`. Omitted-null fields may be absent.
+
+**HTTP status**
+
+- **200 OK** — `wouldAllow` is `true`.
+- **403 Forbidden** — Two cases: (1) **Authorization:** JWT principal is not allowed to estimate for the requested internal `userId` — core may return **403 with an empty body** (no JSON). (2) **Insufficient credits (PREPAID):** core returns **403 with a JSON body** (same estimate fields as above).
+- **429 Too Many Requests** — Would exceed spending cap / surplus rules; body includes the estimate JSON above.
+- **400 / 500** — Billing or server errors (see core logs); response may include a **minimal** estimate-shaped body (`wouldAllow` false) or an empty body depending on failure path.
+
+### 2.3 Usage estimate (agent key)
+
+Same trust model as §2.1 (validate): **no Bearer**. Use when the backend only has **agent key + agent secret**.
+
+**Request**
+
+- **Method:** `POST`
+- **URL:** `{coreBaseUrl}{corePathPrefix}/agent-keys/estimate-usage`
+- **Headers:** `Content-Type: application/json` only
+- **Body (JSON):**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agentKey` | string | yes | Same as validate. |
+| `agentId` | string (UUID) | no | If omitted, core may resolve from key. |
+| `agentSecret` | string | no | If sent non-empty, must match server secret (same as validate). |
+| `estimatedUnits` | number | yes | Positive. |
+
+**Response (success body)**
+
+Same business fields as §2.2 (`wouldAllow`, `breakdown`, etc.), plus:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `estimateSchemaVersion` | number | Starts at **1**; bump if JSON shape changes. |
+| `timestamp` | number | Unix epoch seconds (aligned with signing). |
+
+**Headers on success:** `X-AgentVend-Signature`, `X-AgentVend-Timestamp` — verify **`HMAC-SHA256(responseBodyJson + timestamp, agentSecret)`** (same concatenation rule as validate response).
+
+**Status codes:** **200** allowed; **403** insufficient credits; **429** cap; **400** billing rule failure; **401** bad key/secret/agent. **401** / some **400** / **500** responses may be **unsigned** and have an **empty** body (match validate error behavior). When status is **200**, **403** (credits), or **429**, the JSON body is signed if signature headers are present — verify HMAC on the **raw** body string + timestamp.
 
 ---
 
@@ -225,22 +299,38 @@ All three endpoints require request body + timestamp signed with **agent secret*
 
 ## 4. Headers sent from gateway to agent backend (inbound)
 
+The gateway signs a fixed **user-context suffix** after the request payload and timestamp (**schema v2**). The suffix begins with literal **`"2"`** and does **not** include a quota segment. Verification must use `GatewayHmacUserContext` / the same field order as the gateway.
+
 When the SDK is used in an **agent backend** to verify incoming requests from the gateway, the gateway sends (among others):
 
 | Header | Description |
 |--------|-------------|
-| `X-AgentVend-Signature` | HMAC of `payload + timestamp + userContextString` (see HMAC spec in SDK repo). |
-| `X-AgentVend-Timestamp` | Numeric string. |
+| `X-AgentVend-Signature` | HMAC of `payload + timestamp + userContextString` (see below). |
+| `X-AgentVend-Timestamp` | Numeric string (Unix epoch seconds). |
 | `X-AgentVend-User-ID` | User ID. |
 | `X-AgentVend-Plan` | Plan name. |
 | `X-AgentVend-Roles` | Comma-separated roles. |
-| `X-AgentVend-Quota-Remaining` | Remaining quota. |
-| `X-AgentVend-Subscription-Active` | `"true"` / `"false"` (included in HMAC material). |
-| `X-AgentVend-Billing-Model` | Optional. Billing model enum string; omitted or empty when N/A. |
-| `X-AgentVend-Measurement-Type` | Optional. Measurement enum string; omitted or empty when N/A. |
-| `X-AgentVend-Unit-Label` | Optional. Human/config unit label; omitted or empty when N/A. |
+| `X-AgentVend-Signing-Version` | **`2`** when gateway uses HMAC user-context v2. |
+| `X-AgentVend-Subscription-Active` | `"true"` / `"false"` (always sent). |
+| `X-AgentVend-Billing-Model` | Optional. e.g. `SUBSCRIPTION`, `PREPAID`, `USAGE_INSTANT`, `USAGE_POSTPAID` (omitted for owner path). |
+| `X-AgentVend-Measurement-Type` | Optional. e.g. `PER_REQUEST`, `PER_TOKEN`. |
+| `X-AgentVend-Unit-Label` | Optional. e.g. `request`, `token`. |
 
-Verification: canonical string = raw request body (string) + timestamp + **extended** `userContextString` per [hmac-spec.md](hmac-spec.md) (userId, plan, roles CSV, quota string, `subscriptionActive` as `"true"`/`"false"`, then billing / measurement / unit labels; missing string parts use `""`). Signature = Base64(HMAC-SHA256(canonical, agentSecret)). Use constant-time compare.
+**Verification (v2):** Let `payloadString` be the raw request body as a string (empty string if absent). Let `timestamp` be the long parsed from `X-AgentVend-Timestamp`. Build `userContextString` = **`"2"`** + concatenation in this **exact** order (use `""` for null/absent strings; `subscriptionActive` is always `"true"` or `"false"`):
+
+1. `userId` (or `""`)
+2. `plan` (or `""`)
+3. If roles present: comma-joined roles; else nothing (no separator before next field)
+4. `Boolean.toString(subscriptionActive)`
+5. `billingModelType` or `""`
+6. `measurementType` or `""`
+7. `unitLabel` or `""`
+
+Then `canonical = payloadString + timestamp + userContextString` (timestamp as decimal digits, no separator). `signature = Base64(HMAC-SHA256(canonical, agentSecret))`. Compare with constant-time equality to `X-AgentVend-Signature`.
+
+Reference implementation: `com.bugisiw.marketplace.common.util.GatewayHmacUserContext` in **common-utils** (shared with gateway-service).
+
+For **async** invokes, the gateway signs the JSON serialization of the async body **before** `progress_url` / `callback_url` query params are added (same as before).
 
 ---
 
@@ -251,6 +341,8 @@ Verification: canonical string = raw request body (string) + timestamp + **exten
 | Invoke sync | Gateway | GET/POST/PUT/DELETE | `/agent/{agentId}/endpoint/{endpointId}/invoke` |
 | Invoke async | Gateway | GET/POST/PUT/DELETE | `/agent/{agentId}/endpoint/{endpointId}/invoke/async` |
 | Validate agent key | Core | POST | `/agent-keys/validate` |
+| Usage estimate (JWT) | Core | POST | `/billing/usage/estimate` |
+| Usage estimate (agent key) | Core | POST | `/agent-keys/estimate-usage` |
 | Report usage | Usage | POST | `/report` |
 | Progress | Usage | POST | `/progress/{requestId}` |
 | Completion | Usage | POST | `/complete/{requestId}` |
@@ -262,9 +354,12 @@ Verification: canonical string = raw request body (string) + timestamp + **exten
 ## 6. HMAC summary (outbound from SDK)
 
 - **Algorithm:** HMAC-SHA256; key = agent secret (UTF-8); output = Base64.
-- **Validate response (core → SDK):** Verify `X-AgentVend-Signature` = Base64(HMAC-SHA256(responseBody + X-AgentVend-Timestamp, agentSecret)). Constant-time compare.
+- **Validate response (core → SDK):** Verify `X-AgentVend-Signature` = Base64(HMAC-SHA256(responseBody + X-AgentVend-Timestamp, agentSecret)). Constant-time compare. Success bodies include `validationSchemaVersion: 2` (no `quotaRemaining`).
+- **Agent-key estimate response (core → SDK):** Same verification pattern as validate: `responseBody + timestamp` with `agentSecret`. Use the **raw** response body string; new fields (`wouldAllow`, `breakdown`, etc.) are included in the signed JSON automatically.
+- **Gateway → agent (inbound):** `payload + timestamp + GatewayHmacUserContext` v2 (leading `"2"`, no quota).
 - **Report / progress / completion (SDK → usage):** Send `X-AgentVend-Signature` = Base64(HMAC-SHA256(bodyJsonString + timestamp, agentSecret)) and `X-AgentVend-Timestamp` = timestamp (numeric string).
 
 ---
 
-*Source: AgentVend platform. For use in agentvend-sdk. Path prefixes and base URLs are configurable per environment.*
+*Source: AgentVend platform (agent-hub repo). For use in agent-hub-sdk / AgentVend SDK. Path prefixes and base URLs are configurable per environment. Pair with `documentation/sdk-repo-implementation-prompt.md` for a paste-ready SDK work brief.*
+
