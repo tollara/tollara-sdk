@@ -141,7 +141,7 @@ public class AgentKeyValidationClient {
      *
      * @param agentKey       caller's agent API key (required)
      * @param estimatedUnits positive units to estimate (decimals allowed when the product allows)
-     * @return parsed estimate with {@link UsageEstimateResult#getHttpStatus()} set, or {@code null} on error / failed verification
+     * @return parsed {@link com.agentvend.client.model.UsageEstimateResult} with HTTP status set from the response, or {@code null} on error / failed verification
      */
     public UsageEstimateResult estimateUsage(String agentKey, BigDecimal estimatedUnits) {
         Objects.requireNonNull(estimatedUnits, "estimatedUnits");

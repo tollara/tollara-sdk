@@ -209,7 +209,21 @@ public class AgentVendRequestVerifier {
     }
 
     /**
-     * @param signingVersion {@link AgentVendHeaders#SIGNING_VERSION} value; {@code "2"} selects HMAC user-context v2 (no quota segment).
+     * Verifies gateway inbound HMAC using either v1 (quota in suffix) or v2 user-context when {@code signingVersion} is {@code "2"}.
+     *
+     * @param signature        observed {@link AgentVendHeaders#SIGNATURE}
+     * @param timestamp        observed {@link AgentVendHeaders#TIMESTAMP} (decimal seconds)
+     * @param payload          raw body or object serialized like the gateway
+     * @param userId           user id from headers
+     * @param plan             plan from headers
+     * @param roles            roles from headers
+     * @param quotaRemaining   quota from headers (v1 only; ignored for v2)
+     * @param subscriptionActive subscription flag from headers
+     * @param billingModelType billing model from headers
+     * @param measurementType  measurement type from headers
+     * @param unitLabel        unit label from headers
+     * @param signingVersion   {@link AgentVendHeaders#SIGNING_VERSION} value; {@code "2"} selects HMAC user-context v2 (no quota segment)
+     * @return {@code true} if the signature matches
      */
     public boolean verifyHmacSignature(String signature, String timestamp, Object payload,
             String userId, String plan, List<String> roles, BigDecimal quotaRemaining,
