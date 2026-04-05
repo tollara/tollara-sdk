@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>AgentVend.AgentSdk</PackageId>
-    <Version>0.0.3</Version>
+    <Version>0.0.4</Version>
     <Title>AgentVend Agent SDK</Title>
     <Authors>AgentVend</Authors>
     <Copyright>Copyright © AgentVend 2026</Copyright>

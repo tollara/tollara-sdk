@@ -1,6 +1,6 @@
 # AgentVend SDK (.NET)
 
-**Package:** `AgentVend.AgentSdk` (NuGet), **version** `0.0.3`.
+**Package:** `AgentVend.AgentSdk` (NuGet), **version** `0.0.4`.
 
 Verify HMAC, validate agent keys, run usage pre-flight checks, report usage, progress, completion, and poll job status on the gateway.
 
@@ -110,16 +110,19 @@ dotnet test AgentVend.AgentSdk.Tests/AgentVend.AgentSdk.Tests.csproj
 
 ## Changelog (high level)
 
-### 0.0.3 (current)
+### 0.0.4 (current)
 
 - **Usage estimate:** `ValidationClient.EstimateUsageAsync` and `AgentVendClient.EstimateUsageAsync` call Core with the same trust model as validate; response HMAC is verified when signature headers are present.
 - **Gateway HMAC v2:** `AgentVendHeaders.SigningVersion`, `Verifier.BuildGatewayUserContextStringV2`, and optional `SigningVersion` on `InboundHmacRequest` when verifying inbound requests.
+
+### 0.0.3
+
 - **HMAC API:** `Hmac.ValidateHmacWithTimestamp` / `Hmac.ValidateHmacCanonical` for timestamped vs full-canonical flows. `Hmac.ValidateHmacSignature` is **obsolete** (still works).
 - **Completion status:** API JSON uses uppercase `COMPLETED` / `FAILED`; use `ToApiString()` for payloads.
 
 ## Release (NuGet.org)
 
-1. **Version** — Set `<Version>` in `AgentVend.AgentSdk.csproj` to a new **SemVer** value (e.g. `0.0.4`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
+1. **Version** — Set `<Version>` in `AgentVend.AgentSdk.csproj` to a new **SemVer** value (e.g. `0.0.5`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
 2. **Verify** — Run tests (command above).
 3. **Pack** — From `sdk-dotnet`:
 
