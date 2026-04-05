@@ -8,11 +8,12 @@ from .verifier import (
     verify_signature_from_headers_and_get_user_context,
     get_user_context,
     build_gateway_user_context_string,
+    build_gateway_user_context_string_v2,
     UserContext,
     SignedUserContext,
     InboundHmacRequest,
 )
-from .validation_client import validate_agent_key, AgentKeyValidationResult
+from .validation_client import validate_agent_key, AgentKeyValidationResult, estimate_usage, UsageEstimateResult
 from .completion_status import CompletionStatus
 from .usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
@@ -48,11 +49,14 @@ __all__ = [
     "verify_signature_from_headers_and_get_user_context",
     "get_user_context",
     "build_gateway_user_context_string",
+    "build_gateway_user_context_string_v2",
     "UserContext",
     "SignedUserContext",
     "InboundHmacRequest",
     "validate_agent_key",
+    "estimate_usage",
     "AgentKeyValidationResult",
+    "UsageEstimateResult",
     "CompletionStatus",
     "report_progress",
     "report_completion",

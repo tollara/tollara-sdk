@@ -6,7 +6,7 @@
     <Title>AgentVend Agent SDK</Title>
     <Authors>AgentVend</Authors>
     <Copyright>Copyright © AgentVend 2026</Copyright>
-    <Description>AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion</Description>
+    <Description>AgentVend SDK - verify HMAC, validate keys, usage estimate, report usage, progress, completion</Description>
     <PackageTags>agentvend;sdk;hmac</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/maffers001/agentvend-sdk/tree/master/sdk-dotnet</PackageProjectUrl>
