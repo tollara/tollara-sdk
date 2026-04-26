@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
+from uuid import UUID
 
 from .agentvend_headers import AgentVendHeaders
 from .hmac_utils import validate_hmac_signature
@@ -20,10 +21,25 @@ def _validate_url(base_url: str, core_path_prefix: Optional[str]) -> str:
     return _core_agent_keys_url(base_url, core_path_prefix, "validate")
 
 
+def _optional_uuid(value: Any) -> Optional[UUID]:
+    if value is None:
+        return None
+    if isinstance(value, UUID):
+        return value
+    s = str(value).strip()
+    if not s:
+        return None
+    try:
+        return UUID(s)
+    except ValueError:
+        return None
+
+
 @dataclass
 class AgentKeyValidationResult:
     user_id: Optional[str]
     agent_id: Optional[str]
+    agent_key_id: Optional[UUID]
     plan: Optional[str]
     roles: List[str]
     quota_remaining: Optional[float]
@@ -84,6 +100,7 @@ def validate_agent_key(
     return AgentKeyValidationResult(
         user_id=data.get("userId"),
         agent_id=data.get("agentId") or agent_id,
+        agent_key_id=_optional_uuid(data.get("agentKeyId")),
         plan=data.get("plan"),
         roles=roles if isinstance(roles, list) else [],
         quota_remaining=data.get("quotaRemaining"),

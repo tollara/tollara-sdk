@@ -9,6 +9,7 @@ import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
+import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,6 +24,7 @@ class AgentKeyValidationClientIntegrationTest {
 
     private static final String AGENT_SECRET = "test-agent-secret";
     private static final String AGENT_ID = "550e8400-e29b-41d4-a716-446655440000";
+    private static final String AGENT_KEY_ID = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
     @RegisterExtension
     static WireMockExtension wireMock = newInstance()
@@ -44,8 +46,8 @@ class AgentKeyValidationClientIntegrationTest {
         // Per API spec §2.1: response has X-AgentVend-Signature = HMAC(responseBody + timestamp, agentSecret)
         // Must match ObjectMapper.writeValueAsString(ValidationResponse) after deserialize (includes null optional fields).
         String responseBody = """
-            {"valid":true,"userId":"user-123","agentId":"%s","plan":"basic","roles":["user"],"quotaRemaining":100,"subscriptionActive":true,"billingModelType":null,"measurementType":null,"unitLabel":null,"timestamp":1700000000,"error":null}
-            """.formatted(AGENT_ID).trim();
+            {"valid":true,"agentKeyId":"%s","userId":"user-123","agentId":"%s","plan":"basic","roles":["user"],"quotaRemaining":100,"subscriptionActive":true,"billingModelType":null,"measurementType":null,"unitLabel":null,"timestamp":1700000000,"error":null,"validationSchemaVersion":1}
+            """.formatted(AGENT_KEY_ID, AGENT_ID).trim();
         String timestamp = "1700000000";
         String canonical = responseBody + timestamp;
         String signature = HmacUtils.calculateHmac(canonical, AGENT_SECRET);
@@ -70,6 +72,7 @@ class AgentKeyValidationClientIntegrationTest {
         assertThat(result.getRoles()).containsExactly("user");
         assertThat(result.getQuotaRemaining()).isEqualByComparingTo(BigDecimal.valueOf(100));
         assertThat(result.isSubscriptionActive()).isTrue();
+        assertThat(result.getAgentKeyId()).isEqualTo(UUID.fromString(AGENT_KEY_ID));
     }
 
     @Test

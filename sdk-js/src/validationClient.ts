@@ -6,6 +6,8 @@ import { joinUrl, resolveBaseUrl } from './urls';
 export interface AgentKeyValidationResult {
   userId: string | null;
   agentId: string | null;
+  /** Core agent-key row id when present in the validate JSON body. */
+  agentKeyId: string | null;
   plan: string | null;
   roles: string[];
   quotaRemaining: number | null;
@@ -84,6 +86,7 @@ export async function validateAgentKey(
 
   let data: {
     valid?: boolean;
+    agentKeyId?: string;
     userId?: string;
     agentId?: string;
     plan?: string;
@@ -106,6 +109,7 @@ export async function validateAgentKey(
   return {
     userId: data.userId ?? null,
     agentId: data.agentId ?? agentId ?? null,
+    agentKeyId: typeof data.agentKeyId === 'string' && data.agentKeyId.length > 0 ? data.agentKeyId : null,
     plan: data.plan ?? null,
     roles: Array.isArray(data.roles) ? data.roles : [],
     quotaRemaining: typeof data.quotaRemaining === 'number' ? data.quotaRemaining : null,
