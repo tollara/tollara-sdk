@@ -19,6 +19,7 @@ import java.net.http.HttpResponse;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -92,6 +93,7 @@ public class AgentKeyValidationClient {
                     AgentKeyValidationResult result = AgentKeyValidationResult.builder()
                             .userId(validationResponse.getUserId())
                             .agentId(resultAgentId)
+                            .agentKeyId(validationResponse.getAgentKeyId())
                             .plan(validationResponse.getPlan())
                             .roles(validationResponse.getRoles() != null ? validationResponse.getRoles() : Collections.emptyList())
                             .quotaRemaining(validationResponse.getQuotaRemaining())
@@ -248,6 +250,8 @@ public class AgentKeyValidationClient {
     @AllArgsConstructor
     private static class ValidationResponse {
         private boolean valid;
+        /** Core row id for the validated key; absent on older responses. */
+        private UUID agentKeyId;
         private String userId;
         private String agentId;
         private String plan;
@@ -271,6 +275,7 @@ public class AgentKeyValidationClient {
     public static class AgentKeyValidationResult {
         private String userId;
         private String agentId;
+        private UUID agentKeyId;
         private String plan;
         private List<String> roles;
         private BigDecimal quotaRemaining;

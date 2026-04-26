@@ -4,12 +4,14 @@ import { createValidationCache, estimateUsage, validateAgentKey } from './valida
 
 const CORE_BASE = 'http://core.test';
 const AGENT_ID = '550e8400-e29b-41d4-a716-446655440000';
+const AGENT_KEY_ID = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 const AGENT_SECRET = 'test-agent-secret';
 
 describe('validationClient', () => {
   it('returns parsed validation result for signed valid response', async () => {
     const responseBody = JSON.stringify({
       valid: true,
+      agentKeyId: AGENT_KEY_ID,
       userId: 'user-123',
       agentId: AGENT_ID,
       plan: 'basic',
@@ -21,6 +23,7 @@ describe('validationClient', () => {
       unitLabel: null,
       timestamp: 1700000000,
       error: null,
+      validationSchemaVersion: 1,
     });
     const timestamp = '1700000000';
     const signature = calculateHmac(responseBody + timestamp, AGENT_SECRET);
@@ -46,6 +49,7 @@ describe('validationClient', () => {
     expect(result).toEqual({
       userId: 'user-123',
       agentId: AGENT_ID,
+      agentKeyId: AGENT_KEY_ID,
       plan: 'basic',
       roles: ['user'],
       quotaRemaining: 100,
@@ -222,6 +226,7 @@ describe('validationClient', () => {
     const entry = {
       userId: 'u1',
       agentId: AGENT_ID,
+      agentKeyId: null,
       plan: 'basic',
       roles: ['user'],
       quotaRemaining: 1,

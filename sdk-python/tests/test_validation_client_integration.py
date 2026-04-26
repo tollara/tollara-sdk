@@ -3,6 +3,7 @@ Integration tests for the validation client against a mocked Core API.
 Uses the 'responses' library to mock HTTP; see docs/sdk-api-spec.md §2.
 """
 import json
+from uuid import UUID
 
 import pytest
 import responses
@@ -18,6 +19,7 @@ from agentvend_sdk.hmac_utils import calculate_hmac
 CORE_BASE = "http://core.test"
 AGENT_SECRET = "test-agent-secret"
 AGENT_ID = "550e8400-e29b-41d4-a716-446655440000"
+AGENT_KEY_ID = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
 
 
 @responses.activate
@@ -25,6 +27,7 @@ def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
     """Core returns 200 with valid HMAC headers; SDK returns parsed result."""
     response_body = {
         "valid": True,
+        "agentKeyId": AGENT_KEY_ID,
         "userId": "user-123",
         "agentId": AGENT_ID,
         "plan": "basic",
@@ -33,6 +36,7 @@ def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
         "subscriptionActive": True,
         "timestamp": 1700000000,
         "error": None,
+        "validationSchemaVersion": 1,
     }
     body_str = json.dumps(response_body, separators=(",", ":"))
     timestamp = "1700000000"
@@ -57,6 +61,7 @@ def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
     assert isinstance(result, AgentKeyValidationResult)
     assert result.user_id == "user-123"
     assert result.agent_id == AGENT_ID
+    assert result.agent_key_id == UUID(AGENT_KEY_ID)
     assert result.plan == "basic"
     assert result.roles == ["user"]
     assert result.quota_remaining == 100

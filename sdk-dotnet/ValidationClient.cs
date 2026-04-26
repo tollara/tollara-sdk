@@ -14,7 +14,8 @@ public record AgentKeyValidationResult(
     bool SubscriptionActive,
     string? BillingModelType,
     string? MeasurementType,
-    string? UnitLabel);
+    string? UnitLabel,
+    Guid? AgentKeyId);
 
 /// <summary>Wire result for Core agent-key usage estimate (signed JSON).</summary>
 public record UsageEstimateResult(
@@ -58,6 +59,10 @@ public static class ValidationClient
         var root = doc.RootElement;
         if (root.TryGetProperty("valid", out var v) && !v.GetBoolean()) return null;
         var roles = root.TryGetProperty("roles", out var r) ? r.EnumerateArray().Select(x => x.GetString() ?? "").ToList() : new List<string>();
+        Guid? agentKeyId = null;
+        if (root.TryGetProperty("agentKeyId", out var ak) && ak.ValueKind == JsonValueKind.String &&
+            Guid.TryParse(ak.GetString(), out var akGuid))
+            agentKeyId = akGuid;
         return new AgentKeyValidationResult(
             root.TryGetProperty("userId", out var uid) ? uid.GetString() : null,
             root.TryGetProperty("agentId", out var aid) ? aid.GetString() : agentId,
@@ -67,7 +72,8 @@ public static class ValidationClient
             root.TryGetProperty("subscriptionActive", out var sa) && sa.GetBoolean(),
             root.TryGetProperty("billingModelType", out var bm) && bm.ValueKind == JsonValueKind.String ? bm.GetString() : null,
             root.TryGetProperty("measurementType", out var mt) && mt.ValueKind == JsonValueKind.String ? mt.GetString() : null,
-            root.TryGetProperty("unitLabel", out var ul) && ul.ValueKind == JsonValueKind.String ? ul.GetString() : null
+            root.TryGetProperty("unitLabel", out var ul) && ul.ValueKind == JsonValueKind.String ? ul.GetString() : null,
+            agentKeyId
         );
     }
 
