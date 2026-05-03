@@ -13,6 +13,8 @@ from .verifier import (
     SignedUserContext,
     InboundHmacRequest,
 )
+from .billing_client import estimate_usage_with_jwt
+from .gateway_invoke import GatewayInvokeAsyncEnvelope, GatewayInvokeResult, invoke_agent
 from .validation_client import validate_agent_key, AgentKeyValidationResult, estimate_usage, UsageEstimateResult
 from .completion_status import CompletionStatus
 from .usage_client import (
@@ -55,6 +57,10 @@ __all__ = [
     "InboundHmacRequest",
     "validate_agent_key",
     "estimate_usage",
+    "estimate_usage_with_jwt",
+    "invoke_agent",
+    "GatewayInvokeResult",
+    "GatewayInvokeAsyncEnvelope",
     "AgentKeyValidationResult",
     "UsageEstimateResult",
     "CompletionStatus",

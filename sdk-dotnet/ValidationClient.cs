@@ -124,6 +124,51 @@ public static class ValidationClient
         );
     }
 
+    /// <summary>Core JWT usage estimate (§2.2). Response is not HMAC-signed.</summary>
+    public static Task<UsageEstimateResult?> EstimateUsageWithJwtAsync(HttpClient http, string bearerToken, string userId,
+        string agentId, decimal estimatedUnits, CancellationToken ct = default) =>
+        EstimateUsageWithJwtAsync(http, DefaultCoreServiceRoot(), bearerToken, userId, agentId, estimatedUnits, ct);
+
+    /// <summary>POST <c>…/billing/usage/estimate</c> with explicit Core root (including path prefix).</summary>
+    public static async Task<UsageEstimateResult?> EstimateUsageWithJwtAsync(HttpClient http, string coreServiceUrl,
+        string bearerToken, string userId, string agentId, decimal estimatedUnits, CancellationToken ct = default)
+    {
+        if (estimatedUnits <= 0) return null;
+        if (string.IsNullOrWhiteSpace(bearerToken) || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(agentId))
+            return null;
+        var url = coreServiceUrl.TrimEnd('/') + "/billing/usage/estimate";
+        var body = new { userId, agentId, estimatedUnits };
+        var bodyStr = JsonSerializer.Serialize(body);
+        var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(bodyStr, Encoding.UTF8, "application/json") };
+        req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + bearerToken.Trim());
+        var res = await http.SendAsync(req, ct);
+        var code = (int)res.StatusCode;
+        if (code != (int)HttpStatusCode.OK && code != (int)HttpStatusCode.Forbidden &&
+            code != (int)HttpStatusCode.TooManyRequests) return null;
+        var responseText = await res.Content.ReadAsStringAsync(ct);
+        if (string.IsNullOrWhiteSpace(responseText)) return null;
+        using var doc = JsonDocument.Parse(responseText);
+        var root = doc.RootElement;
+        JsonElement? breakdown = null;
+        if (root.TryGetProperty("breakdown", out var br) && br.ValueKind == JsonValueKind.Object)
+            breakdown = br.Clone();
+        return new UsageEstimateResult(
+            root.TryGetProperty("sufficientCredits", out var sc) && sc.GetBoolean(),
+            root.TryGetProperty("wouldExceedCap", out var wec) && wec.GetBoolean(),
+            root.TryGetProperty("wouldAllow", out var wa) && wa.GetBoolean(),
+            ReadDecimal(root, "estimatedCost"),
+            ReadDecimal(root, "remainingCredits"),
+            ReadDecimal(root, "remainingSpendingCap"),
+            ReadString(root, "billingModelType"),
+            ReadString(root, "measurementType"),
+            ReadString(root, "unitLabel"),
+            breakdown,
+            root.TryGetProperty("estimateSchemaVersion", out var esv) && esv.TryGetInt32(out var ev) ? ev : 0,
+            root.TryGetProperty("timestamp", out var tsv) && tsv.TryGetInt64(out var tl) ? tl : 0L,
+            code
+        );
+    }
+
     private static decimal? ReadDecimal(JsonElement root, string name)
     {
         if (!root.TryGetProperty(name, out var p)) return null;

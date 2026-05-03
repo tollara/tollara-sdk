@@ -5,7 +5,7 @@ from uuid import UUID
 from .agentvend_headers import AgentVendHeaders
 from .hmac_utils import validate_hmac_signature
 
-DEFAULT_CORE_PATH_PREFIX = "/core/api/v1"
+DEFAULT_CORE_PATH_PREFIX = "/api/v1"
 
 
 def _core_agent_keys_url(base_url: str, core_path_prefix: Optional[str], suffix: str) -> str:

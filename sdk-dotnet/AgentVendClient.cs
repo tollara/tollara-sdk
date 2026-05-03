@@ -18,7 +18,7 @@ public sealed class AgentVendClientOptions
 }
 
 /// <summary>
-/// Unified client for Core validate, Usage report/progress/complete, and Gateway polling (Java <c>AgentVendClient</c> parity).
+/// Unified client for Core validate and estimates, Usage report/progress/complete, Gateway invoke and polling.
 /// The API origin defaults to <see cref="DefaultApiUrl"/> when neither <see cref="AgentVendClientOptions.ApiUrl"/> nor <c>AGENTVEND_API_URL</c> is set.
 /// </summary>
 public sealed class AgentVendClient
@@ -100,6 +100,14 @@ public sealed class AgentVendClient
 
     public Task<UsageEstimateResult?> EstimateUsageAsync(string agentKey, decimal estimatedUnits, CancellationToken ct = default) =>
         ValidationClient.EstimateUsageAsync(_http, _coreRoot, agentKey, estimatedUnits, _agentId, _agentSecret, ct);
+
+    public Task<UsageEstimateResult?> EstimateUsageWithJwtAsync(string bearerToken, string userId, string agentId,
+        decimal estimatedUnits, CancellationToken ct = default) =>
+        ValidationClient.EstimateUsageWithJwtAsync(_http, _coreRoot, bearerToken, userId, agentId, estimatedUnits, ct);
+
+    public Task<GatewayInvokeResult?> InvokeAgentAsync(string method, string agentId, string endpointId, string agentKey,
+        string? body, bool async, CancellationToken ct = default) =>
+        GatewayInvokeClient.InvokeAsync(_http, _gatewayBaseUrl, _gatewayPathPrefix, method, agentId, endpointId, agentKey, body, async, ct);
 
     public Task<UsageReportResponse> ReportUsageAsync(string userId, string agentId, decimal unitsUsed, CancellationToken ct = default) =>
         UsageClient.ReportUsageAsync(_http, _usageBase, userId, agentId, unitsUsed, _agentSecret, null, _usagePathPrefix, ct);

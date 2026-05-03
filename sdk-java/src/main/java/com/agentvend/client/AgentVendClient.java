@@ -5,17 +5,19 @@ import com.agentvend.client.model.UsageReportResponse;
 
 import com.agentvend.client.model.UsageEstimateResult;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
 import java.time.Instant;
 
 /**
- * Single entry point for AgentVend HTTP APIs (Core validate, Usage report/progress/complete, Gateway polling).
+ * Single entry point for AgentVend HTTP APIs (Core validate and estimates, Usage report/progress/complete, Gateway
+ * invoke and polling).
  * <p>
  * The API origin defaults to {@value #DEFAULT_API_URL} when neither {@link Builder#apiUrl(String)} nor {@value #ENV_API_URL} is set.
  * {@link Builder#agentId(String)} / {@link Builder#agentSecret(String)} or {@value #ENV_AGENT_ID} / {@value #ENV_AGENT_SECRET}
  * (secret required for signing and Core response verification).
- * Default path prefixes match {@code docs/sdk-api-spec.md} (default deployment); override with
+ * Default path prefixes match {@code docs-sdk/MAIN-SDK-API-SPEC.md} (default deployment); override with
  * {@link Builder#corePathPrefix(String)}, {@link Builder#gatewayPathPrefix(String)}, {@link Builder#usagePathPrefix(String)}
  * for ECS or local Docker layouts.
  * </p>
@@ -53,6 +55,7 @@ public final class AgentVendClient {
 
     private final String gatewayBaseUrl;
     private final String gatewayPathPrefix;
+    private final HttpClient httpClient;
     private final AgentKeyValidationClient core;
     private final UsageServiceClient usage;
     private final GatewayClient gateway;
@@ -75,6 +78,7 @@ public final class AgentVendClient {
         String coreRoot = AgentVendUrls.join(coreBase, corePrefix);
         this.gatewayBaseUrl = gwBase;
         HttpClient httpClient = b.httpClient != null ? b.httpClient : HttpClient.newHttpClient();
+        this.httpClient = httpClient;
 
         String resolvedAgentId = firstNonBlank(b.agentId, System.getenv(ENV_AGENT_ID));
         String resolvedAgentSecret = firstNonBlank(b.agentSecret, System.getenv(ENV_AGENT_SECRET));
@@ -119,6 +123,14 @@ public final class AgentVendClient {
      */
     public UsageEstimateResult estimateUsage(String agentKey, BigDecimal estimatedUnits) {
         return core.estimateUsage(agentKey, estimatedUnits);
+    }
+
+    /**
+     * Core JWT usage estimate ({@code POST …/billing/usage/estimate}). Not HMAC-signed; requires a Bearer JWT.
+     */
+    public UsageEstimateResult estimateUsageWithJwt(
+            String bearerToken, String userId, String agentId, BigDecimal estimatedUnits) {
+        return core.estimateUsageWithJwt(bearerToken, userId, agentId, estimatedUnits);
     }
 
     public void clearValidationCache() {
@@ -174,6 +186,39 @@ public final class AgentVendClient {
      */
     public GatewayHttpResponse getRequestResult(String requestId, String agentKey) {
         return gateway.getRequestResult(gatewayBaseUrl, gatewayPathPrefix, requestId, agentKey);
+    }
+
+    /**
+     * Gateway agent invoke (sync or async). See platform spec §1.1–1.2.
+     *
+     * @param httpMethod    GET, POST, PUT, or DELETE
+     * @param requestBody   optional JSON body (POST/PUT); may be null for GET/DELETE
+     * @param async         when true, POST/GET to {@code …/invoke/async}
+     */
+    public GatewayInvokeResult invokeAgent(
+            String httpMethod,
+            String agentId,
+            String endpointId,
+            String agentKey,
+            String requestBody,
+            boolean async) {
+        try {
+            return GatewayInvokeClient.invoke(
+                    httpClient,
+                    gatewayBaseUrl,
+                    gatewayPathPrefix,
+                    httpMethod,
+                    agentId,
+                    endpointId,
+                    agentKey,
+                    requestBody,
+                    async);
+        } catch (IOException e) {
+            throw new AgentVendHttpException("Gateway invoke failed: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AgentVendHttpException("Gateway invoke interrupted", e);
+        }
     }
 
     public static final class Builder {

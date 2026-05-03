@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -220,6 +221,65 @@ public class AgentKeyValidationClient {
             }
         }
         return null;
+    }
+
+    /**
+     * Core JWT usage estimate ({@code POST …/billing/usage/estimate}). Response is not HMAC-signed (see platform spec §2.2).
+     *
+     * @param bearerToken    {@code Authorization: Bearer} value (JWT)
+     * @param userId         internal Core user id (UUID string)
+     * @param agentId        agent id (UUID string)
+     * @param estimatedUnits positive units to estimate
+     * @return parsed estimate on 200/403/429 with JSON body, otherwise {@code null}
+     */
+    public UsageEstimateResult estimateUsageWithJwt(
+            String bearerToken, String userId, String agentId, BigDecimal estimatedUnits) {
+        Objects.requireNonNull(estimatedUnits, "estimatedUnits");
+        if (bearerToken == null || bearerToken.isBlank()) {
+            log.warn("bearerToken is null or empty");
+            return null;
+        }
+        if (userId == null || userId.isBlank() || agentId == null || agentId.isBlank()) {
+            log.warn("userId and agentId are required for JWT usage estimate");
+            return null;
+        }
+        if (estimatedUnits.signum() <= 0) {
+            log.warn("estimatedUnits must be positive");
+            return null;
+        }
+        String url = coreServiceUrl + "/billing/usage/estimate";
+        try {
+            Map<String, Object> bodyMap = new HashMap<>();
+            bodyMap.put("userId", userId);
+            bodyMap.put("agentId", agentId);
+            bodyMap.put("estimatedUnits", estimatedUnits);
+            String bodyJson = objectMapper.writeValueAsString(bodyMap);
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Authorization", "Bearer " + bearerToken.trim());
+            headers.put("Content-Type", "application/json; charset=UTF-8");
+            HttpResponse<String> response = HttpSupport.send(httpClient, "POST", url, bodyJson, headers);
+            int code = response.statusCode();
+            String responseText = response.body() != null ? response.body() : "";
+            if (code == 200 || code == 403 || code == 429) {
+                if (responseText.isBlank()) {
+                    return null;
+                }
+                UsageEstimateResult parsed = objectMapper.readValue(responseText, UsageEstimateResult.class);
+                parsed.setHttpStatus(code);
+                return parsed;
+            }
+            log.warn("HTTP client error billing usage estimate: {}", code);
+            return null;
+        } catch (IOException e) {
+            log.error("Error billing usage estimate: {}", e.getMessage(), e);
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (Exception e) {
+            log.error("Error billing usage estimate: {}", e.getMessage(), e);
+            return null;
+        }
     }
 
     public void clearCache() {

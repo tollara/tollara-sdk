@@ -4,6 +4,21 @@ import { DEFAULT_API_URL, DEFAULT_USAGE_PATH_PREFIX } from './constants';
 import { calculateHmacWithTimestamp } from './hmac';
 import { resolveBaseUrl } from './urls';
 
+function usageReportInstantAndEpochSeconds(timestamp?: number | Date | null): { iso: string; epochSec: string } {
+  let ms: number;
+  if (timestamp == null) {
+    ms = Date.now();
+  } else if (timestamp instanceof Date) {
+    ms = timestamp.getTime();
+  } else if (typeof timestamp === 'number') {
+    ms = timestamp < 1e11 ? Math.round(timestamp * 1000) : timestamp;
+  } else {
+    ms = Date.now();
+  }
+  const sec = Math.floor(ms / 1000);
+  return { iso: new Date(ms).toISOString(), epochSec: String(sec) };
+}
+
 export { DEFAULT_USAGE_PATH_PREFIX } from './constants';
 
 /** Builds `{baseUrl}/api/usage/report` using the default usage path. */
@@ -176,14 +191,11 @@ export async function reportUsage(
     agentSecret,
     fetch: fetchFn = fetch,
   } = params;
-  const ts = timestamp != null
-    ? (timestamp instanceof Date ? timestamp.getTime() : timestamp)
-    : Date.now();
+  const { iso, epochSec } = usageReportInstantAndEpochSeconds(timestamp ?? null);
 
-  const body = { userId, agentId, unitsUsed, timestamp: ts };
+  const body = { userId, agentId, unitsUsed, timestamp: iso };
   const bodyString = JSON.stringify(body);
-  const timestampStr = String(ts);
-  const signature = calculateHmacWithTimestamp(bodyString, timestampStr, agentSecret);
+  const signature = calculateHmacWithTimestamp(bodyString, epochSec, agentSecret);
 
   const url = buildUsageReportUrl(baseUrl ?? DEFAULT_API_URL);
 
@@ -192,7 +204,7 @@ export async function reportUsage(
     headers: {
       'Content-Type': 'application/json',
       [AgentVendHeaders.SIGNATURE]: signature,
-      [AgentVendHeaders.TIMESTAMP]: timestampStr,
+      [AgentVendHeaders.TIMESTAMP]: epochSec,
     },
     body: bodyString,
   });

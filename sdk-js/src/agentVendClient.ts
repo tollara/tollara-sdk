@@ -6,6 +6,7 @@ import {
   DEFAULT_USAGE_PATH_PREFIX,
 } from './constants';
 import { getRequestResult, getRequestStatus, type GatewayPollResult } from './gatewayClient';
+import { invokeAgent, type GatewayHttpMethod, type GatewayInvokeResult } from './gatewayInvoke';
 import {
   reportCompletion,
   reportCompletionFull,
@@ -15,6 +16,7 @@ import {
 } from './usageClient';
 import {
   estimateUsage,
+  estimateUsageWithJwt,
   validateAgentKey,
   type AgentKeyValidationResult,
   type UsageEstimateResult,
@@ -106,6 +108,47 @@ export class AgentVendClient {
       agentId: this.agentId,
       agentSecret: this.agentSecret,
       estimatedUnits,
+      fetch: this.fetchFn,
+    });
+  }
+
+  /**
+   * Core JWT usage estimate (`POST …/billing/usage/estimate`). Response is not HMAC-signed.
+   */
+  async estimateUsageWithJwt(
+    bearerToken: string,
+    userId: string,
+    agentId: string,
+    estimatedUnits: number
+  ): Promise<UsageEstimateResult | null> {
+    return estimateUsageWithJwt({
+      baseUrl: this.apiOrigin,
+      bearerToken,
+      userId,
+      agentId,
+      estimatedUnits,
+      fetch: this.fetchFn,
+    });
+  }
+
+  /**
+   * Gateway agent invoke (sync or async). See platform spec §1.1–1.2.
+   */
+  async invokeAgent(
+    method: GatewayHttpMethod,
+    agentId: string,
+    endpointId: string,
+    agentKey: string,
+    options?: { body?: string | null; async?: boolean }
+  ): Promise<GatewayInvokeResult | null> {
+    return invokeAgent({
+      baseUrl: this.apiOrigin,
+      method,
+      agentId,
+      endpointId,
+      agentKey,
+      body: options?.body ?? null,
+      async: options?.async ?? false,
       fetch: this.fetchFn,
     });
   }

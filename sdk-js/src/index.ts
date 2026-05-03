@@ -17,6 +17,7 @@ export {
 export {
   validateAgentKey,
   estimateUsage,
+  estimateUsageWithJwt,
   createValidationCache,
   type AgentKeyValidationResult,
   type UsageEstimateResult,
@@ -35,6 +36,12 @@ export {
   type UsageReportResponse,
 } from './usageClient';
 export { getRequestStatus, getRequestResult, type GatewayPollResult } from './gatewayClient';
+export {
+  invokeAgent,
+  type GatewayHttpMethod,
+  type GatewayInvokeAsyncEnvelope,
+  type GatewayInvokeResult,
+} from './gatewayInvoke';
 export {
   AgentVendClient,
   DEFAULT_API_URL,

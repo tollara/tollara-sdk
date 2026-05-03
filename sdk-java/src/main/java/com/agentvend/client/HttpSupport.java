@@ -45,4 +45,28 @@ final class HttpSupport {
         }
         return client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
+
+    /**
+     * Arbitrary HTTP method with optional UTF-8 body (e.g. gateway invoke). Caller supplies all headers including auth.
+     */
+    static HttpResponse<String> send(
+            HttpClient client,
+            String method,
+            String url,
+            String body,
+            Map<String, String> requestHeaders)
+            throws IOException, InterruptedException {
+        Objects.requireNonNull(client, "httpClient");
+        String m = method == null ? "GET" : method.trim().toUpperCase();
+        HttpRequest.BodyPublisher publisher =
+                body == null || body.isEmpty()
+                        ? HttpRequest.BodyPublishers.noBody()
+                        : HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8);
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url)).timeout(DEFAULT_TIMEOUT);
+        if (requestHeaders != null) {
+            requestHeaders.forEach(b::header);
+        }
+        HttpRequest req = b.method(m, publisher).build();
+        return client.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
 }

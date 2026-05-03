@@ -69,12 +69,11 @@ describe('usageClient', () => {
           [AgentVendHeaders.SIGNATURE]: expectedSig,
         })
       );
-      expect(JSON.parse(rawBody)).toEqual({
-        userId: 'u1',
-        agentId: 'a1',
-        unitsUsed: 3,
-        timestamp: 1700000000,
-      });
+      const parsed = JSON.parse(rawBody) as { userId: string; agentId: string; unitsUsed: number; timestamp: string };
+      expect(parsed.userId).toBe('u1');
+      expect(parsed.agentId).toBe('a1');
+      expect(parsed.unitsUsed).toBe(3);
+      expect(parsed.timestamp).toBe(new Date(1700000000 * 1000).toISOString());
       return new Response(
         JSON.stringify({ status: 'ok', isOverLimit: false, remainingRequestsPerPeriod: 10 }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }

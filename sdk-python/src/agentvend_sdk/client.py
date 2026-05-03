@@ -6,12 +6,14 @@ import os
 from typing import TYPE_CHECKING, Optional
 
 from .completion_status import CompletionStatus
+from .billing_client import estimate_usage_with_jwt as core_estimate_usage_with_jwt
 from .gateway_client import (
     DEFAULT_GATEWAY_PATH_PREFIX,
     GatewayPollResult,
     get_request_result,
     get_request_status,
 )
+from .gateway_invoke import GatewayInvokeResult, invoke_agent as gateway_invoke_agent
 from .usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
@@ -155,6 +157,50 @@ class AgentVendClient:
             estimated_units,
             self._agent_id,
             core_path_prefix=self._core_path_prefix,
+            session=session or self._session,
+        )
+
+    def estimate_usage_with_jwt(
+        self,
+        bearer_token: str,
+        user_id: str,
+        agent_id: str,
+        estimated_units: float,
+        *,
+        session: Optional["requests.Session"] = None,
+    ) -> Optional[UsageEstimateResult]:
+        """Core JWT usage estimate (§2.2). Response is not HMAC-signed."""
+        return core_estimate_usage_with_jwt(
+            self._core_base,
+            bearer_token,
+            user_id,
+            agent_id,
+            estimated_units,
+            core_path_prefix=self._core_path_prefix,
+            session=session or self._session,
+        )
+
+    def invoke_agent(
+        self,
+        method: str,
+        agent_id: str,
+        endpoint_id: str,
+        agent_key: str,
+        *,
+        body: Optional[str] = None,
+        async_: bool = False,
+        session: Optional["requests.Session"] = None,
+    ) -> Optional[GatewayInvokeResult]:
+        """Gateway agent invoke (§1.1–1.2)."""
+        return gateway_invoke_agent(
+            self._gateway_base_url,
+            method,
+            agent_id,
+            endpoint_id,
+            agent_key,
+            body=body,
+            async_=async_,
+            gateway_path_prefix=self._gateway_path_prefix,
             session=session or self._session,
         )
 
