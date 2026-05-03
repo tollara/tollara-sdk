@@ -191,6 +191,82 @@ export async function estimateUsage(params: {
 }
 
 /**
+ * Core JWT usage estimate (`POST …/billing/usage/estimate`). Not HMAC-signed (spec §2.2).
+ */
+export async function estimateUsageWithJwt(params: {
+  baseUrl?: string | null;
+  corePathPrefix?: string | null;
+  bearerToken: string;
+  userId: string;
+  agentId: string;
+  estimatedUnits: number;
+  fetch?: typeof globalThis.fetch;
+}): Promise<UsageEstimateResult | null> {
+  const {
+    baseUrl,
+    corePathPrefix,
+    bearerToken,
+    userId,
+    agentId,
+    estimatedUnits,
+    fetch: fetchFn = fetch,
+  } = params;
+  if (!bearerToken?.trim() || !userId?.trim() || !agentId?.trim()) return null;
+  if (estimatedUnits == null || !Number.isFinite(estimatedUnits) || estimatedUnits <= 0) return null;
+
+  const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
+  const prefix = (corePathPrefix ?? DEFAULT_CORE_PATH_PREFIX).trim();
+  const url = `${joinUrl(origin, prefix)}/billing/usage/estimate`;
+  const body = JSON.stringify({ userId, agentId, estimatedUnits });
+
+  let res: Response;
+  try {
+    res = await fetchFn(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${bearerToken.trim()}`,
+      },
+      body,
+    });
+  } catch {
+    return null;
+  }
+
+  const code = res.status;
+  if (code !== 200 && code !== 403 && code !== 429) return null;
+  const responseText = await res.text();
+  if (!responseText.trim()) return null;
+
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(responseText) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+
+  const br = data.breakdown;
+  const breakdown =
+    br != null && typeof br === 'object' && !Array.isArray(br) ? (br as Record<string, unknown>) : null;
+
+  return {
+    sufficientCredits: Boolean(data.sufficientCredits),
+    wouldExceedCap: Boolean(data.wouldExceedCap),
+    wouldAllow: Boolean(data.wouldAllow),
+    estimatedCost: typeof data.estimatedCost === 'number' ? data.estimatedCost : null,
+    remainingCredits: typeof data.remainingCredits === 'number' ? data.remainingCredits : null,
+    remainingSpendingCap: typeof data.remainingSpendingCap === 'number' ? data.remainingSpendingCap : null,
+    billingModelType: typeof data.billingModelType === 'string' ? data.billingModelType : null,
+    measurementType: typeof data.measurementType === 'string' ? data.measurementType : null,
+    unitLabel: typeof data.unitLabel === 'string' ? data.unitLabel : null,
+    breakdown,
+    estimateSchemaVersion: typeof data.estimateSchemaVersion === 'number' ? data.estimateSchemaVersion : 0,
+    timestamp: typeof data.timestamp === 'number' ? data.timestamp : 0,
+    httpStatus: code,
+  };
+}
+
+/**
  * Simple cache for validateAgentKey (optional).
  */
 export function createValidationCache() {

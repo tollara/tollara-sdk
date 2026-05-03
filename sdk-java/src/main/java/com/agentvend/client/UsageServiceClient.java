@@ -230,11 +230,11 @@ public class UsageServiceClient {
                     .timestamp(usageTimestamp)
                     .build();
             String requestBody = objectMapper.writeValueAsString(request);
-            long timestampLong = usageTimestamp.toEpochMilli();
-            String signature = HmacUtils.calculateHmacWithTimestamp(requestBody, timestampLong, agentSecret);
+            long epochSeconds = usageTimestamp.getEpochSecond();
+            String signature = HmacUtils.calculateHmacWithTimestamp(requestBody, epochSeconds, agentSecret);
             Map<String, String> headers = Map.of(
                     AgentVendHeaders.SIGNATURE, signature,
-                    AgentVendHeaders.TIMESTAMP, String.valueOf(timestampLong));
+                    AgentVendHeaders.TIMESTAMP, String.valueOf(epochSeconds));
             if (usageServiceUrl == null || usageServiceUrl.isEmpty()) {
                 throw new IllegalArgumentException("usageServiceUrl must not be null or empty");
             }

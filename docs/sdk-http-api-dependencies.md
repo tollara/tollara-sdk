@@ -13,7 +13,9 @@ Use this list when changing AgentVend Gateway, Core, or Usage HTTP APIs so corre
 | 5 | Usage | `POST` | **Full `callbackUrl`** from platform (path shape `{usagePrefix}/complete/{requestId}` when relative) | Completion; same signing pattern as progress. |
 | 6 | Gateway | `GET` | `/requests/{requestId}/status` | Async job status; `Authorization: Bearer {agentKey}`. |
 | 7 | Gateway | `GET` | `/requests/{requestId}/result` | Async job result; same auth. |
+| 8 | Gateway | `GET`/`POST`/`PUT`/`DELETE` | `/agent/{agentId}/endpoint/{endpointId}/invoke` and `…/invoke/async` | Caller invoke; Bearer `agentKey`; async **202** body includes `requestId`, `callbackUrl`, `progressUrl` (camelCase). |
+| 9 | Core | `POST` | `/billing/usage/estimate` | JWT usage pre-flight; `Authorization: Bearer {jwt}`; body `userId`, `agentId`, `estimatedUnits`. **Not** HMAC-signed. |
 
-**Not implemented in the language SDK clients above:** Gateway agent **invoke** (sync/async). Callers use that API directly or via other code; this repo’s **integration-n8n** node builds `POST|GET|PUT|DELETE` `{gatewayUrl}/api/agent/{agentId}/endpoint/{endpointId}/invoke` (and variants). If you change invoke URLs, auth, or async response shape (`requestId`, `progressUrl`, `callbackUrl`), update that integration and any caller docs—not necessarily the core SDK packages.
+**Also in repo:** **integration-n8n** may call invoke with a fixed URL layout; keep it aligned with the gateway prefix table in the canonical spec.
 
 **Backward-compatibility hotspots:** validate/estimate JSON fields and HMAC rules ([sdk-api-spec.md](sdk-api-spec.md) §2, §4); usage report/progress/complete JSON and signing; gateway polling response bodies (opaque but status codes matter).

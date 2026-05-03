@@ -3,11 +3,13 @@ Integration tests for the usage client against a mocked Usage API.
 Uses the 'responses' library to mock HTTP; see docs/sdk-api-spec.md §3.
 """
 import json
+from datetime import datetime, timezone
 
 import pytest
 import responses
 
 from agentvend_sdk.completion_status import CompletionStatus
+from agentvend_sdk.hmac_utils import calculate_hmac_with_timestamp
 from agentvend_sdk.usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
@@ -61,6 +63,13 @@ def test_report_usage_sends_signed_request_and_returns_response():
     assert body["userId"] == "user-1"
     assert body["agentId"] == "agent-1"
     assert body["unitsUsed"] == 1.0
+    iso = datetime.fromtimestamp(1700000000, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    assert body["timestamp"] == iso
+    assert req.headers.get("X-AgentVend-Timestamp") == "1700000000"
+    body_str = json.dumps(body, separators=(",", ":"))
+    assert req.headers.get("X-AgentVend-Signature") == calculate_hmac_with_timestamp(
+        body_str, "1700000000", AGENT_SECRET
+    )
 
 
 @responses.activate

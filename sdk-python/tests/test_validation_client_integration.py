@@ -45,7 +45,7 @@ def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/agent-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -76,7 +76,7 @@ def test_validate_agent_key_returns_none_when_core_returns_401():
     """Core returns 401; SDK returns None."""
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/agent-keys/validate",
         json={"valid": False, "error": "Invalid key"},
         status=401,
         headers={"Content-Type": "application/json"},
@@ -105,7 +105,7 @@ def test_validate_agent_key_returns_none_when_hmac_invalid():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/agent-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -140,7 +140,7 @@ def test_validate_agent_key_returns_none_when_valid_false_in_body():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/agent-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -174,7 +174,7 @@ def test_validate_agent_key_sends_agent_key_and_agent_id_in_body():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/agent-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -239,7 +239,7 @@ def test_estimate_usage_returns_result_when_core_returns_200_with_valid_hmac():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/estimate-usage",
+        f"{CORE_BASE}/api/v1/agent-keys/estimate-usage",
         body=body_str,
         status=200,
         headers={
@@ -276,7 +276,7 @@ def test_estimate_usage_returns_none_when_hmac_invalid():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/estimate-usage",
+        f"{CORE_BASE}/api/v1/agent-keys/estimate-usage",
         body=body_str,
         status=200,
         headers={
