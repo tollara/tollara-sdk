@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Value;
 
 /**
- * Result of gateway agent invoke (sync or async). Async success (HTTP 202) may populate {@link #asyncEnvelope()}.
+ * Result of gateway service invoke (sync or async). Async success (HTTP 202) may populate {@link #asyncEnvelope()}.
  */
 @Value
 @Builder

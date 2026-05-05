@@ -36,7 +36,7 @@ gem install agentvend_service_sdk
 ## Verify inbound HMAC
 
 ```ruby
-require "agentvend_sdk"
+require "agentvend_service_sdk"
 
 AgentVendSdk.verify_signature_from_headers(service_secret, headers_hash, raw_body)
 
