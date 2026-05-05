@@ -83,17 +83,17 @@ pub async fn report_usage(
     client: &reqwest::Client,
     usage_base_url: &str,
     user_id: &str,
-    agent_id: &str,
+    service_id: &str,
     units_used: f64,
-    agent_secret: &str,
+    service_secret: &str,
 ) -> Result<UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
     report_usage_at(
         client,
         usage_base_url,
         user_id,
-        agent_id,
+        service_id,
         units_used,
-        agent_secret,
+        service_secret,
         None,
         None,
     )
@@ -105,9 +105,9 @@ pub async fn report_usage_at(
     client: &reqwest::Client,
     usage_base_url: &str,
     user_id: &str,
-    agent_id: &str,
+    service_id: &str,
     units_used: f64,
-    agent_secret: &str,
+    service_secret: &str,
     timestamp_secs: Option<f64>,
     usage_path_prefix: Option<&str>,
 ) -> Result<UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
@@ -122,13 +122,13 @@ pub async fn report_usage_at(
         });
     let body = serde_json::json!({
         "userId": user_id,
-        "agentId": agent_id,
+        "serviceId": service_id,
         "unitsUsed": units_used,
         "timestamp": ts_ms
     });
     let body_str = body.to_string();
     let ts_str = ts_ms.to_string();
-    let signature = calculate_hmac_with_timestamp(&body_str, &ts_str, agent_secret);
+    let signature = calculate_hmac_with_timestamp(&body_str, &ts_str, service_secret);
     let url = build_usage_report_url(usage_base_url, usage_path_prefix);
     let resp = client
         .post(&url)
@@ -153,7 +153,7 @@ pub async fn report_progress_simple(
     request_id: &str,
     stage: &str,
     percentage_complete: i32,
-    agent_secret: &str,
+    service_secret: &str,
 ) -> bool {
     report_progress(
         client,
@@ -161,7 +161,7 @@ pub async fn report_progress_simple(
         request_id,
         stage,
         percentage_complete,
-        agent_secret,
+        service_secret,
         None,
     )
     .await
@@ -174,7 +174,7 @@ pub async fn report_progress(
     _request_id: &str,
     stage: &str,
     percentage_complete: i32,
-    agent_secret: &str,
+    service_secret: &str,
     error_message: Option<&str>,
 ) -> bool {
     let (base_url, timestamp) = parse_timestamp_from_url(progress_url);
@@ -195,7 +195,7 @@ pub async fn report_progress(
         body["errorMessage"] = serde_json::Value::String(msg.to_string());
     }
     let body_str = body.to_string();
-    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, agent_secret);
+    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, service_secret);
     let resp = client
         .post(&base_url)
         .json(&body)
@@ -215,7 +215,7 @@ pub async fn report_completion(
     callback_url: &str,
     request_id: &str,
     status: CompletionStatus,
-    agent_secret: &str,
+    service_secret: &str,
     units: f64,
 ) -> bool {
     report_completion_full(
@@ -223,7 +223,7 @@ pub async fn report_completion(
         callback_url,
         request_id,
         status,
-        agent_secret,
+        service_secret,
         None,
         None,
         None,
@@ -238,7 +238,7 @@ pub async fn report_completion_with_result(
     callback_url: &str,
     request_id: &str,
     status: CompletionStatus,
-    agent_secret: &str,
+    service_secret: &str,
     result: &str,
     units: f64,
 ) -> bool {
@@ -247,7 +247,7 @@ pub async fn report_completion_with_result(
         callback_url,
         request_id,
         status,
-        agent_secret,
+        service_secret,
         Some(result),
         None,
         None,
@@ -262,7 +262,7 @@ pub async fn report_completion_full(
     callback_url: &str,
     _request_id: &str,
     status: CompletionStatus,
-    agent_secret: &str,
+    service_secret: &str,
     result: Option<&str>,
     result_url: Option<&str>,
     content_type: Option<&str>,
@@ -292,7 +292,7 @@ pub async fn report_completion_full(
         body["contentType"] = serde_json::Value::String(c.to_string());
     }
     let body_str = body.to_string();
-    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, agent_secret);
+    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, service_secret);
     let resp = client
         .post(&base_url)
         .json(&body)

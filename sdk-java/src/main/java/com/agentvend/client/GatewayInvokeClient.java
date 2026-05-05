@@ -20,7 +20,7 @@ public final class GatewayInvokeClient {
     }
 
     /**
-     * Invoke an agent endpoint on the gateway.
+     * Invoke a service endpoint on the gateway.
      *
      * @param method       GET, POST, PUT, or DELETE (case-insensitive)
      * @param requestBody  optional body (e.g. JSON for POST); ignored for GET when empty
@@ -31,19 +31,19 @@ public final class GatewayInvokeClient {
             String gatewayBaseUrl,
             String gatewayPathPrefix,
             String method,
-            String agentId,
+            String serviceId,
             String endpointId,
-            String agentKey,
+            String serviceKey,
             String requestBody,
             boolean async)
             throws IOException, InterruptedException {
         String base = gatewayBaseUrl != null ? gatewayBaseUrl.replaceAll("/$", "") : "";
         String prefix = normalizePrefix(gatewayPathPrefix);
-        String suffix = "/agent/" + agentId + "/endpoint/" + endpointId + "/invoke" + (async ? "/async" : "");
+        String suffix = "/service/" + serviceId + "/endpoint/" + endpointId + "/invoke" + (async ? "/async" : "");
         String url = base + prefix + suffix;
 
         Map<String, String> headers = new HashMap<>();
-        headers.put("Authorization", "Bearer " + (agentKey != null ? agentKey : ""));
+        headers.put("Authorization", "Bearer " + (serviceKey != null ? serviceKey : ""));
         String body = requestBody != null ? requestBody : "";
         String m = method != null ? method.trim().toUpperCase() : "GET";
         if (!body.isEmpty() && ("POST".equals(m) || "PUT".equals(m))) {

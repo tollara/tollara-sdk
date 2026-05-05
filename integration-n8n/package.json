@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-agentvend",
   "version": "1.0.0",
-  "description": "n8n community nodes for AgentVend: Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Key",
+  "description": "n8n community nodes for AgentVend: Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Service Key",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
@@ -42,7 +42,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@agentvend/agent-sdk": "file:../sdk-js"
+    "@agentvend/service-sdk": "file:../sdk-js"
   },
   "peerDependencies": {
     "n8n-workflow": "*"

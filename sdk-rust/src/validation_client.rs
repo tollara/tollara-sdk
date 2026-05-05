@@ -1,15 +1,15 @@
-//! Client for validating agent keys via the Core API (see docs/sdk-api-spec.md §2).
+//! Client for validating service keys via the Core API (see docs/sdk-api-spec.md §2).
 
 use crate::headers;
 use crate::hmac::validate_hmac_signature;
 use serde::Deserialize;
 use serde::Serialize;
 
-/// Result of a successful agent key validation.
+/// Result of a successful service key validation.
 #[derive(Debug, Clone)]
-pub struct AgentKeyValidationResult {
+pub struct ServiceKeyValidationResult {
     pub user_id: Option<String>,
-    pub agent_id: Option<String>,
+    pub service_id: Option<String>,
     pub plan: Option<String>,
     pub roles: Vec<String>,
     pub quota_remaining: Option<f64>,
@@ -22,10 +22,10 @@ pub struct AgentKeyValidationResult {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ValidateRequest<'a> {
-    agent_key: &'a str,
+    service_key: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    agent_id: Option<&'a str>,
-    agent_secret: &'a str,
+    service_id: Option<&'a str>,
+    service_secret: &'a str,
 }
 
 #[derive(Deserialize)]
@@ -33,7 +33,7 @@ struct ValidateRequest<'a> {
 struct ValidationResponse {
     valid: bool,
     user_id: Option<String>,
-    agent_id: Option<String>,
+    service_id: Option<String>,
     plan: Option<String>,
     roles: Option<Vec<String>>,
     quota_remaining: Option<f64>,
@@ -46,23 +46,23 @@ struct ValidationResponse {
     error: Option<String>,
 }
 
-/// Validates an agent key via the Core service. Returns `None` on 4xx/5xx, missing HMAC headers,
+/// Validates a service key via the Core service. Returns `None` on 4xx/5xx, missing HMAC headers,
 /// invalid signature, or when the response has `valid: false`.
-pub async fn validate_agent_key(
+pub async fn validate_service_key(
     client: &reqwest::Client,
     core_base_url: &str,
-    agent_key: &str,
-    agent_secret: &str,
-    agent_id: Option<&str>,
-) -> Option<AgentKeyValidationResult> {
+    service_key: &str,
+    service_secret: &str,
+    service_id: Option<&str>,
+) -> Option<ServiceKeyValidationResult> {
     let url = format!(
-        "{}/agent-keys/validate",
+        "{}/service-keys/validate",
         core_base_url.trim_end_matches('/')
     );
     let body = ValidateRequest {
-        agent_key,
-        agent_id,
-        agent_secret,
+        service_key,
+        service_id,
+        service_secret,
     };
     let resp = client
         .post(&url)
@@ -82,7 +82,7 @@ pub async fn validate_agent_key(
         .headers()
         .get(headers::TIMESTAMP)
         .and_then(|v| v.to_str().ok())?;
-    if !validate_hmac_signature(signature, &format!("{}{}", response_text, timestamp), agent_secret)
+    if !validate_hmac_signature(signature, &format!("{}{}", response_text, timestamp), service_secret)
     {
         return None;
     }
@@ -91,9 +91,9 @@ pub async fn validate_agent_key(
         return None;
     }
     let roles = data.roles.unwrap_or_default();
-    Some(AgentKeyValidationResult {
+    Some(ServiceKeyValidationResult {
         user_id: data.user_id,
-        agent_id: data.agent_id.or(agent_id.map(String::from)),
+        service_id: data.service_id.or(service_id.map(String::from)),
         plan: data.plan,
         roles,
         quota_remaining: data.quota_remaining,

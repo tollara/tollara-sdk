@@ -1,6 +1,6 @@
 # AgentVend SDK (Go)
 
-**Module:** `github.com/agentvend/agent-sdk-go`
+**Module:** `github.com/agentvend/service-sdk-go`
 
 HMAC helpers and inbound gateway verification. Use your own HTTP client (or `net/http`) for Core, Usage, and Gateway calls; see examples below.
 
@@ -18,15 +18,15 @@ This module does **not** read the environment for you. Use the same names as the
 |----------|--------|
 | `sdk.DefaultAPIURL` | `https://api.agentvend.api` (default origin for your config; not read automatically) |
 | `sdk.EnvAPIURL` | `AGENTVEND_API_URL` (optional override) |
-| `sdk.EnvAgentID` | `AGENTVEND_AGENT_ID` |
-| `sdk.EnvAgentSecret` | `AGENTVEND_AGENT_SECRET` |
+| `sdk.EnvAgentID` | `AGENTVEND_AGENT_ID` (name remains unchanged; maps to your **service id**) |
+| `sdk.EnvAgentSecret` | `AGENTVEND_AGENT_SECRET` (name remains unchanged; maps to your **service secret**) |
 
 There is no bundled HTTP client; combine these with your own `net/http` or other stack.
 
 ### Verify HMAC and trusted user context in one call
 
 ```go
-ctx, ok := sdk.VerifyInboundHMACFromHeadersAndGetUserContext(agentSecret, r.Header, string(bodyBytes))
+ctx, ok := sdk.VerifyInboundHMACFromHeadersAndGetUserContext(serviceSecret, r.Header, string(bodyBytes))
 if ok {
     _ = ctx.UserID // trusted only when ok is true
 }
@@ -35,16 +35,16 @@ if ok {
 ## Install
 
 ```bash
-go get github.com/agentvend/agent-sdk-go
+go get github.com/agentvend/service-sdk-go
 ```
 
 ## Verify inbound HMAC
 
 ```go
-import "github.com/agentvend/agent-sdk-go"
+import "github.com/agentvend/service-sdk-go"
 
 // From net/http (package name is sdk):
-ok := sdk.VerifyInboundHMACFromHeaders(agentSecret, r.Header, string(bodyBytes))
+ok := sdk.VerifyInboundHMACFromHeaders(serviceSecret, r.Header, string(bodyBytes))
 
 // Or explicit struct:
 req := &sdk.InboundHmacRequest{
@@ -56,7 +56,7 @@ req := &sdk.InboundHmacRequest{
     Roles:     []string{"role1", "role2"},
     QuotaRemaining: "10",
 }
-ok = sdk.VerifyInboundHMAC(agentSecret, req)
+ok = sdk.VerifyInboundHMAC(serviceSecret, req)
 
 ctx := sdk.UserContextFromHeaders(r.Header)
 ```
@@ -67,11 +67,11 @@ Constants live on `sdk` (e.g. `sdk.HeaderSignature`).
 
 There are no built-in HTTP clients in this module yet. Illustrative `net/http` calls:
 
-**Validate key (Core):** `POST {coreBase}/agent-keys/validate` with JSON body; verify response HMAC over `body + X-AgentVend-Timestamp`.
+**Validate service key (Core):** `POST {coreBase}/service-keys/validate` with JSON body; verify response HMAC over `body + X-AgentVend-Timestamp`.
 
 **Report usage:** `POST {usageBase}/api/usage/report` (default layout; see spec for ECS prefixes) with JSON body and `X-AgentVend-Signature` / `X-AgentVend-Timestamp` using `sdk.CalculateHmacWithTimestamp`. Per MAIN-SDK §3.1: body `timestamp` is **ISO-8601**; header timestamp is **Unix epoch seconds**; HMAC canonical is **`bodyJson + headerTimestamp`**.
 
-**Gateway job status:** `GET {gatewayBase}{prefix}/requests/{requestId}/status` with `Authorization: Bearer {agentKey}`.
+**Gateway job status:** `GET {gatewayBase}{prefix}/requests/{requestId}/status` with `Authorization: Bearer {serviceKey}`.
 
 **Progress / completion:** `POST` to the full `progressUrl` / `callbackUrl` from the async response, signing the JSON body with `CalculateHmacWithTimestamp` and the timestamp from the URL query string (same pattern as other SDKs).
 

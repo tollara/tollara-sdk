@@ -22,15 +22,15 @@ export type GatewayInvokeResult = {
 };
 
 /**
- * Gateway agent invoke (sync or async). See `docs-sdk/MAIN-SDK-API-SPEC.md` §1.1–1.2.
+ * Gateway service invoke (sync or async). See `docs-sdk/MAIN-SDK-API-SPEC.md` §1.1–1.2.
  */
-export async function invokeAgent(params: {
+export async function invokeService(params: {
   baseUrl?: string | null;
   gatewayPathPrefix?: string | null;
   method: GatewayHttpMethod;
-  agentId: string;
+  serviceId: string;
   endpointId: string;
-  agentKey: string;
+  serviceKey: string;
   body?: string | null;
   async?: boolean;
   fetch?: typeof globalThis.fetch;
@@ -39,20 +39,20 @@ export async function invokeAgent(params: {
     baseUrl,
     gatewayPathPrefix,
     method,
-    agentId,
+    serviceId,
     endpointId,
-    agentKey,
+    serviceKey,
     body,
     async: isAsync,
     fetch: fetchFn = fetch,
   } = params;
   const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
   const prefix = normalizePrefix((gatewayPathPrefix ?? DEFAULT_GATEWAY_PATH_PREFIX).trim());
-  const path = `${prefix}/agent/${agentId}/endpoint/${endpointId}/invoke${isAsync ? '/async' : ''}`;
+  const path = `${prefix}/service/${serviceId}/endpoint/${endpointId}/invoke${isAsync ? '/async' : ''}`;
   const url = `${origin}${path}`;
   const m = method.toUpperCase() as GatewayHttpMethod;
   const payload = body ?? '';
-  const headers: Record<string, string> = { Authorization: `Bearer ${agentKey}` };
+  const headers: Record<string, string> = { Authorization: `Bearer ${serviceKey}` };
   const hasBody = payload.length > 0 && (m === 'POST' || m === 'PUT');
   if (hasBody) {
     headers['Content-Type'] = 'application/json';

@@ -1,9 +1,9 @@
 import { AgentVendClient, DEFAULT_API_URL, ENV_API_URL, ENV_AGENT_SECRET } from './agentVendClient';
 import { calculateHmac } from './hmac';
 
-const AGENT_ID = '550e8400-e29b-41d4-a716-446655440000';
-const AGENT_SECRET = 'test-agent-secret';
-const AGENT_KEY = 'k';
+const SERVICE_ID = '550e8400-e29b-41d4-a716-446655440000';
+const SERVICE_SECRET = 'test-service-secret';
+const SERVICE_KEY = 'k';
 
 describe('AgentVendClient', () => {
   it('uses default production apiUrl when omitted', async () => {
@@ -13,11 +13,11 @@ describe('AgentVendClient', () => {
       return new Response('{}', { status: 200 });
     });
     const client = new AgentVendClient({
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       fetch: mockFetch as unknown as typeof fetch,
     });
-    await client.getRequestStatus('r1', AGENT_KEY);
+    await client.getRequestStatus('r1', SERVICE_KEY);
   });
 
   it('throws without secret', () => {
@@ -33,11 +33,11 @@ describe('AgentVendClient', () => {
     });
     const client = new AgentVendClient({
       apiUrl: base,
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       fetch: mockFetch as unknown as typeof fetch,
     });
-    const res = await client.getRequestStatus('job-1', AGENT_KEY);
+    const res = await client.getRequestStatus('job-1', SERVICE_KEY);
     expect(res.ok).toBe(true);
     expect(res.body).toContain('OK');
   });
@@ -58,31 +58,31 @@ describe('AgentVendClient', () => {
     });
     const client = new AgentVendClient({
       apiUrl: base,
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       fetch: mockFetch as unknown as typeof fetch,
     });
-    const out = await client.reportUsage('user-1', AGENT_ID, 1);
+    const out = await client.reportUsage('user-1', SERVICE_ID, 1);
     expect(out.status).toBe('ok');
   });
 
-  it('validateAgentKey uses default core prefix and returns parsed result', async () => {
+  it('validateServiceKey uses default core prefix and returns parsed result', async () => {
     const base = 'http://localhost:58891';
     const responseBody = JSON.stringify({
       valid: true,
       userId: 'user-1',
-      agentId: AGENT_ID,
+      serviceId: SERVICE_ID,
       plan: 'basic',
       roles: ['user'],
       quotaRemaining: 5,
       subscriptionActive: true,
     });
     const ts = '1700000000';
-    const signature = calculateHmac(responseBody + ts, AGENT_SECRET);
+    const signature = calculateHmac(responseBody + ts, SERVICE_SECRET);
 
     const mockFetch = jest.fn(async (input: string | Request | URL) => {
       const u = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      expect(u).toBe(`${base}/api/v1/agent-keys/validate`);
+      expect(u).toBe(`${base}/api/v1/service-keys/validate`);
       return new Response(responseBody, {
         status: 200,
         headers: {
@@ -94,11 +94,11 @@ describe('AgentVendClient', () => {
 
     const client = new AgentVendClient({
       apiUrl: base,
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       fetch: mockFetch as unknown as typeof fetch,
     });
-    const out = await client.validateAgentKey('agent-key-1');
+    const out = await client.validateServiceKey('service-key-1');
     expect(out).not.toBeNull();
     expect(out?.userId).toBe('user-1');
   });
@@ -108,13 +108,13 @@ describe('AgentVendClient', () => {
     const prevSecret = process.env[ENV_AGENT_SECRET];
     const base = 'http://env-js.test';
     process.env[ENV_API_URL] = base;
-    process.env[ENV_AGENT_SECRET] = AGENT_SECRET;
-    process.env.AGENTVEND_AGENT_ID = AGENT_ID;
+    process.env[ENV_AGENT_SECRET] = SERVICE_SECRET;
+    process.env.AGENTVEND_AGENT_ID = SERVICE_ID;
 
     const mockFetch = jest.fn(async () => new Response('{}', { status: 200 }));
     try {
       const client = new AgentVendClient({ fetch: mockFetch as unknown as typeof fetch });
-      await client.getRequestStatus('r1', AGENT_KEY);
+      await client.getRequestStatus('r1', SERVICE_KEY);
       expect(mockFetch).toHaveBeenCalledWith(
         `${base}/api/requests/r1/status`,
         expect.objectContaining({ method: 'GET' })

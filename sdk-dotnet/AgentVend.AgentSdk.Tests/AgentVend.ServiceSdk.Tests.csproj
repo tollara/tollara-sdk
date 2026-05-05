@@ -4,6 +4,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <AssemblyName>AgentVend.ServiceSdk.Tests</AssemblyName>
+    <RootNamespace>AgentVend.ServiceSdk.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
@@ -14,6 +16,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AgentVend.AgentSdk.csproj" />
+    <ProjectReference Include="..\AgentVend.ServiceSdk.csproj" />
   </ItemGroup>
 </Project>

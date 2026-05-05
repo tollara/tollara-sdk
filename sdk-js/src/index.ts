@@ -15,11 +15,11 @@ export {
   type HeaderBag,
 } from './verifier';
 export {
-  validateAgentKey,
+  validateServiceKey,
   estimateUsage,
   estimateUsageWithJwt,
   createValidationCache,
-  type AgentKeyValidationResult,
+  type ServiceKeyValidationResult,
   type UsageEstimateResult,
 } from './validationClient';
 export { CompletionStatus } from './completionStatus';
@@ -37,7 +37,7 @@ export {
 } from './usageClient';
 export { getRequestStatus, getRequestResult, type GatewayPollResult } from './gatewayClient';
 export {
-  invokeAgent,
+  invokeService,
   type GatewayHttpMethod,
   type GatewayInvokeAsyncEnvelope,
   type GatewayInvokeResult,

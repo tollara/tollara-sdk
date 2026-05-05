@@ -9,13 +9,13 @@ export class AgentvendApi implements ICredentialType {
 
   properties: INodeProperties[] = [
     {
-      displayName: 'Agent Secret',
-      name: 'agentSecret',
+      displayName: 'Service Secret',
+      name: 'serviceSecret',
       type: 'string',
       typeOptions: { password: true },
       default: '',
       required: true,
-      description: 'Agent secret for HMAC signing and verification',
+      description: 'Service secret for HMAC signing and verification',
     },
     {
       displayName: 'Gateway URL',

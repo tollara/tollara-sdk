@@ -7,7 +7,7 @@ import java.net.http.HttpClient;
 import java.util.Map;
 
 /**
- * Caller-side gateway polling for async jobs (see docs/sdk-api-spec.md §1.3–1.4).
+ * Caller-side gateway polling for async jobs (see docs-sdk/MAIN-SDK-API-SPEC.md §1.3–1.4).
  */
 @RequiredArgsConstructor
 public class GatewayClient {
@@ -15,31 +15,31 @@ public class GatewayClient {
     private final HttpClient httpClient;
 
     /**
-     * GET {@code {gatewayBaseUrl}{gatewayPathPrefix}/requests/{requestId}/status} with Bearer agent key.
+     * GET {@code {gatewayBaseUrl}{gatewayPathPrefix}/requests/{requestId}/status} with Bearer service key.
      *
      * @param gatewayBaseUrl e.g. https://gateway.example.com
      * @param gatewayPathPrefix e.g. /api (default) or /gateway/api/v1 (ECS)
      */
     public GatewayHttpResponse getRequestStatus(
-            String gatewayBaseUrl, String gatewayPathPrefix, String requestId, String agentKey) {
-        return exchange(gatewayBaseUrl, gatewayPathPrefix, "/requests/" + requestId + "/status", agentKey);
+            String gatewayBaseUrl, String gatewayPathPrefix, String requestId, String serviceKey) {
+        return exchange(gatewayBaseUrl, gatewayPathPrefix, "/requests/" + requestId + "/status", serviceKey);
     }
 
     /**
-     * GET {@code {gatewayBaseUrl}{gatewayPathPrefix}/requests/{requestId}/result} with Bearer agent key.
+     * GET {@code {gatewayBaseUrl}{gatewayPathPrefix}/requests/{requestId}/result} with Bearer service key.
      */
     public GatewayHttpResponse getRequestResult(
-            String gatewayBaseUrl, String gatewayPathPrefix, String requestId, String agentKey) {
-        return exchange(gatewayBaseUrl, gatewayPathPrefix, "/requests/" + requestId + "/result", agentKey);
+            String gatewayBaseUrl, String gatewayPathPrefix, String requestId, String serviceKey) {
+        return exchange(gatewayBaseUrl, gatewayPathPrefix, "/requests/" + requestId + "/result", serviceKey);
     }
 
     private GatewayHttpResponse exchange(
-            String gatewayBaseUrl, String gatewayPathPrefix, String pathSuffix, String agentKey) {
+            String gatewayBaseUrl, String gatewayPathPrefix, String pathSuffix, String serviceKey) {
         String base = gatewayBaseUrl != null ? gatewayBaseUrl.replaceAll("/$", "") : "";
         String prefix = normalizePrefix(gatewayPathPrefix);
         String url = base + prefix + pathSuffix;
         Map<String, String> headers =
-                Map.of("Authorization", "Bearer " + (agentKey != null ? agentKey : ""));
+                Map.of("Authorization", "Bearer " + (serviceKey != null ? serviceKey : ""));
         try {
             var resp = HttpSupport.get(httpClient, url, headers);
             return new GatewayHttpResponse(resp.statusCode(), resp.body() != null ? resp.body() : "");

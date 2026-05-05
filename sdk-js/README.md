@@ -1,8 +1,8 @@
 # AgentVend SDK (JavaScript/TypeScript)
 
-**Package:** `@agentvend/agent-sdk`
+**Package:** `@agentvend/service-sdk` (version **0.0.6** in this repo)
 
-Verify inbound HMAC, validate agent keys, run usage pre-flight (agent-key **and** JWT paths), **gateway invoke** (sync/async), report usage, progress, completion, and poll async job status.
+Verify inbound HMAC, validate **service keys**, run usage pre-flight (service-key **and** JWT paths), **gateway invoke** (sync/async), report usage, progress, completion, and poll async job status.
 
 HTTP paths, headers, and signing rules match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md). HMAC algorithms and gateway canonical strings: [hmac-spec.md](../docs/hmac-spec.md).
 
@@ -15,29 +15,29 @@ By default, the SDK uses the production AgentVend API origin. Override when need
 
 ## Unified client (recommended)
 
-`AgentVendClient` uses optional **`AGENTVEND_AGENT_ID`**, required **`AGENTVEND_AGENT_SECRET`** (unless passed in the constructor), and optional **`AGENTVEND_API_URL`**.
+`AgentVendClient` uses optional **`AGENTVEND_AGENT_ID`** (service UUID; env name unchanged per spec), required **`AGENTVEND_AGENT_SECRET`** (unless passed as `serviceSecret`), and optional **`AGENTVEND_API_URL`**.
 
 ```ts
-import { AgentVendClient } from '@agentvend/agent-sdk';
+import { AgentVendClient } from '@agentvend/service-sdk';
 
 const client = new AgentVendClient({
-  agentId: 'agent-uuid',
-  agentSecret: 'secret',
+  serviceId: 'service-uuid',
+  serviceSecret: 'secret',
 });
-await client.getRequestStatus(requestId, agentKey);
-await client.reportUsage(userId, agentId, 1);
-await client.validateAgentKey(agentKey);
-const estimate = await client.estimateUsage(agentKey, 1);
+await client.getRequestStatus(requestId, serviceKey);
+await client.reportUsage(userId, serviceId, 1);
+await client.validateServiceKey(serviceKey);
+const estimate = await client.estimateUsage(serviceKey, 1);
 if (estimate) {
   const allowed = estimate.wouldAllow;
   const status = estimate.httpStatus;
 }
 
-// JWT usage estimate (unsigned Core response): internal Core user id + agent id + units
-// await client.estimateUsageWithJwt(bearerJwt, coreUserId, agentId, 1);
+// JWT usage estimate (unsigned Core response): internal Core user id + service id + units
+// await client.estimateUsageWithJwt(bearerJwt, coreUserId, serviceId, 1);
 
-// Gateway invoke (Bearer = agent key): method, agentId, endpointId, agentKey, optional body + async flag
-// await client.invokeAgent('POST', agentId, endpointId, agentKey, { body: '{}', async: false });
+// Gateway invoke (Bearer = service key): method, serviceId, endpointId, serviceKey, optional body + async flag
+// await client.invokeService('POST', serviceId, endpointId, serviceKey, { body: '{}', async: false });
 ```
 
 ### Verify signature and user context together
@@ -45,16 +45,16 @@ if (estimate) {
 When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses the newer user-context suffix (no quota segment in the signed material). `verifySignatureFromHeaders` reads that header automatically.
 
 ```ts
-import { verifySignatureFromHeadersAndGetUserContext } from '@agentvend/agent-sdk';
+import { verifySignatureFromHeadersAndGetUserContext } from '@agentvend/service-sdk';
 
-const ctx = verifySignatureFromHeadersAndGetUserContext(agentSecret, headers, rawBody);
+const ctx = verifySignatureFromHeadersAndGetUserContext(serviceSecret, headers, rawBody);
 if (ctx) { /* trusted */ }
 ```
 
 ## Install
 
 ```bash
-npm install @agentvend/agent-sdk
+npm install @agentvend/service-sdk
 ```
 
 ## API highlights
@@ -64,9 +64,9 @@ npm install @agentvend/agent-sdk
 - `verifyInboundHmac` / `verifySignatureFromHeaders` — inbound gateway HMAC
 - `getUserContext` — parses headers (case-insensitive keys)
 - `AgentVendClient` — validate key, estimates, invoke, usage reporting, gateway polling
-- `validateAgentKey` / `estimateUsage` — Core agent-key paths; response HMAC verified when headers present
+- `validateServiceKey` / `estimateUsage` — Core **service-key** paths; response HMAC verified when headers present
 - `estimateUsageWithJwt` — Core `POST …/billing/usage/estimate` with Bearer JWT (unsigned response)
-- `invokeAgent` — gateway `…/invoke` and `…/invoke/async`
+- `invokeService` — gateway `…/service/{serviceId}/endpoint/…/invoke` and `…/invoke/async`
 - `reportUsage`, `reportProgress`, `reportCompletion` — usage service (**report** body uses ISO `timestamp`; `X-AgentVend-Timestamp` = epoch **seconds** for HMAC — see spec §3)
 - `getRequestStatus`, `getRequestResult` — async job polling
 
@@ -75,40 +75,40 @@ npm install @agentvend/agent-sdk
 ### Verify HMAC (backend)
 
 ```ts
-import { verifySignatureFromHeaders, getUserContext } from '@agentvend/agent-sdk';
+import { verifySignatureFromHeaders, getUserContext } from '@agentvend/service-sdk';
 
-const agentSecret = 'your-agent-secret';
-const valid = verifySignatureFromHeaders(agentSecret, req.headers, rawBodyString);
+const serviceSecret = 'your-service-shared-secret';
+const valid = verifySignatureFromHeaders(serviceSecret, req.headers, rawBodyString);
 if (valid) {
   const ctx = getUserContext(req.headers);
 }
 ```
 
-### Validate agent key (caller)
+### Validate service key (caller)
 
 ```ts
-import { validateAgentKey } from '@agentvend/agent-sdk';
+import { validateServiceKey } from '@agentvend/service-sdk';
 
-const result = await validateAgentKey({
-  agentKey: 'bearer-token',
-  agentId: 'agent-id',
-  agentSecret: 'agent-secret',
+const result = await validateServiceKey({
+  serviceKey: 'bearer-token',
+  serviceId: 'service-id',
+  serviceSecret: 'service-secret',
 });
 ```
 
-Optional `baseUrl` when not using the default production origin. Successful validate results include **`agentKeyId`** when Core returns it (§2.1).
+Optional `baseUrl` when not using the default production origin. Successful validate results include **`serviceKeyId`** when Core returns it (§2.1).
 
 ### Usage estimate (caller)
 
-Same trust model as validate: JSON body with the agent key (no separate bearer on Core). Response HMAC is verified for success and typical denial statuses when signature headers are present.
+Same trust model as validate: JSON body with the service key (no separate bearer on Core). Response HMAC is verified for success and typical denial statuses when signature headers are present.
 
 ```ts
-import { estimateUsage } from '@agentvend/agent-sdk';
+import { estimateUsage } from '@agentvend/service-sdk';
 
 const est = await estimateUsage({
-  agentKey: 'bearer-token',
-  agentId: 'agent-id',
-  agentSecret: 'agent-secret',
+  serviceKey: 'bearer-token',
+  serviceId: 'service-id',
+  serviceSecret: 'service-secret',
   estimatedUnits: 1,
 });
 ```
@@ -116,13 +116,13 @@ const est = await estimateUsage({
 ### Report usage
 
 ```ts
-import { reportUsage } from '@agentvend/agent-sdk';
+import { reportUsage } from '@agentvend/service-sdk';
 
 await reportUsage({
   userId: 'u1',
-  agentId: 'a1',
+  serviceId: 'a1',
   unitsUsed: 1,
-  agentSecret: 'secret',
+  serviceSecret: 'secret',
 });
 ```
 
@@ -131,21 +131,21 @@ await reportUsage({
 URLs come from the platform (`progress_url`, `callback_url`).
 
 ```ts
-import { CompletionStatus, reportProgress, reportCompletionWithResult } from '@agentvend/agent-sdk';
+import { CompletionStatus, reportProgress, reportCompletionWithResult } from '@agentvend/service-sdk';
 
 await reportProgress({
   progressUrl,
   requestId,
   stage: 'processing',
   percentageComplete: 50,
-  agentSecret,
+  serviceSecret,
 });
 await reportCompletionWithResult({
   callbackUrl,
   requestId,
   status: CompletionStatus.Completed,
   result: 'done',
-  agentSecret,
+  serviceSecret,
   units: 1,
 });
 ```
@@ -153,10 +153,10 @@ await reportCompletionWithResult({
 ### Job status / result (caller)
 
 ```ts
-import { getRequestStatus, getRequestResult } from '@agentvend/agent-sdk';
+import { getRequestStatus, getRequestResult } from '@agentvend/service-sdk';
 
-const st = await getRequestStatus({ requestId, agentKey });
-const res = await getRequestResult({ requestId, agentKey });
+const st = await getRequestStatus({ requestId, serviceKey });
+const res = await getRequestResult({ requestId, serviceKey });
 ```
 
 Optional `baseUrl` on each call when not using the default origin.
@@ -171,7 +171,7 @@ npm test
 
 ## Release (npm)
 
-Package name: **`@agentvend/agent-sdk`** ([npm scoped packages](https://docs.npmjs.com/about-scopes-and-packages)).
+Package name: **`@agentvend/service-sdk`** ([npm scoped packages](https://docs.npmjs.com/about-scopes-and-packages)).
 
 1. **Version** — Bump `"version"` in [`package.json`](package.json) (SemVer). npm will not let you publish the same version twice.
 2. **Verify** — `npm ci`, `npm test`, and `npm run build` (or rely on `prepublishOnly`, which runs `build` on `npm publish`).

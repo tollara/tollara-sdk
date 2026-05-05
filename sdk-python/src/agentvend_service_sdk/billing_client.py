@@ -23,7 +23,7 @@ def estimate_usage_with_jwt(
     base_url: str,
     bearer_token: str,
     user_id: str,
-    agent_id: str,
+    service_id: str,
     estimated_units: Union[int, float],
     *,
     core_path_prefix: Optional[str] = None,
@@ -36,12 +36,12 @@ def estimate_usage_with_jwt(
         raise ImportError("estimate_usage_with_jwt requires 'requests'. pip install requests")
     if not bearer_token or not str(bearer_token).strip():
         return None
-    if not user_id or not str(user_id).strip() or not agent_id or not str(agent_id).strip():
+    if not user_id or not str(user_id).strip() or not service_id or not str(service_id).strip():
         return None
     if estimated_units is None or float(estimated_units) <= 0:
         return None
     url = _billing_estimate_url(base_url, core_path_prefix)
-    body = {"userId": user_id, "agentId": agent_id, "estimatedUnits": estimated_units}
+    body = {"userId": user_id, "serviceId": service_id, "estimatedUnits": estimated_units}
     sess = session or requests.Session()
     resp = sess.post(
         url,

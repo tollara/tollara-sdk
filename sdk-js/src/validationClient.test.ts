@@ -1,19 +1,19 @@
 import { AgentVendHeaders } from './agentVendHeaders';
 import { calculateHmac } from './hmac';
-import { createValidationCache, estimateUsage, validateAgentKey } from './validationClient';
+import { createValidationCache, estimateUsage, validateServiceKey } from './validationClient';
 
 const CORE_BASE = 'http://core.test';
-const AGENT_ID = '550e8400-e29b-41d4-a716-446655440000';
-const AGENT_KEY_ID = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
-const AGENT_SECRET = 'test-agent-secret';
+const SERVICE_ID = '550e8400-e29b-41d4-a716-446655440000';
+const SERVICE_KEY_ID = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+const SERVICE_SECRET = 'test-service-secret';
 
 describe('validationClient', () => {
   it('returns parsed validation result for signed valid response', async () => {
     const responseBody = JSON.stringify({
       valid: true,
-      agentKeyId: AGENT_KEY_ID,
+      serviceKeyId: SERVICE_KEY_ID,
       userId: 'user-123',
-      agentId: AGENT_ID,
+      serviceId: SERVICE_ID,
       plan: 'basic',
       roles: ['user'],
       quotaRemaining: 100,
@@ -26,7 +26,7 @@ describe('validationClient', () => {
       validationSchemaVersion: 1,
     });
     const timestamp = '1700000000';
-    const signature = calculateHmac(responseBody + timestamp, AGENT_SECRET);
+    const signature = calculateHmac(responseBody + timestamp, SERVICE_SECRET);
 
     const fetchMock: typeof fetch = async () =>
       new Response(responseBody, {
@@ -38,18 +38,18 @@ describe('validationClient', () => {
         },
       });
 
-    const result = await validateAgentKey({
+    const result = await validateServiceKey({
       baseUrl: CORE_BASE,
-      agentKey: 'bearer-token',
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceKey: 'bearer-token',
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       fetch: fetchMock,
     });
 
     expect(result).toEqual({
       userId: 'user-123',
-      agentId: AGENT_ID,
-      agentKeyId: AGENT_KEY_ID,
+      serviceId: SERVICE_ID,
+      serviceKeyId: SERVICE_KEY_ID,
       plan: 'basic',
       roles: ['user'],
       quotaRemaining: 100,
@@ -60,13 +60,13 @@ describe('validationClient', () => {
     });
   });
 
-  it('returns null when agent key is blank', async () => {
+  it('returns null when service key is blank', async () => {
     const fetchMock = jest.fn();
-    const result = await validateAgentKey({
+    const result = await validateServiceKey({
       baseUrl: CORE_BASE,
-      agentKey: '   ',
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceKey: '   ',
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       fetch: fetchMock as unknown as typeof fetch,
     });
     expect(result).toBeNull();
@@ -75,11 +75,11 @@ describe('validationClient', () => {
 
   it('returns null when response is not ok', async () => {
     const fetchMock: typeof fetch = async () => new Response('unauthorized', { status: 401 });
-    const result = await validateAgentKey({
+    const result = await validateServiceKey({
       baseUrl: CORE_BASE,
-      agentKey: 'bad',
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceKey: 'bad',
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       fetch: fetchMock,
     });
     expect(result).toBeNull();
@@ -95,29 +95,29 @@ describe('validationClient', () => {
           [AgentVendHeaders.TIMESTAMP]: '1700000000',
         },
       });
-    const result = await validateAgentKey({
+    const result = await validateServiceKey({
       baseUrl: CORE_BASE,
-      agentKey: 'k',
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceKey: 'k',
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       fetch: fetchMock,
     });
     expect(result).toBeNull();
   });
 
-  it('posts JSON body to /agent-keys/validate', async () => {
+  it('posts JSON body to /service-keys/validate', async () => {
     const responseBody = JSON.stringify({ valid: false });
     const timestamp = '1700000000';
-    const signature = calculateHmac(responseBody + timestamp, AGENT_SECRET);
+    const signature = calculateHmac(responseBody + timestamp, SERVICE_SECRET);
     const fetchMock = jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      expect(url).toBe(`${CORE_BASE}/api/v1/agent-keys/validate`);
+      expect(url).toBe(`${CORE_BASE}/api/v1/service-keys/validate`);
       expect(init?.method).toBe('POST');
       expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
       expect(JSON.parse(String(init?.body))).toEqual({
-        agentKey: 'the-agent-key',
-        agentId: AGENT_ID,
-        agentSecret: AGENT_SECRET,
+        serviceKey: 'the-service-key',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
       });
       return new Response(responseBody, {
         status: 200,
@@ -128,11 +128,11 @@ describe('validationClient', () => {
       });
     });
 
-    const result = await validateAgentKey({
+    const result = await validateServiceKey({
       baseUrl: CORE_BASE,
-      agentKey: 'the-agent-key',
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceKey: 'the-service-key',
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       fetch: fetchMock as unknown as typeof fetch,
     });
     expect(result).toBeNull();
@@ -154,11 +154,11 @@ describe('validationClient', () => {
       timestamp: 1700000000,
     });
     const timestamp = '1700000000';
-    const signature = calculateHmac(responseBody + timestamp, AGENT_SECRET);
+    const signature = calculateHmac(responseBody + timestamp, SERVICE_SECRET);
 
     const fetchMock: typeof fetch = async (input) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      expect(url).toBe(`${CORE_BASE}/api/v1/agent-keys/estimate-usage`);
+      expect(url).toBe(`${CORE_BASE}/api/v1/service-keys/estimate-usage`);
       return new Response(responseBody, {
         status: 200,
         headers: {
@@ -171,9 +171,9 @@ describe('validationClient', () => {
 
     const result = await estimateUsage({
       baseUrl: CORE_BASE,
-      agentKey: 'key-1',
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceKey: 'key-1',
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       estimatedUnits: 1.5,
       fetch: fetchMock,
     });
@@ -196,9 +196,9 @@ describe('validationClient', () => {
       });
     const result = await estimateUsage({
       baseUrl: CORE_BASE,
-      agentKey: 'k',
-      agentId: AGENT_ID,
-      agentSecret: AGENT_SECRET,
+      serviceKey: 'k',
+      serviceId: SERVICE_ID,
+      serviceSecret: SERVICE_SECRET,
       estimatedUnits: 1,
       fetch: fetchMock,
     });
@@ -210,9 +210,9 @@ describe('validationClient', () => {
     expect(
       await estimateUsage({
         baseUrl: CORE_BASE,
-        agentKey: 'k',
-        agentId: AGENT_ID,
-        agentSecret: AGENT_SECRET,
+        serviceKey: 'k',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
         estimatedUnits: 0,
         fetch: fetchMock as unknown as typeof fetch,
       })
@@ -225,8 +225,8 @@ describe('validationClient', () => {
     expect(cache.get('k')).toBeNull();
     const entry = {
       userId: 'u1',
-      agentId: AGENT_ID,
-      agentKeyId: null,
+      serviceId: SERVICE_ID,
+      serviceKeyId: null,
       plan: 'basic',
       roles: ['user'],
       quotaRemaining: 1,

@@ -6,14 +6,14 @@ Use this list when changing AgentVend Gateway, Core, or Usage HTTP APIs so corre
 
 | # | Service | Method | Path (after configured base + prefix) | Role |
 |---|---------|--------|----------------------------------------|------|
-| 1 | Core | `POST` | `/agent-keys/validate` | Validate agent key; JSON body `agentKey`, optional `agentId`, `agentSecret`. Response body + `X-AgentVend-Timestamp` HMAC-verified with `agentSecret`. |
-| 2 | Core | `POST` | `/agent-keys/estimate-usage` | Usage pre-flight; body includes `agentKey`, optional `agentId`/`agentSecret`, `estimatedUnits`. HMAC on response when signature headers present; statuses **200 / 403 / 429** handled. |
+| 1 | Core | `POST` | `/agent-keys/validate` | Validate service key; JSON body `serviceKey`, optional `serviceId`, `serviceSecret`. Response body + `X-AgentVend-Timestamp` HMAC-verified with `serviceSecret`. |
+| 2 | Core | `POST` | `/agent-keys/estimate-usage` | Usage pre-flight; body includes `serviceKey`, optional `serviceId`/`serviceSecret`, `estimatedUnits`. HMAC on response when signature headers present; statuses **200 / 403 / 429** handled. |
 | 3 | Usage | `POST` | `/report` (default prefix `/api/usage` → `/api/usage/report`) | Signed usage report; body fields per SDK models; `X-AgentVend-Signature` / `X-AgentVend-Timestamp` on request. |
 | 4 | Usage | `POST` | **Full `progressUrl`** from platform (path shape `{usagePrefix}/progress/{requestId}` when relative to usage base) | Progress update; SDK reads `signature` + `timestamp` from query string, recomputes HMAC, sends headers. |
 | 5 | Usage | `POST` | **Full `callbackUrl`** from platform (path shape `{usagePrefix}/complete/{requestId}` when relative) | Completion; same signing pattern as progress. |
-| 6 | Gateway | `GET` | `/requests/{requestId}/status` | Async job status; `Authorization: Bearer {agentKey}`. |
+| 6 | Gateway | `GET` | `/requests/{requestId}/status` | Async job status; `Authorization: Bearer {serviceKey}`. |
 | 7 | Gateway | `GET` | `/requests/{requestId}/result` | Async job result; same auth. |
-| 8 | Gateway | `GET`/`POST`/`PUT`/`DELETE` | `/agent/{agentId}/endpoint/{endpointId}/invoke` and `…/invoke/async` | Caller invoke; Bearer `agentKey`; async **202** body includes `requestId`, `callbackUrl`, `progressUrl` (camelCase). |
+| 8 | Gateway | `GET`/`POST`/`PUT`/`DELETE` | `/service/{serviceId}/endpoint/{endpointId}/invoke` and `…/invoke/async` | Caller invoke; Bearer `serviceKey`; async **202** body includes `requestId`, `callbackUrl`, `progressUrl` (camelCase). |
 | 9 | Core | `POST` | `/billing/usage/estimate` | JWT usage pre-flight; `Authorization: Bearer {jwt}`; body `userId`, `agentId`, `estimatedUnits`. **Not** HMAC-signed. |
 
 **Also in repo:** **integration-n8n** may call invoke with a fixed URL layout; keep it aligned with the gateway prefix table in the canonical spec.

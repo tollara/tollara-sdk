@@ -17,7 +17,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class UsageReportRequest {
     private String userId;
-    private String agentId;
+    private String serviceId;
     private BigDecimal unitsUsed;
     private Instant timestamp;
 }

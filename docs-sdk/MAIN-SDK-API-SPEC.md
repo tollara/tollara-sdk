@@ -6,6 +6,8 @@
 - The **AgentVend SDK** (separate **agentvend-sdk** repo) should receive an updated copy of this file whenever the HTTP contract changes so SDK implementations and release notes stay aligned.
 - **Whenever you change** any SDK-facing path, method, header, status code, or JSON field described here (or add a new field to a documented response), you **must** update this document in the same change (or immediately after) and **append an entry to the changelog at the bottom of this file** (date, summary, sections touched). Do not skip the changelog.
 
+**Finding SDK-facing endpoints in agent-hub source:** Platform controllers and services that implement the HTTP contract in this document are tagged in Javadoc with **`AGENTVEND-SDK-ENDPOINT`** (literal string). Search the **agent-hub** repo for that token (e.g. `rg AGENTVEND-SDK-ENDPOINT`) to list classes and methods tied to the **agentvend-sdk** surface. Tags usually cite the relevant section of this file (e.g. §2.1, §4).
+
 This document specifies the exact HTTP APIs that the AgentVend SDK calls. Base URLs for each service are configurable; path prefixes depend on deployment (default vs ECS vs Docker).
 
 **Services and path prefixes:**
@@ -16,41 +18,41 @@ This document specifies the exact HTTP APIs that the AgentVend SDK calls. Base U
 | Core | `/api/v1` (servlet context) | `/core/api/v1` |
 | Usage | `/api/usage` (controller under `/`) | `/usage/api/v1` (controller path empty) |
 
-Full URL = `{baseUrl}{pathPrefix}{path}`. Example: Core validate = `{coreBaseUrl}/api/v1/agent-keys/validate` (default) or `{coreBaseUrl}/core/api/v1/agent-keys/validate` (ECS).
+Full URL = `{baseUrl}{pathPrefix}{path}`. Example: Core validate = `{coreBaseUrl}/api/v1/service-keys/validate` (default) or `{coreBaseUrl}/core/api/v1/service-keys/validate` (ECS).
 
-**Docker / no servlet context-path:** Some core deployments use `context-path: /`. In that case paths are still exposed as `/api/v1/agent-keys/validate`, `/api/v1/agent-keys/estimate-usage`, etc. (single segment after the host:port base URL). Do not duplicate `/api/v1` if your configured `coreBaseUrl` already ends with it.
+**Docker / no servlet context-path:** Some core deployments use `context-path: /`. In that case paths are still exposed as `/api/v1/service-keys/validate`, `/api/v1/service-keys/estimate-usage`, etc. (single segment after the host:port base URL). Do not duplicate `/api/v1` if your configured `coreBaseUrl` already ends with it.
 
 ---
 
-## 1. Gateway – Invoke agent (caller)
+## 1. Gateway – Invoke service (caller)
 
-The SDK uses these when acting as a **caller** (invoking an agent).
+The SDK uses these when acting as a **caller** (invoking a service).
 
 ### 1.1 Sync invoke
 
 **Request**
 
 - **Method:** `GET` | `POST` | `PUT` | `DELETE`
-- **URL:** `{gatewayBaseUrl}{gatewayPathPrefix}/agent/{agentId}/endpoint/{endpointId}/invoke`
+- **URL:** `{gatewayBaseUrl}{gatewayPathPrefix}/service/{serviceId}/endpoint/{endpointId}/invoke`
   - `gatewayPathPrefix`: `/api` (default) or `/gateway/api/v1` (ECS)
 - **Headers:**
-  - `Authorization: Bearer {agentKey}` (required)
+  - `Authorization: Bearer {serviceKey}` (required)
   - `Content-Type: application/json` (for POST/PUT with body)
-- **Body:** Optional. For POST/PUT, any JSON or raw body; forwarded to the agent backend.
+- **Body:** Optional. For POST/PUT, any JSON or raw body; forwarded to the service backend.
 - **Query:** Optional query params forwarded to the backend.
 
 **Response**
 
-- **HTTP status:** Mirrors the **agent backend** status when the gateway rejects the call before forwarding, or when the agent returns an error the gateway maps to a response (commonly **4xx/5xx** with a JSON **`ErrorResponse`**: `code`, `message`, optional `retryAfter` — e.g. `agent_error` with the agent error snippet in `message`).
-- **Successful agent response (2xx) — default:** With **`gateway.event-driven-usage-recording.enabled`** **false** (default), the gateway returns **HTTP 200** and a JSON **`ResultResponse`** (not the raw agent bytes):
+- **HTTP status:** Mirrors the **service backend** status when the gateway rejects the call before forwarding, or when the service returns an error the gateway maps to a response (commonly **4xx/5xx** with a JSON **`ErrorResponse`**: `code`, `message`, optional `retryAfter` — e.g. `service_error` with the service error snippet in `message`).
+- **Successful service response (2xx) — default:** With **`gateway.event-driven-usage-recording.enabled`** **false** (default), the gateway returns **HTTP 200** and a JSON **`ResultResponse`** (not the raw service bytes):
   - `requestId` (string)
   - `status`: `"COMPLETED"`
-  - `result` (string): agent response body (may be large; treat as opaque payload)
-  - `contentType` (string): agent `Content-Type` or `"text/plain"`
+  - `result` (string): service response body (may be large; treat as opaque payload)
+  - `contentType` (string): service `Content-Type` or `"text/plain"`
   - `resultUrl` (string, optional): usually null for gateway invoke
   - `size` (number): byte length hint; may be **0** if not populated
   - `completedAt` (string, ISO-8601 instant): gateway completion time
-- **Successful agent response — event-driven path:** When **`gateway.event-driven-usage-recording.enabled`** is **true**, the usage event is published to Redis first; on **success** the gateway may return **HTTP 200** with the **raw agent body** (same shape as the agent returned) instead of `ResultResponse`. On publish failure it falls through to the default **`ResultResponse`** path above.
+- **Successful service response — event-driven path:** When **`gateway.event-driven-usage-recording.enabled`** is **true**, the usage event is published to Redis first; on **success** the gateway may return **HTTP 200** with the **raw service body** (same shape as the service returned) instead of `ResultResponse`. On publish failure it falls through to the default **`ResultResponse`** path above.
 - **Sync streaming (`Accept: text/event-stream`):** Response is an **SSE stream**, not the JSON wrapper above.
 
 ### 1.2 Async invoke
@@ -58,8 +60,8 @@ The SDK uses these when acting as a **caller** (invoking an agent).
 **Request**
 
 - **Method:** `GET` | `POST` | `PUT` | `DELETE`
-- **URL:** `{gatewayBaseUrl}{gatewayPathPrefix}/agent/{agentId}/endpoint/{endpointId}/invoke/async`
-- **Headers:** Same as sync (`Authorization: Bearer {agentKey}`, optional `Content-Type`, etc.).
+- **URL:** `{gatewayBaseUrl}{gatewayPathPrefix}/service/{serviceId}/endpoint/{endpointId}/invoke/async`
+- **Headers:** Same as sync (`Authorization: Bearer {serviceKey}`, optional `Content-Type`, etc.).
 - **Body:** Optional; same as sync for POST/PUT.
 
 **Response**
@@ -71,18 +73,18 @@ The SDK uses these when acting as a **caller** (invoking an agent).
 |-------|------|-------------|
 | `status` | string | e.g. `"ACCEPTED"` |
 | `requestId` | string | Unique ID for this async job. Use for progress/complete and status/result. |
-| `callbackUrl` | string | **Usage** service URL to POST completion (`…/complete/{requestId}`). In the 202 body this path has **no** query string; completion requests must use **§3** header HMAC (agent secret). |
-| `progressUrl` | string | **Gateway** URL for the **caller** to poll job status (`GET …/requests/{requestId}/status`). Not the same as snake_case `progress_url` in the agent-forwarded body (§1.2 note below). |
+| `callbackUrl` | string | **Usage** service URL to POST completion (`…/complete/{requestId}`). In the 202 body this path has **no** query string; completion requests must use **§3** header HMAC (service secret). |
+| `progressUrl` | string | **Gateway** URL for the **caller** to poll job status (`GET …/requests/{requestId}/status`). Not the same as snake_case `progress_url` in the service-forwarded body (§1.2 note below). |
 
 **Note for caller (202 body):** Fields are **camelCase** (`requestId`, `callbackUrl`, `progressUrl`) as returned by the gateway.
 
-**Note for agent backend (forwarded JSON body):** Separate from the 202 response: the gateway may send **snake_case** `request_id`, `payload`, `progress_url`, and `callback_url`. The `progress_url` / `callback_url` values point at the **usage** service and may include `signature` and `timestamp` **query parameters** from the gateway’s **inbound** HMAC (see §4). **Usage service** progress and completion still require **`X-AgentVend-Signature` and `X-AgentVend-Timestamp` headers** per §3 (body + timestamp signed with the **agent secret**); agents must not assume the query string replaces §3 signing. If the agent does not receive URLs, it may build paths as `{usageBaseUrl}{usagePathPrefix}/progress/{requestId}` and `{usageBaseUrl}{usagePathPrefix}/complete/{requestId}` and sign requests per §3.
+**Note for service backend (forwarded JSON body):** Separate from the 202 response: the gateway may send **snake_case** `request_id`, `payload`, `progress_url`, and `callback_url`. The `progress_url` / `callback_url` values point at the **usage** service and may include `signature` and `timestamp` **query parameters** from the gateway’s **inbound** HMAC (see §4). **Usage service** progress and completion still require **`X-AgentVend-Signature` and `X-AgentVend-Timestamp` headers** per §3 (body + timestamp signed with the **service secret**); services must not assume the query string replaces §3 signing. If the service does not receive URLs, it may build paths as `{usageBaseUrl}{usagePathPrefix}/progress/{requestId}` and `{usageBaseUrl}{usagePathPrefix}/complete/{requestId}` and sign requests per §3.
 
 ### 1.3 Optional: Job status (caller polling)
 
 - **Method:** `GET`
 - **URL:** `{gatewayBaseUrl}{gatewayPathPrefix}/requests/{requestId}/status`
-- **Headers:** `Authorization: Bearer {agentKey}` (if required by deployment).
+- **Headers:** `Authorization: Bearer {serviceKey}` (if required by deployment).
 
 **Response**
 
@@ -99,59 +101,59 @@ The SDK uses these when acting as a **caller** (invoking an agent).
 
 - **Method:** `GET`
 - **URL:** `{gatewayBaseUrl}{gatewayPathPrefix}/requests/{requestId}/result`
-- **Headers:** `Authorization: Bearer {agentKey}` (if required).
+- **Headers:** `Authorization: Bearer {serviceKey}` (if required).
 
 **Response**
 
 - **HTTP 404** — Unknown `requestId`: JSON **`ErrorResponse`** (`code`: `request_not_found`, …), same as §1.3.
 - **HTTP 202** — Job not finished: JSON **`ResultResponse`** with `status` **`PENDING`** or **`RUNNING`**; `result` contains a short status message; `completedAt` may be absent.
 - **HTTP 500** — Job finished with failure: JSON **`ResultResponse`** with `status` **`FAILED`**; `result` / `errorMessage`-style text may appear in `result`.
-- **HTTP 200** — Terminal success: JSON **`ResultResponse`** with `status` **`COMPLETED`** (agent payload in `result`, plus `contentType`, `resultUrl` if stored, `completedAt`, `size` as available).
+- **HTTP 200** — Terminal success: JSON **`ResultResponse`** with `status` **`COMPLETED`** (service payload in `result`, plus `contentType`, `resultUrl` if stored, `completedAt`, `size` as available).
 - **HTTP 200** with `status` **`ERROR`** — Rare: result retrieval error; `result` holds a diagnostic string (check `status` before treating as completed work).
 
 ### 1.5 `PER_TIME_UNIT` billing, streaming endpoints, and Core product validation
 
 **Endpoint flag `isStreaming`:** Each API endpoint in Core may include `isStreaming` (JSON: `isStreaming`). When `true`, the route is allowed to be invoked as **sync** with **`Accept: text/event-stream`** so the gateway can bill wall-clock time for `PER_TIME_UNIT` subscriptions. **Async** endpoints use `isAsync` instead; `isStreaming` applies only to **sync** streaming. If `isAsync` is enabled, streaming sync is not used for that route.
 
-**Gateway (subscribers, non–agent-owner):** When the active subscription resolves to **`PER_TIME_UNIT`** measurement:
+**Gateway (subscribers, non–developer):** When the active subscription resolves to **`PER_TIME_UNIT`** measurement:
 
 - **Async invoke** (`…/invoke/async`) is allowed if the endpoint is configured as async (`isAsync`).
 - **Sync JSON** invoke (no SSE negotiation) returns **400** with a stable error `code` **`time_unit_invocation_not_allowed`**.
 - **Sync with SSE** (client negotiates `text/event-stream`, e.g. `Accept: text/event-stream`) is allowed only if the endpoint has **`isStreaming: true`**. If the client asks for SSE but the endpoint is not streaming, or if the endpoint is streaming but the client does not negotiate SSE and falls back to sync JSON, the gateway rejects with **400** and the same code where applicable.
 
-**Agent owner** invocations skip this gate (owner path is not billed the same way).
+**Developer** invocations skip this gate (owner path is not billed the same way).
 
 **Units:** For a given `unitLabel` and wall-clock interval, streaming completion and non-streaming paths use the same time-unit conversion. When the label is **second**-based, elapsed time includes **fractional seconds** (nanosecond resolution, stored at six decimal places), not truncated whole seconds.
 
-**Core – products:** Creating or updating an agent product whose effective measurement is **`PER_TIME_UNIT`** requires at least one **active** endpoint with **`isAsync` or `isStreaming`**. Otherwise Core returns **409 Conflict** with `code` **`per_time_unit_requires_async_or_streaming_endpoint`** and a short `message`. The gateway still enforces invoke-time rules above.
+**Core – products:** Creating or updating a service product whose effective measurement is **`PER_TIME_UNIT`** requires at least one **active** endpoint with **`isAsync` or `isStreaming`**. Otherwise Core returns **409 Conflict** with `code` **`per_time_unit_requires_async_or_streaming_endpoint`** and a short `message`. The gateway still enforces invoke-time rules above.
 
 ---
 
-## 2. Core – Validate agent key
+## 2. Core – Validate service key
 
-Used by both callers and backends to validate an agent key and get user/plan/entitlement snapshot. Response is HMAC-signed; the SDK **must** verify the signature. Numeric pre-flight uses **estimate** endpoints (§2.2–2.3), not `quotaRemaining` on validate.
+Used by both callers and backends to validate a service key and get user/plan/entitlement snapshot. Response is HMAC-signed; the SDK **must** verify the signature. Numeric pre-flight uses **estimate** endpoints (§2.2–2.3), not `quotaRemaining` on validate.
 
-### 2.1 Validate agent key
+### 2.1 Validate service key
 
 **Request**
 
 - **Method:** `POST`
-- **URL:** `{coreBaseUrl}{corePathPrefix}/agent-keys/validate`
+- **URL:** `{coreBaseUrl}{corePathPrefix}/service-keys/validate`
   - `corePathPrefix`: `/api/v1` (default) or `/core/api/v1` (ECS)
 - **Headers:** `Content-Type: application/json`
 - **Body (JSON):**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `agentKey` | string | yes | The agent API key (Bearer value). |
-| `agentId` | string (UUID) | no | Agent ID. If omitted, core may look it up from the key. |
-| `agentSecret` | string | no* | Agent secret. *Required for HMAC verification of the response; client must have it to verify. |
+| `serviceKey` | string | yes | The service API key (Bearer value). |
+| `serviceId` | string (UUID) | no | Service ID. If omitted, core may look it up from the key. |
+| `serviceSecret` | string | no* | Service secret. *Required for HMAC verification of the response; client must have it to verify. |
 
 **Response (success)**
 
 - **Status:** `200 OK`
 - **Headers:**
-  - `X-AgentVend-Signature`: HMAC-SHA256 (Base64) of `responseBody + timestamp` (timestamp as string, no separator), key = `agentSecret`.
+  - `X-AgentVend-Signature`: HMAC-SHA256 (Base64) of `responseBody + timestamp` (timestamp as string, no separator), key = `serviceSecret`.
   - `X-AgentVend-Timestamp`: Numeric string (Unix epoch seconds).
 - **Body (JSON):**
 
@@ -159,9 +161,9 @@ Used by both callers and backends to validate an agent key and get user/plan/ent
 |-------|------|-------------|
 | `valid` | boolean | `true` if key is valid. |
 | `userId` | string | External user ID. |
-| `agentId` | string | Agent UUID. |
-| `agentKeyId` | string (UUID) | **Present on success.** Database id of the validated agent key (`agent_keys.id`). Omitted or null on error responses. Included in the signed JSON; clients may persist it for correlation. |
-| `plan` | string | Lowercase `SubscriptionPlan` name for subscribers (e.g. `"basic"`); `"owner"` for agent owner with no user product. |
+| `serviceId` | string | Service UUID. |
+| `serviceKeyId` | string (UUID) | **Present on success.** Database id of the validated service key (`service_keys.id`). Omitted or null on error responses. Included in the signed JSON; clients may persist it for correlation. |
+| `plan` | string | Lowercase `SubscriptionPlan` name for subscribers (e.g. `"basic"`); `"owner"` for developer with no user product. |
 | `roles` | string[] | User roles (may be empty). |
 | `validationSchemaVersion` | number | **`2`** on success; indicates signed JSON shape (no `quotaRemaining` field). |
 | `subscriptionActive` | boolean | Whether subscription is active. |
@@ -178,7 +180,7 @@ Used by both callers and backends to validate an agent key and get user/plan/ent
 **SDK must:**
 
 1. Compute `canonical = responseBodyJsonString + X-AgentVend-Timestamp` (string concatenation, no separator).
-2. Compute `expectedSignature = Base64(HMAC-SHA256(canonical, agentSecret))`.
+2. Compute `expectedSignature = Base64(HMAC-SHA256(canonical, serviceSecret))`.
 3. Compare `expectedSignature` with `X-AgentVend-Signature` using **constant-time** comparison.
 4. If they differ, treat the response as invalid and do not trust the body.
 
@@ -194,14 +196,14 @@ Used by both callers and backends to validate an agent key and get user/plan/ent
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `userId` | string (UUID) | yes | Internal core user id (not Cognito sub). |
-| `agentId` | string (UUID) | yes | Agent id. |
+| `serviceId` | string (UUID) | yes | Service id. |
 | `estimatedUnits` | number | yes | Positive; units to pre-check. |
 
 **Authorization:** The principal must be allowed to estimate for `userId` (typically the end user for themselves, or a service/gateway principal with appropriate role).
 
-**Response body (JSON)** — same field set as the agent-key estimate body **excluding** `estimateSchemaVersion` and top-level `timestamp` (§2.3). **`@JsonInclude(NON_NULL)`** omits null-valued properties on this path.
+**Response body (JSON)** — same field set as the service-key estimate body **excluding** `estimateSchemaVersion` and top-level `timestamp` (§2.3). **`@JsonInclude(NON_NULL)`** omits null-valued properties on this path.
 
-**Integrity:** JWT responses are **not** HMAC-signed (no `X-AgentVend-Signature` / `X-AgentVend-Timestamp` from core). Only **§2.3** agent-key responses are signed.
+**Integrity:** JWT responses are **not** HMAC-signed (no `X-AgentVend-Signature` / `X-AgentVend-Timestamp` from core). Only **§2.3** service-key responses are signed.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -225,22 +227,22 @@ Used by both callers and backends to validate an agent key and get user/plan/ent
 - **429 Too Many Requests** — Would exceed spending cap / surplus rules; body includes the estimate JSON above.
 - **400 / 500** — Billing or server errors (see core logs); response may include a **minimal** estimate-shaped body (`wouldAllow` false) or an empty body depending on failure path.
 
-### 2.3 Usage estimate (agent key)
+### 2.3 Usage estimate (service key)
 
-Same trust model as §2.1 (validate): **no Bearer**. Use when the backend only has **agent key + agent secret**.
+Same trust model as §2.1 (validate): **no Bearer**. Use when the backend only has **service key + service secret**.
 
 **Request**
 
 - **Method:** `POST`
-- **URL:** `{coreBaseUrl}{corePathPrefix}/agent-keys/estimate-usage`
+- **URL:** `{coreBaseUrl}{corePathPrefix}/service-keys/estimate-usage`
 - **Headers:** `Content-Type: application/json` only
 - **Body (JSON):**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `agentKey` | string | yes | Same as validate. |
-| `agentId` | string (UUID) | no | If omitted, core may resolve from key. |
-| `agentSecret` | string | no | If sent non-empty, must match server secret (same as validate). |
+| `serviceKey` | string | yes | Same as validate. |
+| `serviceId` | string (UUID) | no | If omitted, core may resolve from key. |
+| `serviceSecret` | string | no | If sent non-empty, must match server secret (same as validate). |
 | `estimatedUnits` | number | yes | Positive. |
 
 **Response (success body)**
@@ -252,15 +254,15 @@ Same business fields as §2.2 (`wouldAllow`, `breakdown`, etc.), plus:
 | `estimateSchemaVersion` | number | Starts at **1**; bump if JSON shape changes. |
 | `timestamp` | number | Unix epoch seconds (aligned with signing). |
 
-**Headers on success:** `X-AgentVend-Signature`, `X-AgentVend-Timestamp` — verify **`HMAC-SHA256(responseBodyJson + timestamp, agentSecret)`** (same concatenation rule as validate response).
+**Headers on success:** `X-AgentVend-Signature`, `X-AgentVend-Timestamp` — verify **`HMAC-SHA256(responseBodyJson + timestamp, serviceSecret)`** (same concatenation rule as validate response).
 
-**Status codes:** **200** allowed; **403** insufficient credits; **429** cap; **400** billing rule failure; **401** bad key/secret/agent. **401** / some **400** / **500** responses may be **unsigned** and have an **empty** body (match validate error behavior). When status is **200**, **403** (credits), or **429**, the JSON body is signed if signature headers are present — verify HMAC on the **raw** body string + timestamp.
+**Status codes:** **200** allowed; **403** insufficient credits; **429** cap; **400** billing rule failure; **401** bad key/secret/service. **401** / some **400** / **500** responses may be **unsigned** and have an **empty** body (match validate error behavior). When status is **200**, **403** (credits), or **429**, the JSON body is signed if signature headers are present — verify HMAC on the **raw** body string + timestamp.
 
 ---
 
 ## 3. Usage service – Report, progress, completion
 
-All three endpoints require request body + timestamp signed with **agent secret** (not the agent key). Algorithm: `canonical = bodyJsonString + timestamp` (timestamp = numeric string, same as header), then `signature = Base64(HMAC-SHA256(canonical, agentSecret))`.
+All three endpoints require request body + timestamp signed with **service secret** (not the service key). Algorithm: `canonical = bodyJsonString + timestamp` (timestamp = numeric string, same as header), then `signature = Base64(HMAC-SHA256(canonical, serviceSecret))`.
 
 **Common headers for all three:**
 
@@ -268,20 +270,20 @@ All three endpoints require request body + timestamp signed with **agent secret*
 - `X-AgentVend-Signature`: signature as above
 - `X-AgentVend-Timestamp`: numeric string (Unix epoch seconds)
 
-### 3.1 Report usage (non-proxied agents)
+### 3.1 Report usage (non-proxied services)
 
 **Request**
 
 - **Method:** `POST`
 - **URL:** `{usageBaseUrl}{usagePathPrefix}/report`
   - `usagePathPrefix`: `/api/usage` (default) or `/usage/api/v1` (ECS)
-- **Headers:** As above (signature = HMAC(body + timestamp, agentSecret)).
+- **Headers:** As above (signature = HMAC(body + timestamp, serviceSecret)).
 - **Body (JSON):**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `userId` | string | yes | External user ID. |
-| `agentId` | string (UUID) | yes | Agent ID. |
+| `serviceId` | string (UUID) | yes | Service ID. |
 | `unitsUsed` | number | yes | Units consumed (e.g. requests, tokens). |
 | `timestamp` | string (ISO-8601) | no | Serialized as an **instant** string when using default JSON mapping; optional for signing (**header** timestamp is used for HMAC). |
 
@@ -306,8 +308,8 @@ All three endpoints require request body + timestamp signed with **agent secret*
 
 - **Method:** `POST`
 - **URL:** `{usageBaseUrl}{usagePathPrefix}/progress/{requestId}`  
-  Or use the full `progress_url` from the async request body sent to the agent (if present).
-- **Headers:** Same as in §3 (signature = HMAC(body + timestamp, agentSecret)).
+  Or use the full `progress_url` from the async request body sent to the service (if present).
+- **Headers:** Same as in §3 (signature = HMAC(body + timestamp, serviceSecret)).
 - **Body (JSON):**
 
 | Field | Type | Required | Description |
@@ -328,8 +330,8 @@ All three endpoints require request body + timestamp signed with **agent secret*
 
 - **Method:** `POST`
 - **URL:** `{usageBaseUrl}{usagePathPrefix}/complete/{requestId}`  
-  Or use the full `callback_url` from the async response or from the request body sent to the agent.
-- **Headers:** Same as in §3 (signature = HMAC(body + timestamp, agentSecret)).
+  Or use the full `callback_url` from the async response or from the request body sent to the service.
+- **Headers:** Same as in §3 (signature = HMAC(body + timestamp, serviceSecret)).
 - **Body (JSON):**
 
 | Field | Type | Required | Description |
@@ -348,11 +350,11 @@ All three endpoints require request body + timestamp signed with **agent secret*
 
 ---
 
-## 4. Headers sent from gateway to agent backend (inbound)
+## 4. Headers sent from gateway to service backend (inbound)
 
 The gateway signs a fixed **user-context suffix** after the request payload and timestamp (**schema v2**). The suffix begins with literal **`"2"`** and does **not** include a quota segment. Verification must use `GatewayHmacUserContext` / the same field order as the gateway.
 
-When the SDK is used in an **agent backend** to verify incoming requests from the gateway, the gateway sends (among others):
+When the SDK is used in an **service backend** to verify incoming requests from the gateway, the gateway sends (among others):
 
 | Header | Description |
 |--------|-------------|
@@ -377,9 +379,9 @@ When the SDK is used in an **agent backend** to verify incoming requests from th
 6. `measurementType` or `""`
 7. `unitLabel` or `""`
 
-Then `canonical = payloadString + timestamp + userContextString` (timestamp as decimal digits, no separator). `signature = Base64(HMAC-SHA256(canonical, agentSecret))`. Compare with constant-time equality to `X-AgentVend-Signature`.
+Then `canonical = payloadString + timestamp + userContextString` (timestamp as decimal digits, no separator). `signature = Base64(HMAC-SHA256(canonical, serviceSecret))`. Compare with constant-time equality to `X-AgentVend-Signature`.
 
-Reference implementation: `com.bugisiw.marketplace.common.util.GatewayHmacUserContext` in **common-utils** (shared with gateway-service).
+Reference implementation: `com.agentvend.common.util.GatewayHmacUserContext` in **common-utils** (shared with gateway-service).
 
 For **async** invokes, the gateway signs the JSON serialization of the async body **before** `progress_url` / `callback_url` query params are added (same as before).
 
@@ -389,11 +391,11 @@ For **async** invokes, the gateway signs the JSON serialization of the async bod
 
 | SDK capability | Service | Method | Path (relative to path prefix) |
 |----------------|---------|--------|----------------------------------|
-| Invoke sync | Gateway | GET/POST/PUT/DELETE | `/agent/{agentId}/endpoint/{endpointId}/invoke` |
-| Invoke async | Gateway | GET/POST/PUT/DELETE | `/agent/{agentId}/endpoint/{endpointId}/invoke/async` |
-| Validate agent key | Core | POST | `/agent-keys/validate` |
+| Invoke sync | Gateway | GET/POST/PUT/DELETE | `/service/{serviceId}/endpoint/{endpointId}/invoke` |
+| Invoke async | Gateway | GET/POST/PUT/DELETE | `/service/{serviceId}/endpoint/{endpointId}/invoke/async` |
+| Validate service key | Core | POST | `/service-keys/validate` |
 | Usage estimate (JWT) | Core | POST | `/billing/usage/estimate` |
-| Usage estimate (agent key) | Core | POST | `/agent-keys/estimate-usage` |
+| Usage estimate (service key) | Core | POST | `/service-keys/estimate-usage` |
 | Report usage | Usage | POST | `/report` |
 | Progress | Usage | POST | `/progress/{requestId}` |
 | Completion | Usage | POST | `/complete/{requestId}` |
@@ -404,12 +406,32 @@ For **async** invokes, the gateway signs the JSON serialization of the async bod
 
 ## 6. HMAC summary (outbound from SDK)
 
-- **Algorithm:** HMAC-SHA256; key = agent secret (UTF-8); output = Base64.
-- **Validate response (core → SDK):** Verify `X-AgentVend-Signature` = Base64(HMAC-SHA256(responseBody + X-AgentVend-Timestamp, agentSecret)). Constant-time compare. Success bodies include `validationSchemaVersion: 2` (no `quotaRemaining`); success bodies may include **`agentKeyId`** (see §2.1).
+- **Algorithm:** HMAC-SHA256; key = service secret (UTF-8); output = Base64.
+- **Validate response (core → SDK):** Verify `X-AgentVend-Signature` = Base64(HMAC-SHA256(responseBody + X-AgentVend-Timestamp, serviceSecret)). Constant-time compare. Success bodies include `validationSchemaVersion: 2` (no `quotaRemaining`); success bodies may include **`serviceKeyId`** (see §2.1).
 - **JWT usage estimate (§2.2):** Response is **not** HMAC-signed; do not expect `X-AgentVend-*` signature headers.
-- **Agent-key estimate response (core → SDK):** Same verification pattern as validate: `responseBody + timestamp` with `agentSecret`. Use the **raw** response body string; new fields (`wouldAllow`, `breakdown`, etc.) are included in the signed JSON automatically.
-- **Gateway → agent (inbound):** `payload + timestamp + GatewayHmacUserContext` v2 (leading `"2"`, no quota).
-- **Report / progress / completion (SDK → usage):** Send `X-AgentVend-Signature` = Base64(HMAC-SHA256(bodyJsonString + timestamp, agentSecret)) and `X-AgentVend-Timestamp` = timestamp (numeric string).
+- **Service-key estimate response (core → SDK):** Same verification pattern as validate: `responseBody + timestamp` with `serviceSecret`. Use the **raw** response body string; new fields (`wouldAllow`, `breakdown`, etc.) are included in the signed JSON automatically.
+- **Gateway → service (inbound):** `payload + timestamp + GatewayHmacUserContext` v2 (leading `"2"`, no quota).
+- **Report / progress / completion (SDK → usage):** Send `X-AgentVend-Signature` = Base64(HMAC-SHA256(bodyJsonString + timestamp, serviceSecret)) and `X-AgentVend-Timestamp` = timestamp (numeric string).
+
+---
+
+## 7. Marketplace service JSON (storefront / HTTP consumers)
+
+Public marketplace and workspace list/detail responses that serialize **`Service`** include branding and optional marketing bullets as follows:
+
+| Field | Meaning |
+|------|---------|
+| **`logoUrl`** | **Resolved** card logo URL for display: from the service’s uploaded **`cardLogoAssetId`** when set, otherwise the owner’s default branding asset, otherwise null. |
+| **`coverImageUrl`** | **Resolved** wide cover image URL, same resolution order as `logoUrl`. |
+| **`cardLogoAssetId`** | Optional FK to **`media_assets`** for a per-service logo override (may be null). |
+| **`cardCoverAssetId`** | Optional FK to **`media_assets`** for a per-service cover override (may be null). |
+| **`cardMarketing`** | Optional object `{ "features": [ { "id", "label", "displayOrder", "infoTooltip" } ] }` — ordered marketplace feature bullets (relational storage, not a JSON column on `services`). |
+
+**Owner defaults:** **`Developer`** exposes **`brandingLogoAssetId` / `brandingCoverAssetId`** (uploaded media) plus read-only **`brandingLogoUrl` / `brandingCoverUrl`** resolved from those assets for display. Profile updates use **`marketplaceBranding`** `{ "logoAssetId", "coverAssetId" }` (null clears a slot). Sending this patch applies **both** slots; include the current id for a slot you do not intend to clear.
+
+**Owner APIs (core-service):** `POST /developers/profile/marketplace-branding/media/upload` (multipart `file`) returns a **`MediaAsset`**; then `PUT /developers/profile` with `marketplaceBranding`.
+
+**Developer APIs:** `PUT /api/v1/services/{id}/card-media` with `{ "cardLogoAssetId", "cardCoverAssetId" }` (null clears); `PUT /api/v1/services/{id}/card-marketing` with `{ "features": [ { "label", "infoTooltip" } ] }` (replaces all lines). Per-service images use the same **`media_assets`** pipeline as profile uploads (`POST …/services/{id}/profile/media/upload`).
 
 ---
 
@@ -417,7 +439,10 @@ For **async** invokes, the gateway signs the JSON serialization of the async bod
 
 | Date | Summary |
 |------|---------|
-| 2026-05-03 | **`agentKeyId`** (§2.1, §6); async **202** vs agent URLs + **§3** signing (§1.2); **`GET …/result`** HTTP matrix (§1.4); maintenance + repo link renames to this path. **Spec review:** §1.1 default **`ResultResponse`** / event-driven raw body / SSE + **`ErrorResponse`** failures; §1.3 **404** + **`StatusResponse`**; §1.4 **404** + **`ResultResponse`** branches + **ERROR**; §2.1 **500**; §2.2 JWT **unsigned** + **`NON_NULL`**; §3 **ISO-8601** timestamps; §3.3 **`JobStatus`** strings; §6 JWT note. |
+| 2026-05-05 | **Discovery + accuracy:** Documented **`AGENTVEND-SDK-ENDPOINT`** Javadoc tag for finding agent-hub implementations of this spec. **§2.1** `serviceKeyId` description now references DB table **`service_keys`** (replaces stale `agent_keys`). |
+| 2026-05-04 | **Rename plan (agent-hub / platform):** SDK HTTP surface uses paths under **`/services`**, **`/developers`**, **`/service-keys`**, **`/service/{serviceId}/endpoint/{endpointId}/invoke`** (and related gateway/usage paths in §1–§5). Request/response JSON uses **`serviceKey`**, **`serviceId`**, **`serviceSecret`**, **`serviceKeyId`**, **`serviceProductId`**, and developer-oriented IDs/metadata aligned with DB migrations (e.g. **`developers`**, **`service_keys`**, **`service_products`**). Validate success bodies use **`validationSchemaVersion: 2`** (no `quotaRemaining`). Brand **`AgentVend`**, **`X-AgentVend-*`** headers, **`AGENTVEND_*`** env vars, and SDK type names such as **`AgentVendClient`** / **`AgentVendRequestVerifier`** are unchanged. Marketplace publisher Cognito role is **`DEVELOPER`**; end-user role **`USER`**. Coordinate standalone **agentvend-sdk** releases with this file when contract fields or paths change. |
+| 2026-05-03 | **§7** Marketplace card: **`cardMarketing`**, **`cardLogoAssetId` / `cardCoverAssetId`**, resolved **`logoUrl` / `coverImageUrl`** from **`media_assets`**; owner **`marketplaceBranding`** + **`brandingLogoAssetId` / `brandingCoverAssetId`**; **`PUT …/card-media`** and **`PUT …/card-marketing`**. |
+| 2026-05-03 | **`serviceKeyId`** (§2.1, §6); async **202** vs service URLs + **§3** signing (§1.2); **`GET …/result`** HTTP matrix (§1.4); maintenance + repo link renames to this path. **Spec review:** §1.1 default **`ResultResponse`** / event-driven raw body / SSE + **`ErrorResponse`** failures; §1.3 **404** + **`StatusResponse`**; §1.4 **404** + **`ResultResponse`** branches + **ERROR**; §2.1 **500**; §2.2 JWT **unsigned** + **`NON_NULL`**; §3 **ISO-8601** timestamps; §3.3 **`JobStatus`** strings; §6 JWT note. |
 
 ---
 

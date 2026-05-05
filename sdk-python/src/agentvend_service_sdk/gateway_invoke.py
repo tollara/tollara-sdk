@@ -1,4 +1,4 @@
-"""Gateway agent invoke (sync/async). See ``docs-sdk/MAIN-SDK-API-SPEC.md`` §1.1–1.2."""
+"""Gateway service invoke (sync/async). See ``docs-sdk/MAIN-SDK-API-SPEC.md`` §1.1–1.2."""
 
 from __future__ import annotations
 
@@ -26,29 +26,29 @@ class GatewayInvokeResult:
     async_envelope: Optional[GatewayInvokeAsyncEnvelope] = None
 
 
-def invoke_agent(
+def invoke_service(
     gateway_base_url: str,
     method: str,
-    agent_id: str,
+    service_id: str,
     endpoint_id: str,
-    agent_key: str,
+    service_key: str,
     *,
     body: Optional[str] = None,
     async_: bool = False,
     gateway_path_prefix: str = DEFAULT_GATEWAY_PATH_PREFIX,
     session: Optional["requests.Session"] = None,
 ) -> Optional[GatewayInvokeResult]:
-    """Invoke gateway ``…/agent/{agentId}/endpoint/{endpointId}/invoke`` (or ``…/invoke/async``). Requires ``requests``."""
+    """Invoke gateway ``…/service/{serviceId}/endpoint/{endpointId}/invoke`` (or ``…/invoke/async``). Requires ``requests``."""
     try:
         import requests
     except ImportError:
-        raise ImportError("invoke_agent requires 'requests'. pip install requests")
-    suffix = f"/agent/{agent_id}/endpoint/{endpoint_id}/invoke"
+        raise ImportError("invoke_service requires 'requests'. pip install requests")
+    suffix = f"/service/{service_id}/endpoint/{endpoint_id}/invoke"
     if async_:
         suffix += "/async"
     url = _build_url(gateway_base_url, gateway_path_prefix, suffix)
     m = (method or "GET").strip().upper()
-    headers: Dict[str, str] = {"Authorization": f"Bearer {agent_key}"}
+    headers: Dict[str, str] = {"Authorization": f"Bearer {service_key}"}
     payload = body or None
     if payload and m in ("POST", "PUT"):
         headers["Content-Type"] = "application/json"

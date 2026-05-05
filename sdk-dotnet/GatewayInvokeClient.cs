@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace AgentVend;
 
-/// <summary>Gateway agent invoke (sync/async). See platform spec §1.1–1.2.</summary>
+/// <summary>Gateway service invoke (sync/async). See platform spec §1.1–1.2.</summary>
 public record GatewayInvokeAsyncEnvelope(string RequestId, string CallbackUrl, string ProgressUrl);
 
 public record GatewayInvokeResult(int StatusCode, string Body, GatewayInvokeAsyncEnvelope? AsyncEnvelope);
@@ -18,18 +18,18 @@ public static class GatewayInvokeClient
         string gatewayBaseUrl,
         string gatewayPathPrefix,
         string method,
-        string agentId,
+        string serviceId,
         string endpointId,
-        string agentKey,
+        string serviceKey,
         string? body,
         bool async,
         CancellationToken ct = default)
     {
-        var suffix = $"/agent/{agentId}/endpoint/{endpointId}/invoke" + (async ? "/async" : "");
+        var suffix = $"/service/{serviceId}/endpoint/{endpointId}/invoke" + (async ? "/async" : "");
         var url = BuildUrl(gatewayBaseUrl, gatewayPathPrefix, suffix);
         var m = new HttpMethod((method ?? "GET").Trim().ToUpperInvariant());
         using var req = new HttpRequestMessage(m, url);
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", agentKey);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", serviceKey);
         if (!string.IsNullOrEmpty(body) && (m == HttpMethod.Post || m == HttpMethod.Put))
         {
             req.Content = new StringContent(body, Encoding.UTF8, "application/json");

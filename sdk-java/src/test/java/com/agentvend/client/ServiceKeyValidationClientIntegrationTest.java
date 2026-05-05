@@ -17,44 +17,42 @@ import static com.github.tomakehurst.wiremock.junit5.WireMockExtension.newInstan
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 
 /**
- * Integration tests for AgentKeyValidationClient against WireMock stubs of the AgentVend Core API
- * (see docs/sdk-api-spec.md §2).
+ * Integration tests for ServiceKeyValidationClient against WireMock stubs of the AgentVend Core API
+ * (see docs-sdk/MAIN-SDK-API-SPEC.md §2).
  */
-class AgentKeyValidationClientIntegrationTest {
+class ServiceKeyValidationClientIntegrationTest {
 
-    private static final String AGENT_SECRET = "test-agent-secret";
-    private static final String AGENT_ID = "550e8400-e29b-41d4-a716-446655440000";
-    private static final String AGENT_KEY_ID = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
+    private static final String SERVICE_SECRET = "test-service-secret";
+    private static final String SERVICE_ID = "550e8400-e29b-41d4-a716-446655440000";
+    private static final String SERVICE_KEY_ID = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
     @RegisterExtension
     static WireMockExtension wireMock = newInstance()
             .options(wireMockConfig().dynamicPort())
             .build();
 
-    private AgentKeyValidationClient client;
+    private ServiceKeyValidationClient client;
     private String coreBaseUrl;
 
     @BeforeEach
     void setUp() {
         int port = wireMock.getPort();
         coreBaseUrl = "http://localhost:" + port + "/api/v1";
-        client = new AgentKeyValidationClient(coreBaseUrl, AGENT_ID, AGENT_SECRET, HttpClient.newHttpClient());
+        client = new ServiceKeyValidationClient(coreBaseUrl, SERVICE_ID, SERVICE_SECRET, HttpClient.newHttpClient());
     }
 
     @Test
-    void validateAgentKey_returnsResult_whenCoreReturns200WithValidHmac() throws Exception {
-        // Per API spec §2.1: response has X-AgentVend-Signature = HMAC(responseBody + timestamp, agentSecret)
-        // Must match ObjectMapper.writeValueAsString(ValidationResponse) after deserialize (includes null optional fields).
+    void validateServiceKey_returnsResult_whenCoreReturns200WithValidHmac() throws Exception {
         String responseBody = """
-            {"valid":true,"agentKeyId":"%s","userId":"user-123","agentId":"%s","plan":"basic","roles":["user"],"quotaRemaining":100,"subscriptionActive":true,"billingModelType":null,"measurementType":null,"unitLabel":null,"timestamp":1700000000,"error":null,"validationSchemaVersion":1}
-            """.formatted(AGENT_KEY_ID, AGENT_ID).trim();
+            {"valid":true,"serviceKeyId":"%s","userId":"user-123","serviceId":"%s","plan":"basic","roles":["user"],"subscriptionActive":true,"billingModelType":null,"measurementType":null,"unitLabel":null,"timestamp":1700000000,"error":null,"validationSchemaVersion":2}
+            """.formatted(SERVICE_KEY_ID, SERVICE_ID).trim();
         String timestamp = "1700000000";
         String canonical = responseBody + timestamp;
-        String signature = HmacUtils.calculateHmac(canonical, AGENT_SECRET);
+        String signature = HmacUtils.calculateHmac(canonical, SERVICE_SECRET);
 
         wireMock.stubFor(
-                post(urlPathEqualTo("/api/v1/agent-keys/validate"))
-                        .withRequestBody(containing("agentKey"))
+                post(urlPathEqualTo("/api/v1/service-keys/validate"))
+                        .withRequestBody(containing("serviceKey"))
                         .willReturn(aResponse()
                                 .withStatus(200)
                                 .withHeader("Content-Type", "application/json")
@@ -63,42 +61,41 @@ class AgentKeyValidationClientIntegrationTest {
                                 .withBody(responseBody))
         );
 
-        AgentKeyValidationClient.AgentKeyValidationResult result = client.validateAgentKey("bearer-token-xyz");
+        ServiceKeyValidationClient.ServiceKeyValidationResult result = client.validateServiceKey("bearer-token-xyz");
 
         assertThat(result).isNotNull();
         assertThat(result.getUserId()).isEqualTo("user-123");
-        assertThat(result.getAgentId()).isEqualTo(AGENT_ID);
+        assertThat(result.getServiceId()).isEqualTo(SERVICE_ID);
         assertThat(result.getPlan()).isEqualTo("basic");
         assertThat(result.getRoles()).containsExactly("user");
-        assertThat(result.getQuotaRemaining()).isEqualByComparingTo(BigDecimal.valueOf(100));
+        assertThat(result.getQuotaRemaining()).isNull();
         assertThat(result.isSubscriptionActive()).isTrue();
-        assertThat(result.getAgentKeyId()).isEqualTo(UUID.fromString(AGENT_KEY_ID));
+        assertThat(result.getServiceKeyId()).isEqualTo(UUID.fromString(SERVICE_KEY_ID));
     }
 
     @Test
-    void validateAgentKey_returnsNull_whenCoreReturns401() {
+    void validateServiceKey_returnsNull_whenCoreReturns401() {
         wireMock.stubFor(
-                post(urlPathEqualTo("/api/v1/agent-keys/validate"))
+                post(urlPathEqualTo("/api/v1/service-keys/validate"))
                         .willReturn(aResponse()
                                 .withStatus(401)
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("{\"valid\":false,\"error\":\"Invalid key\"}"))
         );
 
-        AgentKeyValidationClient.AgentKeyValidationResult result = client.validateAgentKey("invalid-key");
+        ServiceKeyValidationClient.ServiceKeyValidationResult result = client.validateServiceKey("invalid-key");
 
         assertThat(result).isNull();
     }
 
     @Test
-    void validateAgentKey_returnsNull_whenHmacSignatureInvalid() throws Exception {
-        String responseBody = "{\"valid\":true,\"userId\":\"user-123\",\"agentId\":\"" + AGENT_ID + "\",\"plan\":\"basic\",\"roles\":[],\"quotaRemaining\":100,\"subscriptionActive\":true,\"timestamp\":1700000000}";
+    void validateServiceKey_returnsNull_whenHmacSignatureInvalid() throws Exception {
+        String responseBody = "{\"valid\":true,\"userId\":\"user-123\",\"serviceId\":\"" + SERVICE_ID + "\",\"plan\":\"basic\",\"roles\":[],\"subscriptionActive\":true,\"timestamp\":1700000000,\"validationSchemaVersion\":2}";
         String timestamp = "1700000000";
-        // Wrong signature (wrong secret used)
         String badSignature = HmacUtils.calculateHmac(responseBody + timestamp, "wrong-secret");
 
         wireMock.stubFor(
-                post(urlPathEqualTo("/api/v1/agent-keys/validate"))
+                post(urlPathEqualTo("/api/v1/service-keys/validate"))
                         .willReturn(aResponse()
                                 .withStatus(200)
                                 .withHeader("Content-Type", "application/json")
@@ -107,19 +104,19 @@ class AgentKeyValidationClientIntegrationTest {
                                 .withBody(responseBody))
         );
 
-        AgentKeyValidationClient.AgentKeyValidationResult result = client.validateAgentKey("bearer-token");
+        ServiceKeyValidationClient.ServiceKeyValidationResult result = client.validateServiceKey("bearer-token");
 
         assertThat(result).isNull();
     }
 
     @Test
-    void validateAgentKey_returnsNull_whenValidFalseInBody() throws Exception {
-        String responseBody = "{\"valid\":false,\"userId\":null,\"agentId\":null,\"plan\":null,\"roles\":[],\"quotaRemaining\":null,\"subscriptionActive\":false,\"billingModelType\":null,\"measurementType\":null,\"unitLabel\":null,\"timestamp\":1700000000,\"error\":\"Key expired\"}";
+    void validateServiceKey_returnsNull_whenValidFalseInBody() throws Exception {
+        String responseBody = "{\"valid\":false,\"userId\":null,\"serviceId\":null,\"plan\":null,\"roles\":[],\"subscriptionActive\":false,\"billingModelType\":null,\"measurementType\":null,\"unitLabel\":null,\"timestamp\":1700000000,\"error\":\"Key expired\"}";
         String timestamp = "1700000000";
-        String signature = HmacUtils.calculateHmac(responseBody + timestamp, AGENT_SECRET);
+        String signature = HmacUtils.calculateHmac(responseBody + timestamp, SERVICE_SECRET);
 
         wireMock.stubFor(
-                post(urlPathEqualTo("/api/v1/agent-keys/validate"))
+                post(urlPathEqualTo("/api/v1/service-keys/validate"))
                         .willReturn(aResponse()
                                 .withStatus(200)
                                 .withHeader("Content-Type", "application/json")
@@ -128,7 +125,7 @@ class AgentKeyValidationClientIntegrationTest {
                                 .withBody(responseBody))
         );
 
-        AgentKeyValidationClient.AgentKeyValidationResult result = client.validateAgentKey("expired-key");
+        ServiceKeyValidationClient.ServiceKeyValidationResult result = client.validateServiceKey("expired-key");
 
         assertThat(result).isNull();
     }
@@ -140,11 +137,11 @@ class AgentKeyValidationClientIntegrationTest {
             """.trim();
         String timestamp = "1700000000";
         String canonical = responseBody + timestamp;
-        String signature = HmacUtils.calculateHmac(canonical, AGENT_SECRET);
+        String signature = HmacUtils.calculateHmac(canonical, SERVICE_SECRET);
 
         wireMock.stubFor(
-                post(urlPathEqualTo("/api/v1/agent-keys/estimate-usage"))
-                        .withRequestBody(matchingJsonPath("$.agentKey"))
+                post(urlPathEqualTo("/api/v1/service-keys/estimate-usage"))
+                        .withRequestBody(matchingJsonPath("$.serviceKey"))
                         .withRequestBody(matchingJsonPath("$.estimatedUnits"))
                         .willReturn(aResponse()
                                 .withStatus(200)
@@ -174,9 +171,10 @@ class AgentKeyValidationClientIntegrationTest {
         String badSig = HmacUtils.calculateHmac(responseBody + timestamp, "wrong-secret");
 
         wireMock.stubFor(
-                post(urlPathEqualTo("/api/v1/agent-keys/estimate-usage"))
+                post(urlPathEqualTo("/api/v1/service-keys/estimate-usage"))
                         .willReturn(aResponse()
                                 .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
                                 .withHeader("X-AgentVend-Signature", badSig)
                                 .withHeader("X-AgentVend-Timestamp", timestamp)
                                 .withBody(responseBody))

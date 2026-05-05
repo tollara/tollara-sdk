@@ -24,23 +24,23 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Client for validating agent keys via the core-service validation endpoint.
+ * Client for validating service keys via the core-service validation endpoint.
  */
 @Slf4j
-public class AgentKeyValidationClient {
+public class ServiceKeyValidationClient {
 
     private final String coreServiceUrl;
-    private final String agentId;
-    private final String agentSecret;
+    private final String serviceId;
+    private final String serviceSecret;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final Map<String, CachedValidationResult> cache = new ConcurrentHashMap<>();
     private static final long CACHE_TTL_MS = 60_000;
 
-    public AgentKeyValidationClient(String coreServiceUrl, String agentId, String agentSecret, HttpClient httpClient) {
+    public ServiceKeyValidationClient(String coreServiceUrl, String serviceId, String serviceSecret, HttpClient httpClient) {
         this.coreServiceUrl = coreServiceUrl;
-        this.agentId = agentId;
-        this.agentSecret = agentSecret;
+        this.serviceId = serviceId;
+        this.serviceSecret = serviceSecret;
         this.httpClient = httpClient;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
@@ -48,19 +48,19 @@ public class AgentKeyValidationClient {
     }
 
     /**
-     * Validates an agent key and returns user context. Uses caching (TTL 60s).
+     * Validates a service key and returns user context. Uses caching (TTL 60s).
      */
-    public AgentKeyValidationResult validateAgentKey(String agentKey) {
-        if (agentKey == null || agentKey.isEmpty()) {
-            log.warn("Agent key is null or empty");
+    public ServiceKeyValidationResult validateServiceKey(String serviceKey) {
+        if (serviceKey == null || serviceKey.isEmpty()) {
+            log.warn("Service key is null or empty");
             return null;
         }
-        CachedValidationResult cached = cache.get(agentKey);
+        CachedValidationResult cached = cache.get(serviceKey);
         if (cached != null && !cached.isExpired()) {
             return cached.getResult();
         }
-        String validateUrl = coreServiceUrl + "/agent-keys/validate";
-        ValidateRequest request = new ValidateRequest(agentKey, agentId, agentSecret);
+        String validateUrl = coreServiceUrl + "/service-keys/validate";
+        ValidateRequest request = new ValidateRequest(serviceKey, serviceId, serviceSecret);
         int maxRetries = 5;
         long retryDelayMs = 200;
         for (int attempt = 0; attempt < maxRetries; attempt++) {
@@ -79,22 +79,22 @@ public class AgentKeyValidationClient {
                         return null;
                     }
                     long timestamp = Long.parseLong(timestampStr);
-                    if (!HmacUtils.validateHmacSignature(signature, responseText + timestamp, agentSecret)) {
+                    if (!HmacUtils.validateHmacSignature(signature, responseText + timestamp, serviceSecret)) {
                         log.warn("Invalid HMAC signature in validation response");
                         return null;
                     }
                     ValidationResponse validationResponse =
                             objectMapper.readValue(responseText, ValidationResponse.class);
                     if (!validationResponse.isValid()) {
-                        log.warn("Agent key validation failed: {}", validationResponse.getError());
+                        log.warn("Service key validation failed: {}", validationResponse.getError());
                         return null;
                     }
-                    String resultAgentId = validationResponse.getAgentId() != null
-                            ? validationResponse.getAgentId() : agentId;
-                    AgentKeyValidationResult result = AgentKeyValidationResult.builder()
+                    String resultServiceId = validationResponse.getServiceId() != null
+                            ? validationResponse.getServiceId() : serviceId;
+                    ServiceKeyValidationResult result = ServiceKeyValidationResult.builder()
                             .userId(validationResponse.getUserId())
-                            .agentId(resultAgentId)
-                            .agentKeyId(validationResponse.getAgentKeyId())
+                            .serviceId(resultServiceId)
+                            .serviceKeyId(validationResponse.getServiceKeyId())
                             .plan(validationResponse.getPlan())
                             .roles(validationResponse.getRoles() != null ? validationResponse.getRoles() : Collections.emptyList())
                             .quotaRemaining(validationResponse.getQuotaRemaining())
@@ -103,16 +103,16 @@ public class AgentKeyValidationClient {
                             .measurementType(validationResponse.getMeasurementType())
                             .unitLabel(validationResponse.getUnitLabel())
                             .build();
-                    cache.put(agentKey, new CachedValidationResult(result, System.currentTimeMillis()));
+                    cache.put(serviceKey, new CachedValidationResult(result, System.currentTimeMillis()));
                     return result;
                 }
                 if (response.statusCode() >= 400 && response.statusCode() < 500) {
-                    log.warn("HTTP client error validating agent key: {}", response.statusCode());
+                    log.warn("HTTP client error validating service key: {}", response.statusCode());
                     return null;
                 }
                 return null;
             } catch (IOException e) {
-                log.warn("Timeout/connection error validating agent key, attempt {}/{}: {}", attempt + 1, maxRetries, e.getMessage());
+                log.warn("Timeout/connection error validating service key, attempt {}/{}: {}", attempt + 1, maxRetries, e.getMessage());
                 if (attempt < maxRetries - 1) {
                     try {
                         long jitter = (long) (Math.random() * 20);
@@ -122,14 +122,14 @@ public class AgentKeyValidationClient {
                         return null;
                     }
                 } else {
-                    log.error("Error validating agent key after {} attempts: {}", maxRetries, e.getMessage(), e);
+                    log.error("Error validating service key after {} attempts: {}", maxRetries, e.getMessage(), e);
                     return null;
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return null;
             } catch (Exception e) {
-                log.error("Error validating agent key: {}", e.getMessage(), e);
+                log.error("Error validating service key: {}", e.getMessage(), e);
                 return null;
             }
         }
@@ -137,27 +137,27 @@ public class AgentKeyValidationClient {
     }
 
     /**
-     * Pre-flight usage estimate for an agent key (Core {@code POST /agent-keys/estimate-usage}). Same trust model as
-     * {@link #validateAgentKey(String)}: no Bearer; body carries {@code agentKey} and optional {@code agentId} /
-     * {@code agentSecret}. Verifies HMAC on the raw response body when {@code X-AgentVend-Signature} and
+     * Pre-flight usage estimate for a service key (Core {@code POST /service-keys/estimate-usage}). Same trust model as
+     * {@link #validateServiceKey(String)}: no Bearer; body carries {@code serviceKey} and optional {@code serviceId} /
+     * {@code serviceSecret}. Verifies HMAC on the raw response body when {@code X-AgentVend-Signature} and
      * {@code X-AgentVend-Timestamp} are present (200 / 403 / 429).
      *
-     * @param agentKey       caller's agent API key (required)
+     * @param serviceKey     caller's service API key (required)
      * @param estimatedUnits positive units to estimate (decimals allowed when the product allows)
      * @return parsed {@link com.agentvend.client.model.UsageEstimateResult} with HTTP status set from the response, or {@code null} on error / failed verification
      */
-    public UsageEstimateResult estimateUsage(String agentKey, BigDecimal estimatedUnits) {
+    public UsageEstimateResult estimateUsage(String serviceKey, BigDecimal estimatedUnits) {
         Objects.requireNonNull(estimatedUnits, "estimatedUnits");
-        if (agentKey == null || agentKey.isEmpty()) {
-            log.warn("Agent key is null or empty");
+        if (serviceKey == null || serviceKey.isEmpty()) {
+            log.warn("Service key is null or empty");
             return null;
         }
         if (estimatedUnits.signum() <= 0) {
             log.warn("estimatedUnits must be positive");
             return null;
         }
-        String estimateUrl = coreServiceUrl + "/agent-keys/estimate-usage";
-        EstimateUsageRequest request = new EstimateUsageRequest(agentKey, agentId, agentSecret, estimatedUnits);
+        String estimateUrl = coreServiceUrl + "/service-keys/estimate-usage";
+        EstimateUsageRequest request = new EstimateUsageRequest(serviceKey, serviceId, serviceSecret, estimatedUnits);
         int maxRetries = 5;
         long retryDelayMs = 200;
         for (int attempt = 0; attempt < maxRetries; attempt++) {
@@ -178,7 +178,7 @@ public class AgentKeyValidationClient {
                     String timestampStr =
                             response.headers().firstValue(AgentVendHeaders.TIMESTAMP).orElse(null);
                     if (signature != null && timestampStr != null) {
-                        if (!HmacUtils.validateHmacSignature(signature, responseText + timestampStr, agentSecret)) {
+                        if (!HmacUtils.validateHmacSignature(signature, responseText + timestampStr, serviceSecret)) {
                             log.warn("Invalid HMAC signature in estimate-usage response");
                             return null;
                         }
@@ -228,19 +228,19 @@ public class AgentKeyValidationClient {
      *
      * @param bearerToken    {@code Authorization: Bearer} value (JWT)
      * @param userId         internal Core user id (UUID string)
-     * @param agentId        agent id (UUID string)
+     * @param serviceId      service id (UUID string)
      * @param estimatedUnits positive units to estimate
      * @return parsed estimate on 200/403/429 with JSON body, otherwise {@code null}
      */
     public UsageEstimateResult estimateUsageWithJwt(
-            String bearerToken, String userId, String agentId, BigDecimal estimatedUnits) {
+            String bearerToken, String userId, String serviceId, BigDecimal estimatedUnits) {
         Objects.requireNonNull(estimatedUnits, "estimatedUnits");
         if (bearerToken == null || bearerToken.isBlank()) {
             log.warn("bearerToken is null or empty");
             return null;
         }
-        if (userId == null || userId.isBlank() || agentId == null || agentId.isBlank()) {
-            log.warn("userId and agentId are required for JWT usage estimate");
+        if (userId == null || userId.isBlank() || serviceId == null || serviceId.isBlank()) {
+            log.warn("userId and serviceId are required for JWT usage estimate");
             return null;
         }
         if (estimatedUnits.signum() <= 0) {
@@ -251,7 +251,7 @@ public class AgentKeyValidationClient {
         try {
             Map<String, Object> bodyMap = new HashMap<>();
             bodyMap.put("userId", userId);
-            bodyMap.put("agentId", agentId);
+            bodyMap.put("serviceId", serviceId);
             bodyMap.put("estimatedUnits", estimatedUnits);
             String bodyJson = objectMapper.writeValueAsString(bodyMap);
             Map<String, String> headers = new HashMap<>();
@@ -290,18 +290,18 @@ public class AgentKeyValidationClient {
     @NoArgsConstructor
     @AllArgsConstructor
     private static class ValidateRequest {
-        private String agentKey;
-        private String agentId;
-        private String agentSecret;
+        private String serviceKey;
+        private String serviceId;
+        private String serviceSecret;
     }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     private static class EstimateUsageRequest {
-        private String agentKey;
-        private String agentId;
-        private String agentSecret;
+        private String serviceKey;
+        private String serviceId;
+        private String serviceSecret;
         private BigDecimal estimatedUnits;
     }
 
@@ -311,12 +311,12 @@ public class AgentKeyValidationClient {
     private static class ValidationResponse {
         private boolean valid;
         /** Core row id for the validated key; absent on older responses. */
-        private UUID agentKeyId;
+        private UUID serviceKeyId;
         private String userId;
-        private String agentId;
+        private String serviceId;
         private String plan;
         private List<String> roles;
-        /** Absent when {@code validationSchemaVersion} is 2 (see docs/sdk-api-spec.md §2.1). */
+        /** Absent when {@code validationSchemaVersion} is 2 (see MAIN-SDK-API-SPEC §2.1). */
         private BigDecimal quotaRemaining;
         private boolean subscriptionActive;
         private String billingModelType;
@@ -332,10 +332,10 @@ public class AgentKeyValidationClient {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class AgentKeyValidationResult {
+    public static class ServiceKeyValidationResult {
         private String userId;
-        private String agentId;
-        private UUID agentKeyId;
+        private String serviceId;
+        private UUID serviceKeyId;
         private String plan;
         private List<String> roles;
         private BigDecimal quotaRemaining;
@@ -346,15 +346,15 @@ public class AgentKeyValidationClient {
     }
 
     private static class CachedValidationResult {
-        private final AgentKeyValidationResult result;
+        private final ServiceKeyValidationResult result;
         private final long timestamp;
 
-        CachedValidationResult(AgentKeyValidationResult result, long timestamp) {
+        CachedValidationResult(ServiceKeyValidationResult result, long timestamp) {
             this.result = result;
             this.timestamp = timestamp;
         }
 
-        AgentKeyValidationResult getResult() {
+        ServiceKeyValidationResult getResult() {
             return result;
         }
 

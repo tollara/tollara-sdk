@@ -24,11 +24,11 @@ import java.util.function.Function;
 @Slf4j
 public class AgentVendRequestVerifier {
 
-    private final String agentSecret;
+    private final String serviceSecret;
     private final ObjectMapper objectMapper;
 
-    public AgentVendRequestVerifier(String agentSecret) {
-        this.agentSecret = agentSecret;
+    public AgentVendRequestVerifier(String serviceSecret) {
+        this.serviceSecret = serviceSecret;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -229,7 +229,7 @@ public class AgentVendRequestVerifier {
             String userId, String plan, List<String> roles, BigDecimal quotaRemaining,
             boolean subscriptionActive, String billingModelType, String measurementType, String unitLabel,
             String signingVersion) {
-        if (signature == null || timestamp == null || agentSecret == null || agentSecret.isEmpty()) {
+        if (signature == null || timestamp == null || serviceSecret == null || serviceSecret.isEmpty()) {
             log.warn("Missing required parameters for HMAC verification");
             return false;
         }
@@ -250,7 +250,7 @@ public class AgentVendRequestVerifier {
             }
             String dataToSign = payloadString + timestampLong + userContextString;
 
-            String expectedSignature = HmacUtils.calculateHmac(dataToSign, agentSecret);
+            String expectedSignature = HmacUtils.calculateHmac(dataToSign, serviceSecret);
             boolean isValid = HmacUtils.constantTimeEquals(expectedSignature, signature);
             if (!isValid) {
                 log.warn("HMAC signature verification failed");
