@@ -330,6 +330,3 @@ class AgentVendClient:
             session=session or self._session,
         )
 
-    # Backward-compatible aliases for older agent-oriented API.
-    validate_agent_key = validate_service_key
-    invoke_agent = invoke_service
