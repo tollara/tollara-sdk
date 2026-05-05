@@ -48,13 +48,13 @@ Python 3.10+
 ## Install
 
 ```bash
-pip install agentvend-sdk
+pip install agentvend-service-sdk
 ```
 
 HTTP features (validate, usage, gateway, progress):
 
 ```bash
-pip install agentvend-sdk[http]
+pip install agentvend-service-sdk[http]
 ```
 
 ## Examples
@@ -68,7 +68,7 @@ Pass a **header map** (keys matched case-insensitively) and the **raw body** the
 ```python
 from agentvend_service_sdk import verify_inbound_context
 
-ctx = verify_inbound_context(agent_secret, headers, raw_body)
+ctx = verify_inbound_context(service_secret, headers, raw_body)
 if ctx is not None:
     # ctx.user_id, ctx.plan, ...
     ...
@@ -81,11 +81,11 @@ The former name `verify_signature_from_headers_and_get_user_context` remains ava
 ```python
 from agentvend_service_sdk import verify_signature_from_headers, get_user_context
 
-if verify_signature_from_headers(agent_secret, headers, raw_body):
+if verify_signature_from_headers(service_secret, headers, raw_body):
     ctx = get_user_context(headers)
 ```
 
-For full control, build `InboundHmacRequest` with `SignedUserContext` and call `verify_inbound_hmac(agent_secret, req)`.
+For full control, build `InboundHmacRequest` with `SignedUserContext` and call `verify_inbound_hmac(service_secret, req)`.
 
 ### Caller / backend HTTP APIs (single client)
 
@@ -138,12 +138,12 @@ from agentvend_service_sdk import (
     get_user_context,
 )
 
-agent_secret = "your-agent-secret"
+service_secret = "your-service-secret"
 headers = {
     "x-agentvend-signature": sig,
     "x-agentvend-timestamp": ts,
 }
-valid = verify_signature_from_headers(agent_secret, headers, raw_body)
+valid = verify_signature_from_headers(service_secret, headers, raw_body)
 if valid:
     ctx = get_user_context(headers)
 ```
@@ -165,7 +165,7 @@ req = InboundHmacRequest(
         subscription_active=False,
     ),
 )
-assert verify_inbound_hmac(agent_secret, req)
+assert verify_inbound_hmac(service_secret, req)
 ```
 
 ### Validate service key and usage estimate (low-level)

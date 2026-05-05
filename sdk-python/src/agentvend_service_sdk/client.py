@@ -138,7 +138,7 @@ class AgentVendClient:
 
     @classmethod
     def from_env(cls, *, session: Optional["requests.Session"] = None) -> AgentVendClient:
-        """Build from environment (optional `AGENTVEND_API_URL` / agent id / secret). Uses :data:`DEFAULT_API_URL` when unset."""
+        """Build from environment (optional `AGENTVEND_API_URL` / service id / service secret). Uses :data:`DEFAULT_API_URL` when unset."""
         return cls(session=session)
 
     def validate_service_key(self, service_key: str) -> Optional[ServiceKeyValidationResult]:
@@ -195,7 +195,7 @@ class AgentVendClient:
         async_: bool = False,
         session: Optional["requests.Session"] = None,
     ) -> Optional[GatewayInvokeResult]:
-        """Gateway agent invoke (§1.1–1.2)."""
+        """Gateway service invoke (§1.1–1.2)."""
         return gateway_invoke_service(
             self._gateway_base_url,
             method,

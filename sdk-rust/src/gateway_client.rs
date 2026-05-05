@@ -82,7 +82,7 @@ pub async fn invoke_service(
     Ok((status, body))
 }
 
-/// GET `.../requests/{request_id}/status` with Bearer agent key.
+/// GET `.../requests/{request_id}/status` with Bearer service key.
 pub async fn get_request_status(
     client: &reqwest::Client,
     gateway_base_url: &str,
@@ -106,7 +106,7 @@ pub async fn get_request_status(
     Ok((ok, status, body))
 }
 
-/// GET `.../requests/{request_id}/result` with Bearer agent key.
+/// GET `.../requests/{request_id}/result` with Bearer service key.
 pub async fn get_request_result(
     client: &reqwest::Client,
     gateway_base_url: &str,
