@@ -1,29 +1,29 @@
-import { invokeAgent } from './gatewayInvoke';
+import { invokeService } from './gatewayInvoke';
 
 const BASE = 'http://gw.test';
-const AGENT_KEY = 'k';
+const SERVICE_KEY = 'k';
 
 describe('gatewayInvoke', () => {
-  it('POSTs sync invoke to /api/agent/{agentId}/endpoint/{endpointId}/invoke', async () => {
+  it('POSTs sync invoke to /api/service/{serviceId}/endpoint/{endpointId}/invoke', async () => {
     const fetchMock = jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      expect(url).toBe(`${BASE}/api/agent/a1/endpoint/e1/invoke`);
+      expect(url).toBe(`${BASE}/api/service/s1/endpoint/e1/invoke`);
       expect(init?.method).toBe('POST');
       expect(init?.headers).toEqual(
         expect.objectContaining({
-          Authorization: `Bearer ${AGENT_KEY}`,
+          Authorization: `Bearer ${SERVICE_KEY}`,
           'Content-Type': 'application/json',
         })
       );
       expect(init?.body).toBe('{}');
       return new Response('{}', { status: 200 });
     });
-    const r = await invokeAgent({
+    const r = await invokeService({
       baseUrl: BASE,
       method: 'POST',
-      agentId: 'a1',
+      serviceId: 's1',
       endpointId: 'e1',
-      agentKey: AGENT_KEY,
+      serviceKey: SERVICE_KEY,
       body: '{}',
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -42,12 +42,12 @@ describe('gatewayInvoke', () => {
         status: 202,
         headers: { 'Content-Type': 'application/json' },
       });
-    const r = await invokeAgent({
+    const r = await invokeService({
       baseUrl: BASE,
       method: 'POST',
-      agentId: 'a',
+      serviceId: 's',
       endpointId: 'e',
-      agentKey: AGENT_KEY,
+      serviceKey: SERVICE_KEY,
       body: '{}',
       async: true,
       fetch: fetchMock,

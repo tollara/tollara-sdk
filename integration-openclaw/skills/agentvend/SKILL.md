@@ -16,7 +16,7 @@ When the user or the agent needs to **call an agent hosted on AgentVend**, use t
 
 ## Errors
 
-- **401 / invalid key**: Check that the plugin is configured with a valid `agentKey`.
+- **401 / invalid key**: Check that the plugin is configured with a valid `serviceKey`.
 - **403 / quota exceeded**: The subscription has no remaining quota; inform the user.
 - **5xx / gateway error**: Retry once or report that the service is temporarily unavailable.
 

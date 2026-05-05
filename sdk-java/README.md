@@ -1,8 +1,8 @@
 # AgentVend SDK (Java)
 
-Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate agent keys, **usage pre-flight** (agent-key and JWT estimates), **gateway invoke** (sync/async), report usage, progress/completion, and poll async job status on the gateway.
+Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate **service keys**, **usage pre-flight** (service-key and JWT estimates), **gateway invoke** (sync/async), report usage, progress/completion, and poll async job status on the gateway.
 
-**Package:** `com.agentvend:agent-sdk`
+**Package:** `com.agentvend:service-sdk`
 
 Dependencies are **Jackson**, **SLF4J**, and the **JDK** `java.net.http.HttpClient` (no Spring).
 
@@ -15,8 +15,8 @@ Use **`AgentVendClient`** with one API origin. Path prefixes and HTTP contracts 
 | Setting | Default | Notes |
 |--------|---------|--------|
 | API origin | **`https://api.agentvend.api`** (`AgentVendClient.DEFAULT_API_URL`) | Override with `Builder.apiUrl(...)`, or env **`AGENTVEND_API_URL`** for staging/tests — no trailing slash required |
-| Agent ID | From env **`AGENTVEND_AGENT_ID`**, or `Builder.agentId(...)` | Optional if Core can infer the agent from the key |
-| Agent secret | From env **`AGENTVEND_AGENT_SECRET`**, or `Builder.agentSecret(...)` | **Required** (Usage HMAC + Core response verification) |
+| Service ID | From env **`AGENTVEND_AGENT_ID`**, or `Builder.serviceId(...)` | Env name is unchanged per platform spec; optional if Core can infer the service from the key |
+| Service secret | From env **`AGENTVEND_AGENT_SECRET`**, or `Builder.serviceSecret(...)` | **Required** (Usage HMAC + Core response verification) |
 | Core prefix | `/api/v1` | `Builder.corePathPrefix(...)` for `/core/api/v1` (ECS) |
 | Gateway prefix | `/api` | `Builder.gatewayPathPrefix(...)` for `/gateway/api/v1` (ECS) |
 | Usage prefix | `/api/usage` | `Builder.usagePathPrefix(...)` for `/usage/api/v1` (ECS) |
@@ -34,14 +34,14 @@ Builder values win when both are set; otherwise the SDK reads:
 | Variable | Purpose |
 |----------|---------|
 | **`AGENTVEND_API_URL`** | Optional. Overrides the default production API origin when set. |
-| **`AGENTVEND_AGENT_ID`** | Agent UUID if you omit `agentId(...)` (optional) |
-| **`AGENTVEND_AGENT_SECRET`** | Agent secret if you omit `agentSecret(...)` (**required** one way or the other) |
+| **`AGENTVEND_AGENT_ID`** | Service UUID if you omit `serviceId(...)` (optional); env key name unchanged |
+| **`AGENTVEND_AGENT_SECRET`** | Service shared secret if you omit `serviceSecret(...)` (**required** one way or the other); env key name unchanged |
 
 In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_AGENT_ID`, and `ENV_AGENT_SECRET`. The default base URL is `AgentVendClient.DEFAULT_API_URL`.
 
 ### Low-level clients
 
-`AgentKeyValidationClient`, `UsageServiceClient`, `GatewayClient`, and **`GatewayInvokeClient`** remain available if you need fully manual URL assembly.
+`ServiceKeyValidationClient`, `UsageServiceClient`, `GatewayClient`, and **`GatewayInvokeClient`** remain available if you need fully manual URL assembly.
 
 ## Install
 
@@ -50,7 +50,7 @@ Use the same version as `version` in [`build.gradle`](build.gradle) (below match
 **Gradle:**
 
 ```kotlin
-implementation("com.agentvend:agent-sdk:0.0.3")
+implementation("com.agentvend:service-sdk:0.0.4")
 ```
 
 **Maven:**
@@ -58,8 +58,8 @@ implementation("com.agentvend:agent-sdk:0.0.3")
 ```xml
 <dependency>
   <groupId>com.agentvend</groupId>
-  <artifactId>agent-sdk</artifactId>
-  <version>0.0.3</version>
+  <artifactId>service-sdk</artifactId>
+  <version>0.0.4</version>
 </dependency>
 ```
 
@@ -134,7 +134,7 @@ Open [central.sonatype.com/publishing](https://central.sonatype.com/publishing):
 
 ## Examples
 
-### Verify inbound HMAC (agent backend)
+### Verify inbound HMAC (service backend)
 
 Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed. When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses HMAC user-context **v2** (leading `"2"`, no quota segment); see [MAIN-SDK-API-SPEC.md §4](../docs-sdk/MAIN-SDK-API-SPEC.md).
 
@@ -144,8 +144,8 @@ import jakarta.servlet.http.HttpServletRequest; // or your stack’s request typ
 
 import java.util.Optional;
 
-// Create a verifier for this agent’s shared secret (used to validate gateway HMACs).
-AgentVendRequestVerifier verifier = new AgentVendRequestVerifier(agentSecret);
+// Create a verifier for this service’s shared secret (used to validate gateway HMACs).
+AgentVendRequestVerifier verifier = new AgentVendRequestVerifier(serviceSecret);
 String rawBody = rawRequestBodyUtf8;
 
 // Preferred: verify and read user context in one step (empty Optional if the HMAC is invalid).
@@ -178,18 +178,18 @@ import java.math.BigDecimal;
 import java.net.http.HttpClient;
 
 // Default API origin is production; set .apiUrl(...) or AGENTVEND_API_URL only to override.
-// .agentSecret(...) (or AGENTVEND_AGENT_SECRET) is required.
+// .serviceSecret(...) (or AGENTVEND_AGENT_SECRET) is required.
 AgentVendClient client = AgentVendClient.builder()
-    .agentId(agentId)
+    .serviceId(serviceId)
     // Shared secret: signs outbound Usage calls and verifies Core validate responses (required).
-    .agentSecret(agentSecret)
+    .serviceSecret(serviceSecret)
     .build();
 
-// Validate a caller’s agent key; verify response HMAC inside the client.
-var validation = client.validateAgentKey("bearer-token");
-// validation.getAgentKeyId() — Core key row id when present (validate success, §2.1).
+// Validate a caller’s service key; verify response HMAC inside the client.
+var validation = client.validateServiceKey("bearer-token");
+// validation.getServiceKeyId() — Core key row id when present (validate success, §2.1).
 
-// Pre-flight: Core POST /agent-keys/estimate-usage (same body trust as validate; no Bearer).
+// Pre-flight: Core POST /service-keys/estimate-usage (same body trust as validate; no Bearer).
 // Verifies response HMAC on 200 / 403 / 429 when signature headers are present.
 UsageEstimateResult estimate = client.estimateUsage("bearer-token", new BigDecimal("1"));
 if (estimate != null) {
@@ -199,14 +199,14 @@ if (estimate != null) {
 }
 
 // JWT usage estimate (Core POST …/billing/usage/estimate) — unsigned response; pass a Bearer JWT.
-UsageEstimateResult jwtEst = client.estimateUsageWithJwt("jwt-here", internalUserId, agentId, new BigDecimal("1"));
+UsageEstimateResult jwtEst = client.estimateUsageWithJwt("jwt-here", internalUserId, serviceId, new BigDecimal("1"));
 
-// Gateway invoke (sync or async); Bearer uses the agent API key string.
-GatewayInvokeResult inv = client.invokeAgent("POST", agentId, endpointId, agentKey, "{}", false);
+// Gateway invoke (sync or async); Bearer uses the service API key string.
+GatewayInvokeResult inv = client.invokeService("POST", serviceId, endpointId, serviceKey, "{}", false);
 // inv.getAsyncEnvelope() on HTTP 202: requestId, callbackUrl, progressUrl
 
-// Record billed units for a user/agent (signed with agent secret; body timestamp ISO, header epoch seconds).
-UsageReportResponse usageResp = client.reportUsage(userId, agentId, BigDecimal.ONE);
+// Record billed units for a user/service (signed with service secret; body timestamp ISO, header epoch seconds).
+UsageReportResponse usageResp = client.reportUsage(userId, serviceId, BigDecimal.ONE);
 
 // Give progress update (use the full progressUrl from the gateway/async payload).
 client.sendProgressUpdate(progressUrl, requestId, "some processing info", 50);
@@ -214,8 +214,8 @@ client.sendProgressUpdate(progressUrl, requestId, "some processing info", 50);
 // Job finished (use the full callbackUrl from the gateway/async payload).
 client.sendCompletion(callbackUrl, requestId, CompletionStatus.COMPLETED, "some result", java.math.BigDecimal.ONE);
 
-// Poll async job status (Bearer agent key).
-GatewayHttpResponse status = client.getRequestStatus(requestId, agentKey);
+// Poll async job status (Bearer service key).
+GatewayHttpResponse status = client.getRequestStatus(requestId, serviceKey);
 
 ```
 

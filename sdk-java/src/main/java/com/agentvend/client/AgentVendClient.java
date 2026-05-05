@@ -15,8 +15,9 @@ import java.time.Instant;
  * invoke and polling).
  * <p>
  * The API origin defaults to {@value #DEFAULT_API_URL} when neither {@link Builder#apiUrl(String)} nor {@value #ENV_API_URL} is set.
- * {@link Builder#agentId(String)} / {@link Builder#agentSecret(String)} or {@value #ENV_AGENT_ID} / {@value #ENV_AGENT_SECRET}
- * (secret required for signing and Core response verification).
+ * {@link Builder#serviceId(String)} / {@link Builder#serviceSecret(String)} or {@value #ENV_AGENT_ID} / {@value #ENV_AGENT_SECRET}
+ * (secret required for signing and Core response verification). Environment variable names stay {@code AGENTVEND_AGENT_*}
+ * per platform spec; they configure the service identity and shared secret.
  * Default path prefixes match {@code docs-sdk/MAIN-SDK-API-SPEC.md} (default deployment); override with
  * {@link Builder#corePathPrefix(String)}, {@link Builder#gatewayPathPrefix(String)}, {@link Builder#usagePathPrefix(String)}
  * for ECS or local Docker layouts.
@@ -33,14 +34,14 @@ public final class AgentVendClient {
     public static final String ENV_API_URL = "AGENTVEND_API_URL";
 
     /**
-     * Environment variable for the agent UUID (optional; sent to Core on validate when set).
-     * Used when {@link Builder#agentId(String)} is not set.
+     * Environment variable for the service UUID (optional; sent to Core on validate when set).
+     * Used when {@link Builder#serviceId(String)} is not set.
      */
     public static final String ENV_AGENT_ID = "AGENTVEND_AGENT_ID";
 
     /**
-     * Environment variable for the agent shared secret (required for Usage HMAC and Core validate response verification).
-     * Used when {@link Builder#agentSecret(String)} is not set.
+     * Environment variable for the service shared secret (required for Usage HMAC and Core validate response verification).
+     * Used when {@link Builder#serviceSecret(String)} is not set.
      */
     public static final String ENV_AGENT_SECRET = "AGENTVEND_AGENT_SECRET";
 
@@ -56,7 +57,7 @@ public final class AgentVendClient {
     private final String gatewayBaseUrl;
     private final String gatewayPathPrefix;
     private final HttpClient httpClient;
-    private final AgentKeyValidationClient core;
+    private final ServiceKeyValidationClient core;
     private final UsageServiceClient usage;
     private final GatewayClient gateway;
 
@@ -80,15 +81,15 @@ public final class AgentVendClient {
         HttpClient httpClient = b.httpClient != null ? b.httpClient : HttpClient.newHttpClient();
         this.httpClient = httpClient;
 
-        String resolvedAgentId = firstNonBlank(b.agentId, System.getenv(ENV_AGENT_ID));
-        String resolvedAgentSecret = firstNonBlank(b.agentSecret, System.getenv(ENV_AGENT_SECRET));
-        if (resolvedAgentSecret.isEmpty()) {
+        String resolvedServiceId = firstNonBlank(b.serviceId, System.getenv(ENV_AGENT_ID));
+        String resolvedServiceSecret = firstNonBlank(b.serviceSecret, System.getenv(ENV_AGENT_SECRET));
+        if (resolvedServiceSecret.isEmpty()) {
             throw new IllegalStateException(
-                    "Agent secret is required: set Builder.agentSecret(...) or environment variable " + ENV_AGENT_SECRET);
+                    "Service secret is required: set Builder.serviceSecret(...) or environment variable " + ENV_AGENT_SECRET);
         }
 
-        this.core = new AgentKeyValidationClient(coreRoot, emptyToNull(resolvedAgentId), resolvedAgentSecret, httpClient);
-        this.usage = new UsageServiceClient(usageBase, usagePrefix, resolvedAgentSecret, httpClient);
+        this.core = new ServiceKeyValidationClient(coreRoot, emptyToNull(resolvedServiceId), resolvedServiceSecret, httpClient);
+        this.usage = new UsageServiceClient(usageBase, usagePrefix, resolvedServiceSecret, httpClient);
         this.gateway = new GatewayClient(httpClient);
     }
 
@@ -102,7 +103,7 @@ public final class AgentVendClient {
         return "";
     }
 
-    /** Empty string becomes null so Core JSON omits optional agent id. */
+    /** Empty string becomes null so Core JSON omits optional service id. */
     private static String emptyToNull(String s) {
         return s.isEmpty() ? null : s;
     }
@@ -112,37 +113,37 @@ public final class AgentVendClient {
     }
 
     /**
-     * Validates an agent key (Core). Result is cached for a short TTL inside the client.
+     * Validates a service key (Core). Result is cached for a short TTL inside the client.
      */
-    public AgentKeyValidationClient.AgentKeyValidationResult validateAgentKey(String agentKey) {
-        return core.validateAgentKey(agentKey);
+    public ServiceKeyValidationClient.ServiceKeyValidationResult validateServiceKey(String serviceKey) {
+        return core.validateServiceKey(serviceKey);
     }
 
     /**
-     * Usage pre-check for an agent key (Core {@code /agent-keys/estimate-usage}). See {@link AgentKeyValidationClient#estimateUsage(String, BigDecimal)}.
+     * Usage pre-check for a service key (Core {@code /service-keys/estimate-usage}). See {@link ServiceKeyValidationClient#estimateUsage(String, BigDecimal)}.
      */
-    public UsageEstimateResult estimateUsage(String agentKey, BigDecimal estimatedUnits) {
-        return core.estimateUsage(agentKey, estimatedUnits);
+    public UsageEstimateResult estimateUsage(String serviceKey, BigDecimal estimatedUnits) {
+        return core.estimateUsage(serviceKey, estimatedUnits);
     }
 
     /**
      * Core JWT usage estimate ({@code POST …/billing/usage/estimate}). Not HMAC-signed; requires a Bearer JWT.
      */
     public UsageEstimateResult estimateUsageWithJwt(
-            String bearerToken, String userId, String agentId, BigDecimal estimatedUnits) {
-        return core.estimateUsageWithJwt(bearerToken, userId, agentId, estimatedUnits);
+            String bearerToken, String userId, String serviceId, BigDecimal estimatedUnits) {
+        return core.estimateUsageWithJwt(bearerToken, userId, serviceId, estimatedUnits);
     }
 
     public void clearValidationCache() {
         core.clearCache();
     }
 
-    public UsageReportResponse reportUsage(String userId, String agentId, BigDecimal unitsUsed) {
-        return usage.reportUsage(userId, agentId, unitsUsed);
+    public UsageReportResponse reportUsage(String userId, String serviceId, BigDecimal unitsUsed) {
+        return usage.reportUsage(userId, serviceId, unitsUsed);
     }
 
-    public UsageReportResponse reportUsage(String userId, String agentId, BigDecimal unitsUsed, Instant timestamp) {
-        return usage.reportUsage(userId, agentId, unitsUsed, timestamp);
+    public UsageReportResponse reportUsage(String userId, String serviceId, BigDecimal unitsUsed, Instant timestamp) {
+        return usage.reportUsage(userId, serviceId, unitsUsed, timestamp);
     }
 
     public boolean sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete) {
@@ -177,29 +178,29 @@ public final class AgentVendClient {
     /**
      * Poll async job status (Gateway). Uses the configured API URL and gateway path prefix.
      */
-    public GatewayHttpResponse getRequestStatus(String requestId, String agentKey) {
-        return gateway.getRequestStatus(gatewayBaseUrl, gatewayPathPrefix, requestId, agentKey);
+    public GatewayHttpResponse getRequestStatus(String requestId, String serviceKey) {
+        return gateway.getRequestStatus(gatewayBaseUrl, gatewayPathPrefix, requestId, serviceKey);
     }
 
     /**
      * Poll async job result (Gateway).
      */
-    public GatewayHttpResponse getRequestResult(String requestId, String agentKey) {
-        return gateway.getRequestResult(gatewayBaseUrl, gatewayPathPrefix, requestId, agentKey);
+    public GatewayHttpResponse getRequestResult(String requestId, String serviceKey) {
+        return gateway.getRequestResult(gatewayBaseUrl, gatewayPathPrefix, requestId, serviceKey);
     }
 
     /**
-     * Gateway agent invoke (sync or async). See platform spec §1.1–1.2.
+     * Gateway service invoke (sync or async). See platform spec §1.1–1.2.
      *
      * @param httpMethod    GET, POST, PUT, or DELETE
      * @param requestBody   optional JSON body (POST/PUT); may be null for GET/DELETE
      * @param async         when true, POST/GET to {@code …/invoke/async}
      */
-    public GatewayInvokeResult invokeAgent(
+    public GatewayInvokeResult invokeService(
             String httpMethod,
-            String agentId,
+            String serviceId,
             String endpointId,
-            String agentKey,
+            String serviceKey,
             String requestBody,
             boolean async) {
         try {
@@ -208,9 +209,9 @@ public final class AgentVendClient {
                     gatewayBaseUrl,
                     gatewayPathPrefix,
                     httpMethod,
-                    agentId,
+                    serviceId,
                     endpointId,
-                    agentKey,
+                    serviceKey,
                     requestBody,
                     async);
         } catch (IOException e) {
@@ -229,8 +230,8 @@ public final class AgentVendClient {
         private String corePathPrefix;
         private String gatewayPathPrefix;
         private String usagePathPrefix;
-        private String agentId;
-        private String agentSecret;
+        private String serviceId;
+        private String serviceSecret;
         private HttpClient httpClient;
 
         private Builder() {
@@ -278,11 +279,11 @@ public final class AgentVendClient {
         }
 
         /**
-         * Agent UUID (overrides {@value AgentVendClient#ENV_AGENT_ID}).
-         * Optional if Core can infer the agent from the key alone.
+         * Service UUID (overrides {@value AgentVendClient#ENV_AGENT_ID}).
+         * Optional if Core can infer the service from the key alone.
          */
-        public Builder agentId(String agentId) {
-            this.agentId = agentId;
+        public Builder serviceId(String serviceId) {
+            this.serviceId = serviceId;
             return this;
         }
 
@@ -290,8 +291,8 @@ public final class AgentVendClient {
          * Shared secret (overrides {@value AgentVendClient#ENV_AGENT_SECRET}).
          * Required after merge with the environment; used for Usage signing and Core response HMAC verification.
          */
-        public Builder agentSecret(String agentSecret) {
-            this.agentSecret = agentSecret;
+        public Builder serviceSecret(String serviceSecret) {
+            this.serviceSecret = serviceSecret;
             return this;
         }
 

@@ -1,5 +1,5 @@
 [package]
-name = "agentvend-agent-sdk"
+name = "agentvend-service-sdk"
 version = "1.0.0"
 edition = "2021"
 description = "AgentVend SDK - verify HMAC, validate keys, report usage"

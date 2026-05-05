@@ -19,9 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class AgentVendClientIntegrationTest {
 
-    private static final String AGENT_KEY = "k";
-    private static final String AGENT_ID = "550e8400-e29b-41d4-a716-446655440000";
-    private static final String AGENT_SECRET = "test-agent-secret";
+    private static final String SERVICE_KEY = "k";
+    private static final String SERVICE_ID = "550e8400-e29b-41d4-a716-446655440000";
+    private static final String SERVICE_SECRET = "test-service-secret";
 
     @RegisterExtension
     static WireMockExtension wireMock = newInstance()
@@ -37,8 +37,8 @@ class AgentVendClientIntegrationTest {
         baseUrl = "http://localhost:" + port;
         client = AgentVendClient.builder()
                 .apiUrl(baseUrl)
-                .agentId(AGENT_ID)
-                .agentSecret(AGENT_SECRET)
+                .serviceId(SERVICE_ID)
+                .serviceSecret(SERVICE_SECRET)
                 .httpClient(HttpClient.newHttpClient())
                 .build();
     }
@@ -47,10 +47,10 @@ class AgentVendClientIntegrationTest {
     void getRequestStatus_usesDefaultGatewayPrefix() {
         wireMock.stubFor(
                 get(urlPathEqualTo("/api/requests/job-1/status"))
-                        .withHeader("Authorization", equalTo("Bearer " + AGENT_KEY))
+                        .withHeader("Authorization", equalTo("Bearer " + SERVICE_KEY))
                         .willReturn(aResponse().withStatus(200).withBody("{\"state\":\"OK\"}")));
 
-        GatewayHttpResponse res = client.getRequestStatus("job-1", AGENT_KEY);
+        GatewayHttpResponse res = client.getRequestStatus("job-1", SERVICE_KEY);
         assertThat(res.getStatusCode()).isEqualTo(200);
         assertThat(res.getBody()).contains("OK");
     }
@@ -67,7 +67,7 @@ class AgentVendClientIntegrationTest {
                                 .withBody(
                                         "{\"status\":\"ok\",\"warning\":null,\"isOverLimit\":false,\"remainingRequestsPerPeriod\":1,\"remainingTimeUnitsPerPeriod\":null,\"remainingSpendingCap\":null,\"overageRate\":null}")));
 
-        UsageReportResponse resp = client.reportUsage("user-1", AGENT_ID, BigDecimal.ONE);
+        UsageReportResponse resp = client.reportUsage("user-1", SERVICE_ID, BigDecimal.ONE);
         assertThat(resp.getStatus()).isEqualTo("ok");
     }
 
@@ -76,8 +76,8 @@ class AgentVendClientIntegrationTest {
         AgentVendClient custom = AgentVendClient.builder()
                 .apiUrl(baseUrl)
                 .usagePathPrefix("/usage/api/v1")
-                .agentId(AGENT_ID)
-                .agentSecret(AGENT_SECRET)
+                .serviceId(SERVICE_ID)
+                .serviceSecret(SERVICE_SECRET)
                 .httpClient(HttpClient.newHttpClient())
                 .build();
 
@@ -89,7 +89,7 @@ class AgentVendClientIntegrationTest {
                                 .withBody(
                                         "{\"status\":\"ok\",\"warning\":null,\"isOverLimit\":false,\"remainingRequestsPerPeriod\":1,\"remainingTimeUnitsPerPeriod\":null,\"remainingSpendingCap\":null,\"overageRate\":null}")));
 
-        UsageReportResponse resp = custom.reportUsage("user-1", AGENT_ID, BigDecimal.ONE);
+        UsageReportResponse resp = custom.reportUsage("user-1", SERVICE_ID, BigDecimal.ONE);
         assertThat(resp.getStatus()).isEqualTo("ok");
     }
 }

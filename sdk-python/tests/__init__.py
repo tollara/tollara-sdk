@@ -1,1 +1,1 @@
-# Tests for agentvend_sdk
+# Tests for agentvend_service_sdk

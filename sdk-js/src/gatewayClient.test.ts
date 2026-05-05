@@ -10,7 +10,7 @@ describe('gatewayClient', () => {
     const r = await getRequestStatus({
       baseUrl: 'https://gw.example.com',
       requestId: 'job-1',
-      agentKey: 'key-abc',
+      serviceKey: 'key-abc',
       fetch: fetchMock as unknown as typeof fetch,
     });
     expect(r.ok).toBe(true);
@@ -34,7 +34,7 @@ describe('gatewayClient', () => {
     await getRequestResult({
       baseUrl: 'https://gw.example.com/',
       requestId: 'r2',
-      agentKey: 'k',
+      serviceKey: 'k',
       fetch: fetchMock as unknown as typeof fetch,
     });
     expect(fetchMock).toHaveBeenCalledWith(

@@ -31,28 +31,28 @@ public class UsageServiceClient {
 
     private final String usageServiceUrl;
     private final String usagePathPrefix;
-    private final String agentSecret;
+    private final String serviceSecret;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
     /**
      * Same as {@link #UsageServiceClient(String, String, String, HttpClient)} with usage path prefix {@code /api/usage}.
      */
-    public UsageServiceClient(String usageServiceUrl, String agentSecret, HttpClient httpClient) {
-        this(usageServiceUrl, DEFAULT_USAGE_PATH_PREFIX, agentSecret, httpClient);
+    public UsageServiceClient(String usageServiceUrl, String serviceSecret, HttpClient httpClient) {
+        this(usageServiceUrl, DEFAULT_USAGE_PATH_PREFIX, serviceSecret, httpClient);
     }
 
     /**
      * @param usageServiceUrl origin for the usage service (scheme + host [+ port], no trailing slash required)
      * @param usagePathPrefix   e.g. {@code /api/usage} (default) or {@code /usage/api/v1} (ECS); must match deployment
      */
-    public UsageServiceClient(String usageServiceUrl, String usagePathPrefix, String agentSecret, HttpClient httpClient) {
+    public UsageServiceClient(String usageServiceUrl, String usagePathPrefix, String serviceSecret, HttpClient httpClient) {
         this.usageServiceUrl = usageServiceUrl != null ? AgentVendUrls.trimTrailingSlashes(usageServiceUrl) : "";
         this.usagePathPrefix =
                 (usagePathPrefix == null || usagePathPrefix.isEmpty())
                         ? DEFAULT_USAGE_PATH_PREFIX
                         : normalizeUsagePrefix(usagePathPrefix);
-        this.agentSecret = agentSecret;
+        this.serviceSecret = serviceSecret;
         this.httpClient = httpClient;
         this.objectMapper = new ObjectMapper();
         JavaTimeModule module = new JavaTimeModule();
@@ -116,7 +116,7 @@ public class UsageServiceClient {
             requestBody.put("timestamp", Instant.now().toString());
             String progressUpdatePayload = objectMapper.writeValueAsString(requestBody);
             long timestampLong = Long.parseLong(timestamp);
-            String newSignature = HmacUtils.calculateHmacWithTimestamp(progressUpdatePayload, timestampLong, agentSecret);
+            String newSignature = HmacUtils.calculateHmacWithTimestamp(progressUpdatePayload, timestampLong, serviceSecret);
             Map<String, String> headers = Map.of(
                     AgentVendHeaders.SIGNATURE, newSignature,
                     AgentVendHeaders.TIMESTAMP, timestamp);
@@ -189,7 +189,7 @@ public class UsageServiceClient {
             requestBody.put("units", units != null ? units : BigDecimal.ZERO);
             String completionPayload = objectMapper.writeValueAsString(requestBody);
             long timestampLong = Long.parseLong(timestamp);
-            String newSignature = HmacUtils.calculateHmacWithTimestamp(completionPayload, timestampLong, agentSecret);
+            String newSignature = HmacUtils.calculateHmacWithTimestamp(completionPayload, timestampLong, serviceSecret);
             Map<String, String> headers = Map.of(
                     AgentVendHeaders.SIGNATURE, newSignature,
                     AgentVendHeaders.TIMESTAMP, timestamp);
@@ -210,28 +210,28 @@ public class UsageServiceClient {
     /**
      * Reports usage with current time as timestamp.
      */
-    public UsageReportResponse reportUsage(String userId, String agentId, BigDecimal unitsUsed) {
-        return reportUsage(userId, agentId, unitsUsed, Instant.now());
+    public UsageReportResponse reportUsage(String userId, String serviceId, BigDecimal unitsUsed) {
+        return reportUsage(userId, serviceId, unitsUsed, Instant.now());
     }
 
     /**
      * Reports usage to the usage service.
      */
-    public UsageReportResponse reportUsage(String userId, String agentId, BigDecimal unitsUsed, Instant timestamp) {
-        if (userId == null || agentId == null || unitsUsed == null) {
-            throw new IllegalArgumentException("userId, agentId, and unitsUsed must not be null");
+    public UsageReportResponse reportUsage(String userId, String serviceId, BigDecimal unitsUsed, Instant timestamp) {
+        if (userId == null || serviceId == null || unitsUsed == null) {
+            throw new IllegalArgumentException("userId, serviceId, and unitsUsed must not be null");
         }
         try {
             Instant usageTimestamp = timestamp != null ? timestamp : Instant.now();
             UsageReportRequest request = UsageReportRequest.builder()
                     .userId(userId)
-                    .agentId(agentId)
+                    .serviceId(serviceId)
                     .unitsUsed(unitsUsed)
                     .timestamp(usageTimestamp)
                     .build();
             String requestBody = objectMapper.writeValueAsString(request);
             long epochSeconds = usageTimestamp.getEpochSecond();
-            String signature = HmacUtils.calculateHmacWithTimestamp(requestBody, epochSeconds, agentSecret);
+            String signature = HmacUtils.calculateHmacWithTimestamp(requestBody, epochSeconds, serviceSecret);
             Map<String, String> headers = Map.of(
                     AgentVendHeaders.SIGNATURE, signature,
                     AgentVendHeaders.TIMESTAMP, String.valueOf(epochSeconds));

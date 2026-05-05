@@ -4,11 +4,11 @@
 
 #![cfg(feature = "http")]
 
-use agentvend_agent_sdk::agent_vend_client::{AgentVendClient, AgentVendClientConfig};
-use agentvend_agent_sdk::gateway_client;
-use agentvend_agent_sdk::usage_client::{self, CompletionStatus};
-use agentvend_agent_sdk::validation_client;
-use agentvend_agent_sdk::calculate_hmac;
+use agentvend_service_sdk::agent_vend_client::{AgentVendClient, AgentVendClientConfig};
+use agentvend_service_sdk::gateway_client;
+use agentvend_service_sdk::usage_client::{self, CompletionStatus};
+use agentvend_service_sdk::validation_client;
+use agentvend_service_sdk::calculate_hmac;
 use reqwest::Client;
 
 const AGENT_SECRET: &str = "test-agent-secret";
@@ -18,18 +18,18 @@ const AGENT_KEY: &str = "k";
 // ---------- Validation client (Core API §2) ----------
 
 #[tokio::test]
-async fn validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac() {
+async fn validate_service_key_returns_result_when_core_returns_200_with_valid_hmac() {
     let mut server = mockito::Server::new();
     let core_base = format!("{}/api/v1", server.url());
 
     // Use exact string so HMAC matches (no serialization reorder)
-    let body_str = r#"{"valid":true,"userId":"user-123","agentId":"550e8400-e29b-41d4-a716-446655440000","plan":"basic","roles":["user"],"quotaRemaining":100,"subscriptionActive":true,"timestamp":1700000000,"error":null}"#;
+    let body_str = r#"{"valid":true,"userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","plan":"basic","roles":["user"],"quotaRemaining":100,"subscriptionActive":true,"timestamp":1700000000,"error":null}"#;
     let timestamp = "1700000000";
     let canonical = format!("{}{}", body_str, timestamp);
     let signature = calculate_hmac(&canonical, AGENT_SECRET);
 
     let _mock = server
-        .mock("POST", "/api/v1/agent-keys/validate")
+        .mock("POST", "/api/v1/service-keys/validate")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_header("X-AgentVend-Signature", &signature)
@@ -38,7 +38,7 @@ async fn validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
         .create();
 
     let client = Client::new();
-    let result = validation_client::validate_agent_key(
+    let result = validation_client::validate_service_key(
         &client,
         &core_base,
         "bearer-token-xyz",
@@ -50,7 +50,7 @@ async fn validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
     assert!(result.is_some());
     let r = result.unwrap();
     assert_eq!(r.user_id.as_deref(), Some("user-123"));
-    assert_eq!(r.agent_id.as_deref(), Some(AGENT_ID));
+    assert_eq!(r.service_id.as_deref(), Some(AGENT_ID));
     assert_eq!(r.plan.as_deref(), Some("basic"));
     assert_eq!(r.roles, &["user"]);
     assert_eq!(r.quota_remaining, Some(100.0));
@@ -58,19 +58,19 @@ async fn validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
 }
 
 #[tokio::test]
-async fn validate_agent_key_returns_none_when_core_returns_401() {
+async fn validate_service_key_returns_none_when_core_returns_401() {
     let mut server = mockito::Server::new();
     let core_base = format!("{}/api/v1", server.url());
 
     let _mock = server
-        .mock("POST", "/api/v1/agent-keys/validate")
+        .mock("POST", "/api/v1/service-keys/validate")
         .with_status(401)
         .with_header("content-type", "application/json")
         .with_body(r#"{"valid":false,"error":"Invalid key"}"#)
         .create();
 
     let client = Client::new();
-    let result = validation_client::validate_agent_key(
+    let result = validation_client::validate_service_key(
         &client,
         &core_base,
         "bad-key",
@@ -83,14 +83,14 @@ async fn validate_agent_key_returns_none_when_core_returns_401() {
 }
 
 #[tokio::test]
-async fn validate_agent_key_returns_none_when_hmac_invalid() {
+async fn validate_service_key_returns_none_when_hmac_invalid() {
     let mut server = mockito::Server::new();
     let core_base = format!("{}/api/v1", server.url());
 
-    let body_str = r#"{"valid":true,"userId":"user-123","agentId":"550e8400-e29b-41d4-a716-446655440000","plan":"basic","roles":[],"quotaRemaining":100,"subscriptionActive":true,"timestamp":1700000000,"error":null}"#;
+    let body_str = r#"{"valid":true,"userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","plan":"basic","roles":[],"quotaRemaining":100,"subscriptionActive":true,"timestamp":1700000000,"error":null}"#;
 
     let _mock = server
-        .mock("POST", "/api/v1/agent-keys/validate")
+        .mock("POST", "/api/v1/service-keys/validate")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_header("X-AgentVend-Signature", "invalid-signature")
@@ -99,7 +99,7 @@ async fn validate_agent_key_returns_none_when_hmac_invalid() {
         .create();
 
     let client = Client::new();
-    let result = validation_client::validate_agent_key(
+    let result = validation_client::validate_service_key(
         &client,
         &core_base,
         "bearer-token",
@@ -191,8 +191,8 @@ async fn agent_vend_client_get_request_status_uses_default_gateway_prefix() {
     let http = Client::new();
     let av = AgentVendClient::try_new(AgentVendClientConfig {
         api_url: Some(base),
-        agent_id: Some(AGENT_ID.to_string()),
-        agent_secret: Some(AGENT_SECRET.to_string()),
+        service_id: Some(AGENT_ID.to_string()),
+        service_secret: Some(AGENT_SECRET.to_string()),
         http_client: Some(http),
         ..Default::default()
     })
@@ -202,6 +202,44 @@ async fn agent_vend_client_get_request_status_uses_default_gateway_prefix() {
     assert!(ok);
     assert_eq!(code, 200);
     assert!(body.contains("OK"));
+}
+
+#[tokio::test]
+async fn agent_vend_client_invoke_service_uses_service_path() {
+    let mut server = mockito::Server::new();
+    let base = server.url();
+
+    let _mock = server
+        .mock("POST", "/api/service/svc-1/endpoint/ep-1/invoke")
+        .match_header("authorization", "Bearer my-key")
+        .match_body(r#"{"x":1}"#)
+        .with_status(200)
+        .with_body(r#"{"ok":true}"#)
+        .create();
+
+    let http = Client::new();
+    let av = AgentVendClient::try_new(AgentVendClientConfig {
+        api_url: Some(base),
+        service_id: Some(AGENT_ID.to_string()),
+        service_secret: Some(AGENT_SECRET.to_string()),
+        http_client: Some(http),
+        ..Default::default()
+    })
+    .unwrap();
+
+    let (status, body) = av
+        .invoke_service(
+            gateway_client::GatewayHttpMethod::Post,
+            "svc-1",
+            "ep-1",
+            "my-key",
+            Some(r#"{"x":1}"#),
+            false,
+        )
+        .await
+        .unwrap();
+    assert_eq!(status, 200);
+    assert!(body.contains("ok"));
 }
 
 #[tokio::test]
@@ -221,8 +259,8 @@ async fn agent_vend_client_report_usage_uses_default_usage_prefix() {
     let http = Client::new();
     let av = AgentVendClient::try_new(AgentVendClientConfig {
         api_url: Some(base),
-        agent_id: Some(AGENT_ID.to_string()),
-        agent_secret: Some(AGENT_SECRET.to_string()),
+        service_id: Some(AGENT_ID.to_string()),
+        service_secret: Some(AGENT_SECRET.to_string()),
         http_client: Some(http),
         ..Default::default()
     })
@@ -249,8 +287,8 @@ async fn agent_vend_client_custom_usage_path_prefix() {
     let http = Client::new();
     let av = AgentVendClient::try_new(AgentVendClientConfig {
         api_url: Some(base),
-        agent_id: Some(AGENT_ID.to_string()),
-        agent_secret: Some(AGENT_SECRET.to_string()),
+        service_id: Some(AGENT_ID.to_string()),
+        service_secret: Some(AGENT_SECRET.to_string()),
         usage_path_prefix: Some("/usage/api/v1".to_string()),
         http_client: Some(http),
         ..Default::default()

@@ -12,7 +12,7 @@ plugins {
 }
 
 group = 'com.agentvend'
-version = '0.0.3'
+version = '0.0.4'
 
 repositories {
     mavenCentral()
@@ -75,11 +75,11 @@ publishing {
         mavenJava(MavenPublication) {
             from components.java
             groupId = 'com.agentvend'
-            artifactId = 'agent-sdk'
+            artifactId = 'service-sdk'
             version = version
             pom {
-                name = 'AgentVend SDK (Java)'
-                description = 'Client SDK for AgentVend - verify HMAC, validate keys, report usage, progress, completion'
+                name = 'AgentVend Service SDK (Java)'
+                description = 'Client SDK for AgentVend - verify HMAC, validate service keys, report usage, progress, completion'
                 url = 'https://github.com/maffers001/agentvend-sdk'
                 licenses {
                     license {

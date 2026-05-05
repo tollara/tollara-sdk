@@ -13,8 +13,8 @@ export class AgentvendInvoke implements INodeType {
     outputs: ['main'],
     credentials: [{ name: 'agentvendApi', required: true }],
     properties: [
-      { displayName: 'Agent Key', name: 'agentKey', type: 'string', typeOptions: { password: true }, default: '', required: true },
-      { displayName: 'Agent ID', name: 'agentId', type: 'string', default: '', required: true },
+      { displayName: 'Service Key', name: 'serviceKey', type: 'string', typeOptions: { password: true }, default: '', required: true },
+      { displayName: 'Service ID', name: 'serviceId', type: 'string', default: '', required: true },
       { displayName: 'Endpoint ID', name: 'endpointId', type: 'string', default: '', required: true },
       { displayName: 'Body', name: 'body', type: 'string', default: '', placeholder: '{}' },
     ],
@@ -23,17 +23,17 @@ export class AgentvendInvoke implements INodeType {
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('agentvendApi');
     const gatewayUrl = ((credentials as { gatewayUrl?: string }).gatewayUrl || '').replace(/\/$/, '');
-    const agentKey = this.getNodeParameter('agentKey', 0) as string;
-    const agentId = this.getNodeParameter('agentId', 0) as string;
+    const serviceKey = this.getNodeParameter('serviceKey', 0) as string;
+    const serviceId = this.getNodeParameter('serviceId', 0) as string;
     const endpointId = this.getNodeParameter('endpointId', 0) as string;
     const bodyStr = this.getNodeParameter('body', 0, '{}') as string;
 
-    const url = `${gatewayUrl}/api/agent/${agentId}/endpoint/${endpointId}/invoke`;
+    const url = `${gatewayUrl}/api/service/${serviceId}/endpoint/${endpointId}/invoke`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${agentKey}`,
+        Authorization: `Bearer ${serviceKey}`,
       },
       body: bodyStr || '{}',
     });

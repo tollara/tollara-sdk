@@ -1,5 +1,5 @@
 {
-  "name": "agentvend/agent-sdk",
+  "name": "agentvend/service-sdk",
   "description": "AgentVend SDK - verify HMAC, validate keys, report usage",
   "type": "library",
   "license": "MIT",

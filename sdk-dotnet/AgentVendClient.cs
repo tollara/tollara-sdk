@@ -12,8 +12,8 @@ public sealed class AgentVendClientOptions
     public string? CorePathPrefix { get; init; }
     public string? GatewayPathPrefix { get; init; }
     public string? UsagePathPrefix { get; init; }
-    public string? AgentId { get; init; }
-    public string? AgentSecret { get; init; }
+    public string? ServiceId { get; init; }
+    public string? ServiceSecret { get; init; }
     public HttpClient? HttpClient { get; init; }
 }
 
@@ -27,8 +27,8 @@ public sealed class AgentVendClient
     public const string DefaultApiUrl = "https://api.agentvend.api";
 
     public const string EnvApiUrl = "AGENTVEND_API_URL";
-    public const string EnvAgentId = "AGENTVEND_AGENT_ID";
-    public const string EnvAgentSecret = "AGENTVEND_AGENT_SECRET";
+    public const string EnvServiceId = "AGENTVEND_AGENT_ID";
+    public const string EnvServiceSecret = "AGENTVEND_AGENT_SECRET";
 
     public const string DefaultCorePathPrefix = "/api/v1";
     public const string DefaultGatewayPathPrefix = "/api";
@@ -40,8 +40,8 @@ public sealed class AgentVendClient
     private readonly string _coreRoot;
     private readonly string _usageBase;
     private readonly string? _usagePathPrefix;
-    private readonly string? _agentId;
-    private readonly string _agentSecret;
+    private readonly string? _serviceId;
+    private readonly string _serviceSecret;
 
     private AgentVendClient(
         HttpClient http,
@@ -50,8 +50,8 @@ public sealed class AgentVendClient
         string coreRoot,
         string usageBase,
         string? usagePathPrefix,
-        string? agentId,
-        string agentSecret)
+        string? serviceId,
+        string serviceSecret)
     {
         _http = http;
         _gatewayBaseUrl = gatewayBaseUrl;
@@ -59,8 +59,8 @@ public sealed class AgentVendClient
         _coreRoot = coreRoot;
         _usageBase = usageBase;
         _usagePathPrefix = usagePathPrefix;
-        _agentId = agentId;
-        _agentSecret = agentSecret;
+        _serviceId = serviceId;
+        _serviceSecret = serviceSecret;
     }
 
     /// <summary>Build from options and/or <c>AGENTVEND_*</c> environment variables.</summary>
@@ -80,61 +80,61 @@ public sealed class AgentVendClient
         var gwPrefix = options.GatewayPathPrefix ?? DefaultGatewayPathPrefix;
         var usagePrefix = options.UsagePathPrefix;
 
-        var secret = FirstNonBlank(options.AgentSecret, Environment.GetEnvironmentVariable(EnvAgentSecret));
+        var secret = FirstNonBlank(options.ServiceSecret, Environment.GetEnvironmentVariable(EnvServiceSecret));
         if (string.IsNullOrEmpty(secret))
             throw new InvalidOperationException(
-                $"Agent secret is required: set {nameof(AgentVendClientOptions.AgentSecret)} or environment variable {EnvAgentSecret}");
+                $"Service secret is required: set {nameof(AgentVendClientOptions.ServiceSecret)} or environment variable {EnvServiceSecret}");
 
-        var agentIdRaw = FirstNonBlank(options.AgentId, Environment.GetEnvironmentVariable(EnvAgentId));
-        var agentId = string.IsNullOrEmpty(agentIdRaw) ? null : agentIdRaw;
+        var serviceIdRaw = FirstNonBlank(options.ServiceId, Environment.GetEnvironmentVariable(EnvServiceId));
+        var serviceId = string.IsNullOrEmpty(serviceIdRaw) ? null : serviceIdRaw;
 
         var http = options.HttpClient ?? new HttpClient();
 
         var coreRoot = JoinUrl(coreBase, corePrefix);
 
-        return new AgentVendClient(http, gwBase, gwPrefix, coreRoot, usageBase, usagePrefix, agentId, secret);
+        return new AgentVendClient(http, gwBase, gwPrefix, coreRoot, usageBase, usagePrefix, serviceId, secret);
     }
 
-    public Task<AgentKeyValidationResult?> ValidateAgentKeyAsync(string agentKey, CancellationToken ct = default) =>
-        ValidationClient.ValidateAgentKeyAsync(_http, _coreRoot, agentKey, _agentId, _agentSecret, ct);
+    public Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(string serviceKey, CancellationToken ct = default) =>
+        ValidationClient.ValidateServiceKeyAsync(_http, _coreRoot, serviceKey, _serviceId, _serviceSecret, ct);
 
-    public Task<UsageEstimateResult?> EstimateUsageAsync(string agentKey, decimal estimatedUnits, CancellationToken ct = default) =>
-        ValidationClient.EstimateUsageAsync(_http, _coreRoot, agentKey, estimatedUnits, _agentId, _agentSecret, ct);
+    public Task<UsageEstimateResult?> EstimateUsageAsync(string serviceKey, decimal estimatedUnits, CancellationToken ct = default) =>
+        ValidationClient.EstimateUsageAsync(_http, _coreRoot, serviceKey, estimatedUnits, _serviceId, _serviceSecret, ct);
 
-    public Task<UsageEstimateResult?> EstimateUsageWithJwtAsync(string bearerToken, string userId, string agentId,
+    public Task<UsageEstimateResult?> EstimateUsageWithJwtAsync(string bearerToken, string userId, string serviceId,
         decimal estimatedUnits, CancellationToken ct = default) =>
-        ValidationClient.EstimateUsageWithJwtAsync(_http, _coreRoot, bearerToken, userId, agentId, estimatedUnits, ct);
+        ValidationClient.EstimateUsageWithJwtAsync(_http, _coreRoot, bearerToken, userId, serviceId, estimatedUnits, ct);
 
-    public Task<GatewayInvokeResult?> InvokeAgentAsync(string method, string agentId, string endpointId, string agentKey,
+    public Task<GatewayInvokeResult?> InvokeServiceAsync(string method, string serviceId, string endpointId, string serviceKey,
         string? body, bool async, CancellationToken ct = default) =>
-        GatewayInvokeClient.InvokeAsync(_http, _gatewayBaseUrl, _gatewayPathPrefix, method, agentId, endpointId, agentKey, body, async, ct);
+        GatewayInvokeClient.InvokeAsync(_http, _gatewayBaseUrl, _gatewayPathPrefix, method, serviceId, endpointId, serviceKey, body, async, ct);
 
-    public Task<UsageReportResponse> ReportUsageAsync(string userId, string agentId, decimal unitsUsed, CancellationToken ct = default) =>
-        UsageClient.ReportUsageAsync(_http, _usageBase, userId, agentId, unitsUsed, _agentSecret, null, _usagePathPrefix, ct);
+    public Task<UsageReportResponse> ReportUsageAsync(string userId, string serviceId, decimal unitsUsed, CancellationToken ct = default) =>
+        UsageClient.ReportUsageAsync(_http, _usageBase, userId, serviceId, unitsUsed, _serviceSecret, null, _usagePathPrefix, ct);
 
-    public Task<UsageReportResponse> ReportUsageAsync(string userId, string agentId, decimal unitsUsed, DateTime? timestamp, CancellationToken ct = default) =>
-        UsageClient.ReportUsageAsync(_http, _usageBase, userId, agentId, unitsUsed, _agentSecret, timestamp, _usagePathPrefix, ct);
+    public Task<UsageReportResponse> ReportUsageAsync(string userId, string serviceId, decimal unitsUsed, DateTime? timestamp, CancellationToken ct = default) =>
+        UsageClient.ReportUsageAsync(_http, _usageBase, userId, serviceId, unitsUsed, _serviceSecret, timestamp, _usagePathPrefix, ct);
 
     public Task<bool> SendProgressUpdateAsync(string progressUrl, string requestId, string stage, int percentageComplete, CancellationToken ct = default) =>
-        UsageClient.ReportProgressAsync(_http, progressUrl, requestId, stage, percentageComplete, _agentSecret, ct);
+        UsageClient.ReportProgressAsync(_http, progressUrl, requestId, stage, percentageComplete, _serviceSecret, ct);
 
     public Task<bool> SendProgressUpdateAsync(string progressUrl, string requestId, string stage, int percentageComplete, string? errorMessage, CancellationToken ct = default) =>
-        UsageClient.ReportProgressAsync(_http, progressUrl, requestId, stage, percentageComplete, errorMessage, _agentSecret, ct);
+        UsageClient.ReportProgressAsync(_http, progressUrl, requestId, stage, percentageComplete, errorMessage, _serviceSecret, ct);
 
     public Task<bool> SendCompletionAsync(string callbackUrl, string requestId, CompletionStatus status, decimal units, CancellationToken ct = default) =>
-        UsageClient.ReportCompletionAsync(_http, callbackUrl, requestId, status, null, null, null, units, _agentSecret, ct);
+        UsageClient.ReportCompletionAsync(_http, callbackUrl, requestId, status, null, null, null, units, _serviceSecret, ct);
 
     public Task<bool> SendCompletionAsync(string callbackUrl, string requestId, CompletionStatus status, string? result, decimal units, CancellationToken ct = default) =>
-        UsageClient.ReportCompletionAsync(_http, callbackUrl, requestId, status, result, null, null, units, _agentSecret, ct);
+        UsageClient.ReportCompletionAsync(_http, callbackUrl, requestId, status, result, null, null, units, _serviceSecret, ct);
 
     public Task<bool> SendCompletionAsync(string callbackUrl, string requestId, CompletionStatus status, string? result, string? resultUrl, string? contentType, decimal units, CancellationToken ct = default) =>
-        UsageClient.ReportCompletionAsync(_http, callbackUrl, requestId, status, result, resultUrl, contentType, units, _agentSecret, ct);
+        UsageClient.ReportCompletionAsync(_http, callbackUrl, requestId, status, result, resultUrl, contentType, units, _serviceSecret, ct);
 
-    public Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(string requestId, string agentKey, CancellationToken ct = default) =>
-        GatewayClient.GetRequestStatusAsync(_http, _gatewayBaseUrl, _gatewayPathPrefix, requestId, agentKey, ct);
+    public Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(string requestId, string serviceKey, CancellationToken ct = default) =>
+        GatewayClient.GetRequestStatusAsync(_http, _gatewayBaseUrl, _gatewayPathPrefix, requestId, serviceKey, ct);
 
-    public Task<(bool Ok, int StatusCode, string Body)> GetRequestResultAsync(string requestId, string agentKey, CancellationToken ct = default) =>
-        GatewayClient.GetRequestResultAsync(_http, _gatewayBaseUrl, _gatewayPathPrefix, requestId, agentKey, ct);
+    public Task<(bool Ok, int StatusCode, string Body)> GetRequestResultAsync(string requestId, string serviceKey, CancellationToken ct = default) =>
+        GatewayClient.GetRequestResultAsync(_http, _gatewayBaseUrl, _gatewayPathPrefix, requestId, serviceKey, ct);
 
     private static string FirstNonBlank(string? a, string? b)
     {

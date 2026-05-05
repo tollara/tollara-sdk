@@ -6,7 +6,7 @@ import {
   DEFAULT_USAGE_PATH_PREFIX,
 } from './constants';
 import { getRequestResult, getRequestStatus, type GatewayPollResult } from './gatewayClient';
-import { invokeAgent, type GatewayHttpMethod, type GatewayInvokeResult } from './gatewayInvoke';
+import { invokeService, type GatewayHttpMethod, type GatewayInvokeResult } from './gatewayInvoke';
 import {
   reportCompletion,
   reportCompletionFull,
@@ -17,8 +17,8 @@ import {
 import {
   estimateUsage,
   estimateUsageWithJwt,
-  validateAgentKey,
-  type AgentKeyValidationResult,
+  validateServiceKey,
+  type ServiceKeyValidationResult,
   type UsageEstimateResult,
 } from './validationClient';
 import { resolveBaseUrl } from './urls';
@@ -49,13 +49,15 @@ export type AgentVendClientOptions = {
    * All service calls use this origin with fixed paths (validate, usage, gateway polling).
    */
   apiUrl?: string | null;
-  agentId?: string | null;
-  agentSecret?: string | null;
+  /** Service UUID; falls back to `AGENTVEND_AGENT_ID` (env name unchanged per platform spec). */
+  serviceId?: string | null;
+  /** Shared secret; falls back to `AGENTVEND_AGENT_SECRET`. */
+  serviceSecret?: string | null;
   fetch?: typeof globalThis.fetch;
 };
 
 /**
- * Unified client: validate agent key, report usage/progress/complete, poll gateway for async jobs.
+ * Unified client: validate service key, report usage/progress/complete, poll gateway for async jobs.
  * Omitted options fall back to `AGENTVEND_*` environment variables (when `process.env` exists).
  */
 export class AgentVendClient {
@@ -68,45 +70,45 @@ export class AgentVendClient {
   static readonly DEFAULT_USAGE_PATH_PREFIX = DEFAULT_USAGE_PATH_PREFIX;
 
   private readonly apiOrigin: string;
-  private readonly agentId: string | null;
-  private readonly agentSecret: string;
+  private readonly serviceId: string | null;
+  private readonly serviceSecret: string;
   private readonly fetchFn: typeof globalThis.fetch;
 
   constructor(options: AgentVendClientOptions = {}) {
     const resolved = resolveBaseUrl(firstNonBlank(options.apiUrl, envGet(ENV_API_URL)), DEFAULT_API_URL);
 
-    const secret = firstNonBlank(options.agentSecret, envGet(ENV_AGENT_SECRET));
+    const secret = firstNonBlank(options.serviceSecret, envGet(ENV_AGENT_SECRET));
     if (!secret) {
       throw new Error(
-        `Agent secret is required: set agentSecret or environment variable ${ENV_AGENT_SECRET}`
+        `Service secret is required: set serviceSecret or environment variable ${ENV_AGENT_SECRET}`
       );
     }
 
-    const aidRaw = firstNonBlank(options.agentId, envGet(ENV_AGENT_ID));
-    const aid = aidRaw === '' ? null : aidRaw || null;
+    const sidRaw = firstNonBlank(options.serviceId, envGet(ENV_AGENT_ID));
+    const sid = sidRaw === '' ? null : sidRaw || null;
 
     this.apiOrigin = resolved;
-    this.agentId = aid;
-    this.agentSecret = secret;
+    this.serviceId = sid;
+    this.serviceSecret = secret;
     this.fetchFn = options.fetch ?? fetch;
   }
 
-  async validateAgentKey(agentKey: string): Promise<AgentKeyValidationResult | null> {
-    return validateAgentKey({
+  async validateServiceKey(serviceKey: string): Promise<ServiceKeyValidationResult | null> {
+    return validateServiceKey({
       baseUrl: this.apiOrigin,
-      agentKey,
-      agentId: this.agentId,
-      agentSecret: this.agentSecret,
+      serviceKey,
+      serviceId: this.serviceId,
+      serviceSecret: this.serviceSecret,
       fetch: this.fetchFn,
     });
   }
 
-  async estimateUsage(agentKey: string, estimatedUnits: number): Promise<UsageEstimateResult | null> {
+  async estimateUsage(serviceKey: string, estimatedUnits: number): Promise<UsageEstimateResult | null> {
     return estimateUsage({
       baseUrl: this.apiOrigin,
-      agentKey,
-      agentId: this.agentId,
-      agentSecret: this.agentSecret,
+      serviceKey,
+      serviceId: this.serviceId,
+      serviceSecret: this.serviceSecret,
       estimatedUnits,
       fetch: this.fetchFn,
     });
@@ -118,48 +120,48 @@ export class AgentVendClient {
   async estimateUsageWithJwt(
     bearerToken: string,
     userId: string,
-    agentId: string,
+    serviceId: string,
     estimatedUnits: number
   ): Promise<UsageEstimateResult | null> {
     return estimateUsageWithJwt({
       baseUrl: this.apiOrigin,
       bearerToken,
       userId,
-      agentId,
+      serviceId,
       estimatedUnits,
       fetch: this.fetchFn,
     });
   }
 
   /**
-   * Gateway agent invoke (sync or async). See platform spec §1.1–1.2.
+   * Gateway service invoke (sync or async). See platform spec §1.1–1.2.
    */
-  async invokeAgent(
+  async invokeService(
     method: GatewayHttpMethod,
-    agentId: string,
+    serviceId: string,
     endpointId: string,
-    agentKey: string,
+    serviceKey: string,
     options?: { body?: string | null; async?: boolean }
   ): Promise<GatewayInvokeResult | null> {
-    return invokeAgent({
+    return invokeService({
       baseUrl: this.apiOrigin,
       method,
-      agentId,
+      serviceId,
       endpointId,
-      agentKey,
+      serviceKey,
       body: options?.body ?? null,
       async: options?.async ?? false,
       fetch: this.fetchFn,
     });
   }
 
-  async reportUsage(userId: string, agentId: string, unitsUsed: number): Promise<UsageReportResponse> {
+  async reportUsage(userId: string, serviceId: string, unitsUsed: number): Promise<UsageReportResponse> {
     return reportUsage({
       baseUrl: this.apiOrigin,
       userId,
-      agentId,
+      serviceId,
       unitsUsed,
-      agentSecret: this.agentSecret,
+      serviceSecret: this.serviceSecret,
       fetch: this.fetchFn,
     });
   }
@@ -177,7 +179,7 @@ export class AgentVendClient {
       stage,
       percentageComplete,
       errorMessage,
-      agentSecret: this.agentSecret,
+      serviceSecret: this.serviceSecret,
       fetch: this.fetchFn,
     });
   }
@@ -199,7 +201,7 @@ export class AgentVendClient {
         resultUrl,
         contentType,
         units,
-        agentSecret: this.agentSecret,
+        serviceSecret: this.serviceSecret,
         fetch: this.fetchFn,
       });
     }
@@ -208,25 +210,25 @@ export class AgentVendClient {
       requestId,
       status,
       units,
-      agentSecret: this.agentSecret,
+      serviceSecret: this.serviceSecret,
       fetch: this.fetchFn,
     });
   }
 
-  async getRequestStatus(requestId: string, agentKey: string): Promise<GatewayPollResult> {
+  async getRequestStatus(requestId: string, serviceKey: string): Promise<GatewayPollResult> {
     return getRequestStatus({
       baseUrl: this.apiOrigin,
       requestId,
-      agentKey,
+      serviceKey,
       fetch: this.fetchFn,
     });
   }
 
-  async getRequestResult(requestId: string, agentKey: string): Promise<GatewayPollResult> {
+  async getRequestResult(requestId: string, serviceKey: string): Promise<GatewayPollResult> {
     return getRequestResult({
       baseUrl: this.apiOrigin,
       requestId,
-      agentKey,
+      serviceKey,
       fetch: this.fetchFn,
     });
   }

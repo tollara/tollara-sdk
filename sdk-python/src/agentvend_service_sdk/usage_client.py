@@ -59,7 +59,7 @@ def report_progress(
     request_id: str,
     stage: str,
     percentage_complete: int,
-    agent_secret: str,
+    service_secret: str,
     error_message: Optional[str] = None,
     *,
     session: Optional["requests.Session"] = None,
@@ -76,7 +76,7 @@ def report_progress(
     if error_message is not None:
         body["errorMessage"] = error_message
     body_str = json.dumps(body, separators=(",", ":"))
-    signature = calculate_hmac_with_timestamp(body_str, timestamp, agent_secret)
+    signature = calculate_hmac_with_timestamp(body_str, timestamp, service_secret)
     sess = session or __import__("requests").Session()
     resp = sess.post(
         base_url,
@@ -94,7 +94,7 @@ def report_completion(
     callback_url: str,
     request_id: str,
     status: CompletionStatus,
-    agent_secret: str,
+    service_secret: str,
     *,
     units: float = 0.0,
     session: Optional["requests.Session"] = None,
@@ -104,7 +104,7 @@ def report_completion(
         callback_url,
         request_id,
         status,
-        agent_secret,
+        service_secret,
         units=units,
         session=session,
     )
@@ -114,7 +114,7 @@ def report_completion_with_result(
     callback_url: str,
     request_id: str,
     status: CompletionStatus,
-    agent_secret: str,
+    service_secret: str,
     result: str,
     *,
     units: float = 0.0,
@@ -125,7 +125,7 @@ def report_completion_with_result(
         callback_url,
         request_id,
         status,
-        agent_secret,
+        service_secret,
         result=result,
         units=units,
         session=session,
@@ -136,7 +136,7 @@ def report_completion_full(
     callback_url: str,
     request_id: str,
     status: CompletionStatus,
-    agent_secret: str,
+    service_secret: str,
     *,
     result: Optional[str] = None,
     result_url: Optional[str] = None,
@@ -163,7 +163,7 @@ def report_completion_full(
     if content_type is not None:
         body["contentType"] = content_type
     body_str = json.dumps(body, separators=(",", ":"))
-    signature = calculate_hmac_with_timestamp(body_str, timestamp, agent_secret)
+    signature = calculate_hmac_with_timestamp(body_str, timestamp, service_secret)
     sess = session or requests.Session()
     resp = sess.post(
         base_url,
@@ -180,9 +180,9 @@ def report_completion_full(
 def report_usage(
     base_url: str,
     user_id: str,
-    agent_id: str,
+    service_id: str,
     units_used: float,
-    agent_secret: str,
+    service_secret: str,
     *,
     usage_path_prefix: Optional[str] = None,
     session: Optional["requests.Session"] = None,
@@ -191,9 +191,9 @@ def report_usage(
     return report_usage_at(
         base_url,
         user_id,
-        agent_id,
+        service_id,
         units_used,
-        agent_secret,
+        service_secret,
         timestamp=None,
         usage_path_prefix=usage_path_prefix,
         session=session,
@@ -203,9 +203,9 @@ def report_usage(
 def report_usage_at(
     base_url: str,
     user_id: str,
-    agent_id: str,
+    service_id: str,
     units_used: float,
-    agent_secret: str,
+    service_secret: str,
     timestamp: Optional[float] = None,
     *,
     usage_path_prefix: Optional[str] = None,
@@ -216,9 +216,9 @@ def report_usage_at(
     except ImportError:
         raise ImportError("report_usage requires 'requests'. pip install requests")
     iso, ts_sec = _usage_report_iso_and_epoch_sec(timestamp)
-    body = {"userId": user_id, "agentId": agent_id, "unitsUsed": units_used, "timestamp": iso}
+    body = {"userId": user_id, "serviceId": service_id, "unitsUsed": units_used, "timestamp": iso}
     body_str = json.dumps(body, separators=(",", ":"))
-    signature = calculate_hmac_with_timestamp(body_str, ts_sec, agent_secret)
+    signature = calculate_hmac_with_timestamp(body_str, ts_sec, service_secret)
     url = _usage_report_url(base_url, usage_path_prefix)
     sess = session or requests.Session()
     resp = sess.post(

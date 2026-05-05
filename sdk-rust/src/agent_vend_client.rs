@@ -63,8 +63,8 @@ pub struct AgentVendClientConfig {
     pub core_path_prefix: Option<String>,
     pub gateway_path_prefix: Option<String>,
     pub usage_path_prefix: Option<String>,
-    pub agent_id: Option<String>,
-    pub agent_secret: Option<String>,
+    pub service_id: Option<String>,
+    pub service_secret: Option<String>,
     pub http_client: Option<reqwest::Client>,
 }
 
@@ -76,8 +76,8 @@ pub struct AgentVendClient {
     core_root: String,
     usage_base: String,
     usage_path_prefix: Option<String>,
-    agent_id: Option<String>,
-    agent_secret: String,
+    service_id: Option<String>,
+    service_secret: String,
 }
 
 impl AgentVendClient {
@@ -114,22 +114,22 @@ impl AgentVendClient {
             .as_deref()
             .unwrap_or(DEFAULT_GATEWAY_PATH_PREFIX);
 
-        let agent_secret = first_non_blank(
-            config.agent_secret.as_deref(),
+        let service_secret = first_non_blank(
+            config.service_secret.as_deref(),
             env::var(ENV_AGENT_SECRET).ok().as_deref(),
         );
-        if agent_secret.is_empty() {
-            return Err("Agent secret is required: set agent_secret or AGENTVEND_AGENT_SECRET");
+        if service_secret.is_empty() {
+            return Err("Service secret is required: set service_secret or AGENTVEND_AGENT_SECRET");
         }
 
-        let agent_id_raw = first_non_blank(
-            config.agent_id.as_deref(),
+        let service_id_raw = first_non_blank(
+            config.service_id.as_deref(),
             env::var(ENV_AGENT_ID).ok().as_deref(),
         );
-        let agent_id = if agent_id_raw.is_empty() {
+        let service_id = if service_id_raw.is_empty() {
             None
         } else {
-            Some(agent_id_raw)
+            Some(service_id_raw)
         };
 
         let http = config.http_client.unwrap_or_else(reqwest::Client::new);
@@ -141,8 +141,8 @@ impl AgentVendClient {
             core_root: join_url(&core_base, core_prefix),
             usage_base,
             usage_path_prefix: config.usage_path_prefix,
-            agent_id,
-            agent_secret,
+            service_id,
+            service_secret,
         })
     }
 
@@ -160,16 +160,39 @@ impl AgentVendClient {
         )
     }
 
-    pub async fn validate_agent_key(
+    pub async fn validate_service_key(
         &self,
-        agent_key: &str,
-    ) -> Option<validation_client::AgentKeyValidationResult> {
-        validation_client::validate_agent_key(
+        service_key: &str,
+    ) -> Option<validation_client::ServiceKeyValidationResult> {
+        validation_client::validate_service_key(
             &self.http,
             &self.core_root,
-            agent_key,
-            &self.agent_secret,
-            self.agent_id.as_deref(),
+            service_key,
+            &self.service_secret,
+            self.service_id.as_deref(),
+        )
+        .await
+    }
+
+    pub async fn invoke_service(
+        &self,
+        method: gateway_client::GatewayHttpMethod,
+        service_id: &str,
+        endpoint_id: &str,
+        service_key: &str,
+        body: Option<&str>,
+        is_async: bool,
+    ) -> Result<(u16, String), reqwest::Error> {
+        gateway_client::invoke_service(
+            &self.http,
+            &self.gateway_base,
+            &self.gateway_path_prefix,
+            method,
+            service_id,
+            endpoint_id,
+            service_key,
+            body,
+            is_async,
         )
         .await
     }
@@ -177,16 +200,16 @@ impl AgentVendClient {
     pub async fn report_usage(
         &self,
         user_id: &str,
-        agent_id: &str,
+        service_id: &str,
         units_used: f64,
     ) -> Result<usage_client::UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
         usage_client::report_usage_at(
             &self.http,
             &self.usage_base,
             user_id,
-            agent_id,
+            service_id,
             units_used,
-            &self.agent_secret,
+            &self.service_secret,
             None,
             self.usage_path_prefix.as_deref(),
         )
@@ -196,7 +219,7 @@ impl AgentVendClient {
     pub async fn report_usage_at(
         &self,
         user_id: &str,
-        agent_id: &str,
+        service_id: &str,
         units_used: f64,
         timestamp_secs: Option<f64>,
     ) -> Result<usage_client::UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
@@ -204,9 +227,9 @@ impl AgentVendClient {
             &self.http,
             &self.usage_base,
             user_id,
-            agent_id,
+            service_id,
             units_used,
-            &self.agent_secret,
+            &self.service_secret,
             timestamp_secs,
             self.usage_path_prefix.as_deref(),
         )
@@ -227,7 +250,7 @@ impl AgentVendClient {
             request_id,
             stage,
             percentage_complete,
-            &self.agent_secret,
+            &self.service_secret,
             error_message,
         )
         .await
@@ -245,7 +268,7 @@ impl AgentVendClient {
             callback_url,
             request_id,
             status,
-            &self.agent_secret,
+            &self.service_secret,
             units,
         )
         .await
@@ -264,7 +287,7 @@ impl AgentVendClient {
             callback_url,
             request_id,
             status,
-            &self.agent_secret,
+            &self.service_secret,
             result,
             units,
         )
@@ -286,7 +309,7 @@ impl AgentVendClient {
             callback_url,
             request_id,
             status,
-            &self.agent_secret,
+            &self.service_secret,
             result,
             result_url,
             content_type,
@@ -298,14 +321,14 @@ impl AgentVendClient {
     pub async fn get_request_status(
         &self,
         request_id: &str,
-        agent_key: &str,
+        service_key: &str,
     ) -> Result<(bool, u16, String), reqwest::Error> {
         gateway_client::get_request_status(
             &self.http,
             &self.gateway_base,
             &self.gateway_path_prefix,
             request_id,
-            agent_key,
+            service_key,
         )
         .await
     }
@@ -313,14 +336,14 @@ impl AgentVendClient {
     pub async fn get_request_result(
         &self,
         request_id: &str,
-        agent_key: &str,
+        service_key: &str,
     ) -> Result<(bool, u16, String), reqwest::Error> {
         gateway_client::get_request_result(
             &self.http,
             &self.gateway_base,
             &self.gateway_path_prefix,
             request_id,
-            agent_key,
+            service_key,
         )
         .await
     }
@@ -334,7 +357,7 @@ mod tests {
     fn usage_report_url_default() {
         let c = AgentVendClient::try_new(AgentVendClientConfig {
             api_url: Some("http://u.test".into()),
-            agent_secret: Some("s".into()),
+            service_secret: Some("s".into()),
             ..Default::default()
         })
         .unwrap();
@@ -345,7 +368,7 @@ mod tests {
     fn try_new_uses_constant_default_when_api_url_explicit() {
         let c = AgentVendClient::try_new(AgentVendClientConfig {
             api_url: Some(DEFAULT_API_URL.into()),
-            agent_secret: Some("s".into()),
+            service_secret: Some("s".into()),
             ..Default::default()
         })
         .unwrap();
@@ -359,7 +382,7 @@ mod tests {
     fn usage_report_url_custom_prefix() {
         let c = AgentVendClient::try_new(AgentVendClientConfig {
             api_url: Some("http://u.test".into()),
-            agent_secret: Some("s".into()),
+            service_secret: Some("s".into()),
             usage_path_prefix: Some("/usage/api/v1".into()),
             ..Default::default()
         })
