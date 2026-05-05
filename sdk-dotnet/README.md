@@ -1,8 +1,10 @@
 # AgentVend SDK (.NET)
 
-**Package:** `AgentVend.AgentSdk` (NuGet), **version** `0.0.4`.
+**Package:** `AgentVend.AgentSdk` (NuGet), **version** `0.0.5`.
 
-Verify HMAC, validate agent keys, run usage pre-flight checks, report usage, progress, completion, and poll job status on the gateway.
+Verify HMAC, validate agent keys, run usage pre-flight (agent-key **and** JWT), **gateway invoke**, report usage, progress, completion, and poll job status on the gateway.
+
+Canonical HTTP contract: [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md). HMAC algorithms: [hmac-spec.md](../docs/hmac-spec.md).
 
 On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve; use the [sdk-dotnet folder](https://github.com/maffers001/agentvend-sdk/tree/master/sdk-dotnet) in the repository for the same files with working links.
 
@@ -10,13 +12,14 @@ On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve
 
 **Unified `AgentVendClient`** uses built-in defaults for production. Override the API origin for non-production or private deployments via `ApiUrl` on `AgentVendClientOptions` and/or **`AGENTVEND_API_URL`**. Additional constructor options exist for advanced layouts when your environment differs from the default.
 
-**Low-level clients** (`ValidationClient`, `UsageClient`, `GatewayClient`) mirror the same defaults; overloads with explicit bases are available for custom integrations.
+**Low-level clients** (`ValidationClient`, `UsageClient`, `GatewayClient`, `GatewayInvokeClient`) mirror the same defaults; overloads with explicit bases are available for custom integrations.
 
 **Progress / completion** always use the full `progressUrl` / `callbackUrl` strings from the platform.
 
 ## HMAC (aligned with other SDKs)
 
-- **Usage service** (report / progress / completion) and **signed Core JSON responses** (validate, usage estimate): canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; timestamp matches `X-AgentVend-Timestamp`), then **`Base64(HMAC-SHA256(canonical, agentSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp`.
+- **Usage service** (report / progress / completion) and **signed Core JSON responses** (validate, agent-key usage estimate): canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; **`timestamp`** in **`X-AgentVend-Timestamp`** is **Unix epoch seconds**). For **report**, the JSON body’s **`timestamp`** field is an **ISO-8601** instant (spec §3.1). Then **`Base64(HMAC-SHA256(canonical, agentSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp`.
+- **JWT usage estimate** (Core `…/billing/usage/estimate`): **not** HMAC-signed; do not expect signature headers.
 - **Gateway → agent inbound:** canonical = `payload + timestamp + userContextString`. `Verifier.BuildGatewayUserContextString` is the legacy suffix; when the gateway sends **`X-AgentVend-Signing-Version: 2`**, `Verifier` uses **`BuildGatewayUserContextStringV2`** (leading `2`, no quota segment).
 
 ## Completion status (usage API)
@@ -36,6 +39,8 @@ var client = AgentVendClient.Create(new AgentVendClientOptions
 });
 var report = await client.ReportUsageAsync(userId, agentId, 1m);
 var estimate = await client.EstimateUsageAsync(agentKey, 1m);
+var jwtEst = await client.EstimateUsageWithJwtAsync(bearerJwt, coreUserId, agentId, 1m);
+var invoke = await client.InvokeAgentAsync("POST", agentId, endpointId, agentKey, body: "{}", async: false);
 var (ok, code, body) = await client.GetRequestStatusAsync(requestId, agentKey);
 ```
 
@@ -81,7 +86,9 @@ bool ok = Verifier.VerifyInboundHmac(agentSecret, req);
 
 ```csharp
 var result = await ValidationClient.ValidateAgentKeyAsync(http, agentKey, agentId, agentSecret);
+// result.AgentKeyId — when Core returns it (validate success).
 var est = await ValidationClient.EstimateUsageAsync(http, agentKey, 1m, agentId, agentSecret);
+var jwt = await ValidationClient.EstimateUsageWithJwtAsync(http, bearerJwt, coreUserId, agentId, 1m);
 ```
 
 Use overloads that accept an explicit Core service root when not using defaults.
@@ -98,6 +105,8 @@ await UsageClient.ReportCompletionAsync(http, callbackUrl, requestId, Completion
 
 ```csharp
 var (ok, code, body) = await GatewayClient.GetRequestStatusAsync(http, requestId, agentKey);
+var inv = await GatewayInvokeClient.InvokeAsync(
+    http, gatewayBaseUrl, AgentVendClient.DefaultGatewayPathPrefix, "POST", agentId, endpointId, agentKey, "{}", async: false);
 ```
 
 ## Tests
@@ -110,7 +119,12 @@ dotnet test AgentVend.AgentSdk.Tests/AgentVend.AgentSdk.Tests.csproj
 
 ## Changelog (high level)
 
-### 0.0.4 (current)
+### 0.0.5 (current)
+
+- **Gateway invoke** and **JWT usage estimate** on `AgentVendClient` / low-level clients; usage report aligns with spec (ISO body `timestamp`, epoch-second header for HMAC).
+- **Usage report response** model includes optional cap/time/overage fields.
+
+### 0.0.4
 
 - **Usage estimate:** `ValidationClient.EstimateUsageAsync` and `AgentVendClient.EstimateUsageAsync` call Core with the same trust model as validate; response HMAC is verified when signature headers are present.
 - **Gateway HMAC v2:** `AgentVendHeaders.SigningVersion`, `Verifier.BuildGatewayUserContextStringV2`, and optional `SigningVersion` on `InboundHmacRequest` when verifying inbound requests.
@@ -142,4 +156,4 @@ dotnet test AgentVend.AgentSdk.Tests/AgentVend.AgentSdk.Tests.csproj
 
 Package metadata (license, repo URL, readme embedded in the package) is defined in the `.csproj`.
 
-Further detail: [AgentVend documentation](https://agentvend.ai/docs).
+Further detail: [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).

@@ -6,9 +6,15 @@ HMAC verification, user context parsing, and (with the `http` feature) Core vali
 
 ## Configuration (base URLs)
 
-**`AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Set `api_url` or **`AGENTVEND_API_URL`** only to override. Default path prefixes follow [sdk-api-spec.md](../docs/sdk-api-spec.md); lower-level modules still take explicit bases. Use full `progress_url` / `callback_url` for async flows.
+**`AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Set `api_url` or **`AGENTVEND_API_URL`** only to override. Default path prefixes match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) (Core `/api/v1`, Gateway `/api`, Usage `/api/usage`); lower-level modules still take explicit bases. Use full `progress_url` / `callback_url` for async flows.
 
-See [api-overview.md](../docs/api-overview.md).
+See [api-overview.md](../docs/api-overview.md) for high-level service roles.
+
+### Spec alignment (this crate)
+
+- **Implemented:** HMAC verification, Core validate / agent-key usage estimate, usage progress & completion, usage report, gateway job status polling (with the `http` feature).
+- **Not implemented:** gateway **invoke** (`…/invoke`, `…/invoke/async`) and Core **JWT** usage estimate (`…/billing/usage/estimate`).
+- **Usage `report` vs MAIN-SDK §3.1:** this crate still sends **`timestamp` as epoch milliseconds** in the JSON body and uses that same string for **`X-AgentVend-Timestamp`** and HMAC. The canonical spec uses an **ISO-8601** body `timestamp` and **Unix epoch seconds** in the header; other SDKs in this repo follow that. Prefer those SDKs for new callers until Rust is updated.
 
 ## Install
 
@@ -83,4 +89,4 @@ cargo test
 cargo test --features http
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
+See [HMAC spec](../docs/hmac-spec.md) and [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
