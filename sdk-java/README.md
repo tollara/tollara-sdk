@@ -1,6 +1,6 @@
 # AgentVend SDK (Java)
 
-Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate agent keys, **usage pre-flight** (`estimateUsage`), report usage, progress/completion, and poll async job status on the gateway.
+Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate agent keys, **usage pre-flight** (agent-key and JWT estimates), **gateway invoke** (sync/async), report usage, progress/completion, and poll async job status on the gateway.
 
 **Package:** `com.agentvend:agent-sdk`
 
@@ -10,7 +10,7 @@ Dependencies are **Jackson**, **SLF4J**, and the **JDK** `java.net.http.HttpClie
 
 ### Recommended: single `AgentVendClient`
 
-Use **`AgentVendClient`** with one API origin. The SDK appends the path prefixes from [sdk-api-spec.md](../docs/sdk-api-spec.md) (default deployment). Override prefixes when using ECS layouts or local Docker.
+Use **`AgentVendClient`** with one API origin. Path prefixes and HTTP contracts follow [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) (canonical); override prefixes when using ECS layouts or local Docker.
 
 | Setting | Default | Notes |
 |--------|---------|--------|
@@ -24,6 +24,8 @@ Use **`AgentVendClient`** with one API origin. The SDK appends the path prefixes
 Split hosts (optional): `Builder.coreApiUrl(...)`, `gatewayApiUrl(...)`, `usageApiUrl(...)` each default to the main API URL when unset.
 
 **Progress / completion** still use the **full** `progressUrl` / `callbackUrl` strings from the gateway (including query params).
+
+**Usage report signing (Usage §3):** the JSON body includes an ISO-8601 **`timestamp`** field; **`X-AgentVend-Timestamp`** is **Unix epoch seconds** (same value concatenated to the raw body string for HMAC). Progress/completion use the **timestamp from the URL** query string for signing, as returned by the platform.
 
 ### Environment variables
 
@@ -39,7 +41,7 @@ In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_AGENT_I
 
 ### Low-level clients
 
-`AgentKeyValidationClient`, `UsageServiceClient`, and `GatewayClient` remain available if you need fully manual URL assembly.
+`AgentKeyValidationClient`, `UsageServiceClient`, `GatewayClient`, and **`GatewayInvokeClient`** remain available if you need fully manual URL assembly.
 
 ## Install
 
@@ -48,7 +50,7 @@ Use the same version as `version` in [`build.gradle`](build.gradle) (below match
 **Gradle:**
 
 ```kotlin
-implementation("com.agentvend:agent-sdk:0.0.1")
+implementation("com.agentvend:agent-sdk:0.0.3")
 ```
 
 **Maven:**
@@ -57,7 +59,7 @@ implementation("com.agentvend:agent-sdk:0.0.1")
 <dependency>
   <groupId>com.agentvend</groupId>
   <artifactId>agent-sdk</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.3</version>
 </dependency>
 ```
 
@@ -134,7 +136,7 @@ Open [central.sonatype.com/publishing](https://central.sonatype.com/publishing):
 
 ### Verify inbound HMAC (agent backend)
 
-Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed. When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses HMAC user-context **v2** (leading `"2"`, no quota segment); see [sdk-api-spec.md §4](../docs/sdk-api-spec.md).
+Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed. When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses HMAC user-context **v2** (leading `"2"`, no quota segment); see [MAIN-SDK-API-SPEC.md §4](../docs-sdk/MAIN-SDK-API-SPEC.md).
 
 ```java
 import com.agentvend.client.AgentVendRequestVerifier;
@@ -165,9 +167,9 @@ You can also pass a `Map<String, String>` (`verifyInboundHmac(map, rawBody)` and
 ### Caller / backend HTTP APIs (single client)
 
 ```java
-import com.agentvend.client.AgentKeyValidationClient;
 import com.agentvend.client.AgentVendClient;
 import com.agentvend.client.GatewayHttpResponse;
+import com.agentvend.client.GatewayInvokeResult;
 import com.agentvend.client.model.CompletionStatus;
 import com.agentvend.client.model.UsageEstimateResult;
 import com.agentvend.client.model.UsageReportResponse;
@@ -184,8 +186,8 @@ AgentVendClient client = AgentVendClient.builder()
     .build();
 
 // Validate a caller’s agent key; verify response HMAC inside the client.
-AgentKeyValidationClient.AgentKeyValidationResult validation =
-        client.validateAgentKey("bearer-token");
+var validation = client.validateAgentKey("bearer-token");
+// validation.getAgentKeyId() — Core key row id when present (validate success, §2.1).
 
 // Pre-flight: Core POST /agent-keys/estimate-usage (same body trust as validate; no Bearer).
 // Verifies response HMAC on 200 / 403 / 429 when signature headers are present.
@@ -196,7 +198,14 @@ if (estimate != null) {
     // estimate.getSufficientCredits(), getWouldExceedCap(), getBreakdown(), …
 }
 
-// Record billed units for a user/agent (signed with agent secret).
+// JWT usage estimate (Core POST …/billing/usage/estimate) — unsigned response; pass a Bearer JWT.
+UsageEstimateResult jwtEst = client.estimateUsageWithJwt("jwt-here", internalUserId, agentId, new BigDecimal("1"));
+
+// Gateway invoke (sync or async); Bearer uses the agent API key string.
+GatewayInvokeResult inv = client.invokeAgent("POST", agentId, endpointId, agentKey, "{}", false);
+// inv.getAsyncEnvelope() on HTTP 202: requestId, callbackUrl, progressUrl
+
+// Record billed units for a user/agent (signed with agent secret; body timestamp ISO, header epoch seconds).
 UsageReportResponse usageResp = client.reportUsage(userId, agentId, BigDecimal.ONE);
 
 // Give progress update (use the full progressUrl from the gateway/async payload).
@@ -210,4 +219,4 @@ GatewayHttpResponse status = client.getRequestStatus(requestId, agentKey);
 
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
+See [HMAC spec](../docs/hmac-spec.md) and the canonical HTTP contract [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).

@@ -2,21 +2,28 @@
 
 **Package:** `agentvend-sdk` (PyPI). **Import:** `import agentvend_sdk` (replaces the former `agentvend-agent-sdk` / `agentvend_agent_sdk` names).
 
-Verify HMAC on incoming gateway requests, validate agent keys, run usage pre-flight checks, report usage, progress/completion, and poll async job status on the gateway.
+Verify HMAC on incoming gateway requests, validate agent keys, run usage pre-flight (agent-key **and** JWT paths), **gateway invoke**, report usage, progress/completion, and poll async job status on the gateway.
+
+HTTP contracts: [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md). HMAC details: [hmac-spec.md](../docs/hmac-spec.md).
 
 ## Configuration
 
 ### Recommended: single `AgentVendClient`
 
-Use **`AgentVendClient`** with one API **origin** (scheme + host, optional port). The client uses the default AgentVend API URL layout; for details see the [AgentVend documentation](https://agentvend.ai/docs).
+Use **`AgentVendClient`** with one API **origin** (scheme + host, optional port). Path prefixes match **MAIN-SDK-API-SPEC** defaults unless overridden.
 
 | Setting | Default | Notes |
 |--------|---------|--------|
 | API origin | **`https://api.agentvend.api`** (`AgentVendClient.DEFAULT_API_URL`) | Override with `api_url=...`, or env **`AGENTVEND_API_URL`** for staging/tests — no trailing slash required |
 | Agent ID | From env **`AGENTVEND_AGENT_ID`**, or `agent_id=...` | Optional if Core can infer the agent from the key |
 | Agent secret | From env **`AGENTVEND_AGENT_SECRET`**, or `agent_secret=...` | **Required** (Usage HMAC + Core response verification) |
+| Core path prefix | **`/api/v1`** (`DEFAULT_CORE_PATH_PREFIX`) | ECS-style: `core_path_prefix="/core/api/v1"` on `AgentVendClient(...)` or low-level helpers |
+| Gateway path prefix | **`/api`** (`DEFAULT_GATEWAY_PATH_PREFIX`) | Override with `gateway_path_prefix=...` on `AgentVendClient` or gateway helpers |
+| Usage path prefix | **`/api/usage`** (`DEFAULT_USAGE_PATH_PREFIX`) | ECS: `usage_path_prefix="/usage/api/v1"` on `AgentVendClient` or `report_usage` helpers |
 
 **Progress / completion** still use the **full** `progress_url` / `callback_url` strings from the gateway (including query params).
+
+**Usage report (§3):** JSON body includes an ISO-8601 **`timestamp`**; **`X-AgentVend-Timestamp`** is **Unix epoch seconds** for signing. For `report_usage_at`, pass `timestamp` as epoch **seconds** (or omit for “now”); values above `1e11` are treated as milliseconds and converted.
 
 Constructor arguments override environment variables when both are set.
 
@@ -33,8 +40,6 @@ In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_AGENT_I
 ### Low-level helpers
 
 `validate_agent_key`, `report_usage`, `get_request_status`, and related functions remain available. They take a single `base_url` using the SDK’s default URL layout for AgentVend services.
-
-More detail: [AgentVend documentation](https://agentvend.ai/docs).
 
 ## Requirements
 
@@ -95,11 +100,18 @@ client = AgentVendClient(
 )
 
 validation = client.validate_agent_key("bearer-token")
+# validation.agent_key_id — Core key id when present
 
 estimate = client.estimate_usage("bearer-token", 1.0)
 if estimate is not None:
     allowed = estimate.would_allow
     status = estimate.http_status
+
+# JWT usage estimate (unsigned): bearer JWT + internal Core user id + agent id
+# client.estimate_usage_with_jwt(jwt, core_user_id, agent_id, 1.0)
+
+# Gateway invoke: method, agent_id, endpoint_id, agent_key, optional body=..., async_=...
+# client.invoke_agent("POST", agent_id, endpoint_id, agent_key, body="{}", async_=False)
 
 usage_resp = client.report_usage(user_id, agent_id, 1.0)
 
@@ -159,11 +171,17 @@ assert verify_inbound_hmac(agent_secret, req)
 ### Validate agent key and usage estimate (low-level)
 
 ```python
-from agentvend_sdk import validate_agent_key, estimate_usage
+from agentvend_sdk import validate_agent_key, estimate_usage, estimate_usage_with_jwt, invoke_agent
 
 # Pass your Core service base URL (same layout as the unified client’s Core target).
 result = validate_agent_key(core_base_url, "bearer-token", "agent-secret", agent_id="agent-uuid")
 est = estimate_usage(core_base_url, "bearer-token", "agent-secret", 1.0, agent_id="agent-uuid")
+jwt_est = estimate_usage_with_jwt(
+    core_base_url, "jwt", core_user_id, agent_id, 1.0, core_path_prefix="/api/v1"
+)
+invoke_agent(
+    gateway_base_url, "POST", agent_id, endpoint_id, agent_key, body="{}", async_=False
+)
 ```
 
 ### Report usage, progress, completion (low-level)
@@ -179,7 +197,12 @@ from agentvend_sdk import (
 
 report_usage(usage_service_base_url, user_id, agent_id, 1.0, agent_secret)
 report_usage_at(
-    usage_service_base_url, user_id, agent_id, 1.0, agent_secret, timestamp=1700000000.0,
+    usage_service_base_url,
+    user_id,
+    agent_id,
+    1.0,
+    agent_secret,
+    timestamp=1700000000.0,  # epoch seconds (or ms if > 1e11)
 )
 report_progress(progress_url, request_id, "stage", 50, agent_secret)
 report_completion_with_result(
@@ -227,4 +250,4 @@ pytest
 
 Project metadata (name `agentvend-sdk`, license, URLs) lives in `pyproject.toml`.
 
-For HMAC signing and HTTP API layout, see the [AgentVend documentation](https://agentvend.ai/docs).
+For the full HTTP matrix (invoke, validate, estimates, usage, gateway polling), see [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).

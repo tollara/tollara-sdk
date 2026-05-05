@@ -6,7 +6,7 @@ HMAC helpers and inbound verification. Use Net::HTTP, Faraday, or similar for Co
 
 ## Configuration (base URLs)
 
-The gem does not ship a unified HTTP client. Default production API origin is **`https://api.agentvend.api`** (aligned with other SDKs’ `AgentVendClient`). Configure Gateway, Core, and Usage bases per [sdk-api-spec.md](../docs/sdk-api-spec.md); set `AGENTVEND_API_URL` only when you need a non-production origin.
+The gem does not ship a unified HTTP client. Default production API origin is **`https://api.agentvend.api`** (aligned with other SDKs’ `AgentVendClient`). Configure Gateway, Core, and Usage bases per [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md); set `AGENTVEND_API_URL` only when you need a non-production origin.
 
 See [api-overview.md](../docs/api-overview.md).
 
@@ -18,7 +18,7 @@ The gem does **not** read the environment. Use the same names as the Java `Agent
 - `AGENTVEND_AGENT_ID` (optional depending on Core)
 - `AGENTVEND_AGENT_SECRET`
 
-There is no unified HTTP client here; use Net::HTTP, Faraday, etc., with the URLs in [sdk-api-spec.md](../docs/sdk-api-spec.md).
+There is no unified HTTP client here; use Net::HTTP, Faraday, etc., with the URLs in [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
 
 ### Verify HMAC and trusted user context in one call
 
@@ -65,8 +65,8 @@ AgentVendSdk.calculate_hmac_with_timestamp(body_string, timestamp, key)
 ## HTTP examples
 
 - **Validate:** `POST` to `{core_base}/agent-keys/validate`; verify HMAC on response text + timestamp header (`HEADERS[:timestamp]`).
-- **Report usage:** `POST` to `{usage_base}/api/usage/report` with signed headers.
+- **Report usage:** `POST` to `{usage_base}/api/usage/report` with signed headers. Per MAIN-SDK §3.1: JSON `timestamp` is **ISO-8601**; `X-AgentVend-Timestamp` is **Unix epoch seconds**; canonical = body string + that header value.
 - **Progress / completion:** POST to full URLs from async response; sign JSON body with timestamp from query string.
 - **Gateway:** `GET` `{gateway}{prefix}/requests/{request_id}/status` with `Authorization: Bearer #{agent_key}`.
 
-See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
+See [HMAC spec](../docs/hmac-spec.md) and [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).

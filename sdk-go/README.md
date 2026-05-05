@@ -6,7 +6,7 @@ HMAC helpers and inbound gateway verification. Use your own HTTP client (or `net
 
 ## Configuration (base URLs)
 
-Other language SDKs expose a unified `AgentVendClient` that defaults the API origin to **`https://api.agentvend.api`** (`sdk.DefaultAPIURL`). This Go module does **not** read the environment; wire bases from config—use `DefaultAPIURL` as the default production origin and `EnvAPIURL` / `AGENTVEND_API_URL` when you need staging or local overrides. Path defaults follow [sdk-api-spec.md](../docs/sdk-api-spec.md) §3.
+Other language SDKs expose a unified `AgentVendClient` that defaults the API origin to **`https://api.agentvend.api`** (`sdk.DefaultAPIURL`). This Go module does **not** read the environment; wire bases from config—use `DefaultAPIURL` as the default production origin and `EnvAPIURL` / `AGENTVEND_API_URL` when you need staging or local overrides. Path defaults follow the prefix table in [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
 
 See [api-overview.md](../docs/api-overview.md).
 
@@ -69,7 +69,7 @@ There are no built-in HTTP clients in this module yet. Illustrative `net/http` c
 
 **Validate key (Core):** `POST {coreBase}/agent-keys/validate` with JSON body; verify response HMAC over `body + X-AgentVend-Timestamp`.
 
-**Report usage:** `POST {usageBase}/api/usage/report` with JSON body and `X-AgentVend-Signature` / `X-AgentVend-Timestamp` using `sdk.CalculateHmacWithTimestamp`.
+**Report usage:** `POST {usageBase}/api/usage/report` (default layout; see spec for ECS prefixes) with JSON body and `X-AgentVend-Signature` / `X-AgentVend-Timestamp` using `sdk.CalculateHmacWithTimestamp`. Per MAIN-SDK §3.1: body `timestamp` is **ISO-8601**; header timestamp is **Unix epoch seconds**; HMAC canonical is **`bodyJson + headerTimestamp`**.
 
 **Gateway job status:** `GET {gatewayBase}{prefix}/requests/{requestId}/status` with `Authorization: Bearer {agentKey}`.
 
@@ -81,4 +81,4 @@ There are no built-in HTTP clients in this module yet. Illustrative `net/http` c
 go test ./...
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
+See [HMAC spec](../docs/hmac-spec.md) and [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).

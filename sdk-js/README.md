@@ -2,7 +2,9 @@
 
 **Package:** `@agentvend/agent-sdk`
 
-Verify inbound HMAC, validate agent keys, run usage pre-flight checks, report usage, progress, and completion, and poll async job status.
+Verify inbound HMAC, validate agent keys, run usage pre-flight (agent-key **and** JWT paths), **gateway invoke** (sync/async), report usage, progress, completion, and poll async job status.
+
+HTTP paths, headers, and signing rules match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md). HMAC algorithms and gateway canonical strings: [hmac-spec.md](../docs/hmac-spec.md).
 
 ## API origin
 
@@ -30,6 +32,12 @@ if (estimate) {
   const allowed = estimate.wouldAllow;
   const status = estimate.httpStatus;
 }
+
+// JWT usage estimate (unsigned Core response): internal Core user id + agent id + units
+// await client.estimateUsageWithJwt(bearerJwt, coreUserId, agentId, 1);
+
+// Gateway invoke (Bearer = agent key): method, agentId, endpointId, agentKey, optional body + async flag
+// await client.invokeAgent('POST', agentId, endpointId, agentKey, { body: '{}', async: false });
 ```
 
 ### Verify signature and user context together
@@ -55,9 +63,11 @@ npm install @agentvend/agent-sdk
 - `buildGatewayUserContextString` / `buildGatewayUserContextStringV2` — inbound suffix helpers
 - `verifyInboundHmac` / `verifySignatureFromHeaders` — inbound gateway HMAC
 - `getUserContext` — parses headers (case-insensitive keys)
-- `AgentVendClient` — validate key, estimate usage, usage reporting, gateway polling
-- `validateAgentKey` / `estimateUsage` — Core calls with response HMAC verification
-- `reportUsage`, `reportProgress`, `reportCompletion` — usage service
+- `AgentVendClient` — validate key, estimates, invoke, usage reporting, gateway polling
+- `validateAgentKey` / `estimateUsage` — Core agent-key paths; response HMAC verified when headers present
+- `estimateUsageWithJwt` — Core `POST …/billing/usage/estimate` with Bearer JWT (unsigned response)
+- `invokeAgent` — gateway `…/invoke` and `…/invoke/async`
+- `reportUsage`, `reportProgress`, `reportCompletion` — usage service (**report** body uses ISO `timestamp`; `X-AgentVend-Timestamp` = epoch **seconds** for HMAC — see spec §3)
 - `getRequestStatus`, `getRequestResult` — async job polling
 
 ## Examples
@@ -86,7 +96,7 @@ const result = await validateAgentKey({
 });
 ```
 
-Optional `baseUrl` when not using the default production origin.
+Optional `baseUrl` when not using the default production origin. Successful validate results include **`agentKeyId`** when Core returns it (§2.1).
 
 ### Usage estimate (caller)
 
@@ -178,4 +188,4 @@ Package name: **`@agentvend/agent-sdk`** ([npm scoped packages](https://docs.npm
 
 Optional: `npm publish --dry-run` to inspect the tarball without uploading. `repository`, `files` (`dist`, `README.md`), and `prepublishOnly` are already set in `package.json`.
 
-Protocol details: [AgentVend documentation](https://agentvend.ai/docs).
+Contract reference: [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
