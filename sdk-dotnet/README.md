@@ -10,9 +10,7 @@ On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve
 
 ## Configuration
 
-**Unified `AgentVendClient`** uses built-in defaults for production. Override the API origin for non-production or private deployments via `ApiUrl` on `AgentVendClientOptions` and/or **`AGENTVEND_API_URL`**. Additional constructor options exist for advanced layouts when your environment differs from the default.
-
-**Low-level clients** (`ValidationClient`, `UsageClient`, `GatewayClient`, `GatewayInvokeClient`) mirror the same defaults; overloads with explicit bases are available for custom integrations.
+**`AgentVendClient`** uses built-in defaults for production. Override the API origin for non-production or private deployments via `ApiUrl` on `AgentVendClientOptions` and/or **`AGENTVEND_API_URL`**. Additional constructor options exist for advanced layouts when your environment differs from the default.
 
 **Progress / completion** always use the full `progressUrl` / `callbackUrl` strings from the platform.
 
@@ -20,15 +18,15 @@ On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve
 
 - **Usage service** (report / progress / completion) and **signed Core JSON responses** (validate, service-key usage estimate): canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; **`timestamp`** in **`X-AgentVend-Timestamp`** is **Unix epoch seconds**). For **report**, the JSON body’s **`timestamp`** field is an **ISO-8601** instant (spec §3.1). Then **`Base64(HMAC-SHA256(canonical, serviceSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp`.
 - **JWT usage estimate** (Core `…/billing/usage/estimate`): **not** HMAC-signed; do not expect signature headers.
-- **Gateway → service inbound:** canonical = `payload + timestamp + userContextString`. `Verifier.BuildGatewayUserContextString` is the legacy suffix; when the gateway sends **`X-AgentVend-Signing-Version: 2`**, `Verifier` uses **`BuildGatewayUserContextStringV2`** (leading `2`, no quota segment).
+- **Gateway → service inbound:** canonical = `payload + timestamp + userContextString`. Verification defaults to v2 via **`BuildGatewayUserContextStringV2`** (leading `2`, no quota segment). `Verifier.BuildGatewayUserContextString` remains the legacy suffix.
 
 ## Completion status (usage API)
 
 JSON `status` for async completion must be uppercase **`COMPLETED`** or **`FAILED`**. Use `CompletionStatus.Completed` / `.Failed` with **`ToApiString()`** when building bodies (the clients do this). Do not rely on default `System.Text.Json` enum serialization for API payloads.
 
-### Unified client
+### AgentVend client
 
-`AgentVendClient.Create` honors optional **`AGENTVEND_AGENT_ID`**, required **`AGENTVEND_AGENT_SECRET`** (or options), and optional **`AGENTVEND_API_URL`**.
+`AgentVendClient.Create` honors optional **`AGENTVEND_SERVICE_ID`**, required **`AGENTVEND_SERVICE_SECRET`** (or options), and optional **`AGENTVEND_API_URL`**.
 
 ```csharp
 var client = AgentVendClient.Create(new AgentVendClientOptions
@@ -78,35 +76,8 @@ var ctx = Verifier.GetUserContext(headers);
 
 ```csharp
 var signed = new SignedUserContext("user1", "plan1", new[] { "r1" }, 10m, subscriptionActive: false);
-var req = new InboundHmacRequest(sig, ts, payload, signed, SigningVersion: "2"); // optional; omit for v1
+var req = new InboundHmacRequest(sig, ts, payload, signed, SigningVersion: "2"); // v2 default/recommended
 bool ok = Verifier.VerifyInboundHmac(serviceSecret, req);
-```
-
-### Validate key and usage estimate (low-level, defaults)
-
-```csharp
-var result = await ValidationClient.ValidateServiceKeyAsync(http, serviceKey, serviceId, serviceSecret);
-// result.ServiceKeyId — when Core returns it (validate success).
-var est = await ValidationClient.EstimateUsageAsync(http, serviceKey, 1m, serviceId, serviceSecret);
-var jwt = await ValidationClient.EstimateUsageWithJwtAsync(http, bearerJwt, coreUserId, serviceId, 1m);
-```
-
-Use overloads that accept an explicit Core service root when not using defaults.
-
-### Usage, progress, completion
-
-```csharp
-var report = await UsageClient.ReportUsageAsync(http, userId, serviceId, 1m, serviceSecret);
-await UsageClient.ReportProgressAsync(http, progressUrl, requestId, "processing", 50, serviceSecret);
-await UsageClient.ReportCompletionAsync(http, callbackUrl, requestId, CompletionStatus.Completed, "ok", 1m, serviceSecret);
-```
-
-### Gateway status / result (low-level, defaults)
-
-```csharp
-var (ok, code, body) = await GatewayClient.GetRequestStatusAsync(http, requestId, serviceKey);
-var inv = await GatewayInvokeClient.InvokeAsync(
-    http, gatewayBaseUrl, AgentVendClient.DefaultGatewayPathPrefix, "POST", serviceId, endpointId, serviceKey, "{}", async: false);
 ```
 
 ## Tests
@@ -121,13 +92,13 @@ dotnet test AgentVend.AgentSdk.Tests/AgentVend.ServiceSdk.Tests.csproj
 
 ### 0.0.5 (current)
 
-- **Gateway invoke** and **JWT usage estimate** on `AgentVendClient` / low-level clients; usage report aligns with spec (ISO body `timestamp`, epoch-second header for HMAC).
+- **Gateway invoke** and **JWT usage estimate** on `AgentVendClient`; usage report aligns with spec (ISO body `timestamp`, epoch-second header for HMAC).
 - **Usage report response** model includes optional cap/time/overage fields.
 
 ### 0.0.4
 
-- **Usage estimate:** `ValidationClient.EstimateUsageAsync` and `AgentVendClient.EstimateUsageAsync` call Core with the same trust model as validate; response HMAC is verified when signature headers are present.
-- **Gateway HMAC v2:** `AgentVendHeaders.SigningVersion`, `Verifier.BuildGatewayUserContextStringV2`, and optional `SigningVersion` on `InboundHmacRequest` when verifying inbound requests.
+- **Usage estimate:** `AgentVendClient.EstimateUsageAsync` calls Core with the same trust model as validate; response HMAC is verified when signature headers are present.
+- **Gateway HMAC v2:** `AgentVendHeaders.SigningVersion`, `Verifier.BuildGatewayUserContextStringV2`, and `SigningVersion: "2"` by default/recommendation on `InboundHmacRequest` when verifying inbound requests.
 
 ### 0.0.3
 

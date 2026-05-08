@@ -112,22 +112,25 @@ pub async fn report_usage_at(
     usage_path_prefix: Option<&str>,
 ) -> Result<UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let ts_ms = timestamp_secs
-        .map(|t| (t * 1000.0) as i64)
+    let ts_sec = timestamp_secs
+        .map(|t| t as i64)
         .unwrap_or_else(|| {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_millis() as i64
+                .as_secs() as i64
         });
+    let iso_ts = chrono::DateTime::<chrono::Utc>::from_timestamp(ts_sec, 0)
+        .unwrap_or_else(chrono::Utc::now)
+        .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let body = serde_json::json!({
         "userId": user_id,
         "serviceId": service_id,
         "unitsUsed": units_used,
-        "timestamp": ts_ms
+        "timestamp": iso_ts
     });
     let body_str = body.to_string();
-    let ts_str = ts_ms.to_string();
+    let ts_str = ts_sec.to_string();
     let signature = calculate_hmac_with_timestamp(&body_str, &ts_str, service_secret);
     let url = build_usage_report_url(usage_base_url, usage_path_prefix);
     let resp = client
@@ -182,14 +185,11 @@ pub async fn report_progress(
         Some(t) => t,
         None => return false,
     };
-    let ts_secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now_iso = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let mut body = serde_json::json!({
         "stage": stage,
         "percentageComplete": percentage_complete,
-        "timestamp": ts_secs,
+        "timestamp": now_iso,
     });
     if let Some(msg) = error_message {
         body["errorMessage"] = serde_json::Value::String(msg.to_string());
@@ -273,13 +273,10 @@ pub async fn report_completion_full(
         Some(t) => t,
         None => return false,
     };
-    let ts_secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now_iso = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let mut body = serde_json::json!({
         "status": status.as_str(),
-        "timestamp": ts_secs,
+        "timestamp": now_iso,
         "units": units,
     });
     if let Some(r) = result {

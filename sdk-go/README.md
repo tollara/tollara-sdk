@@ -2,26 +2,25 @@
 
 **Module:** `github.com/agentvend/service-sdk-go`
 
-HMAC helpers and inbound gateway verification. Use your own HTTP client (or `net/http`) for Core, Usage, and Gateway calls; see examples below.
+HMAC helpers, inbound gateway verification, and an `AgentVendClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
 ## Configuration (base URLs)
 
-Other language SDKs expose a unified `AgentVendClient` that defaults the API origin to **`https://api.agentvend.api`** (`sdk.DefaultAPIURL`). This Go module does **not** read the environment; wire bases from config—use `DefaultAPIURL` as the default production origin and `EnvAPIURL` / `AGENTVEND_API_URL` when you need staging or local overrides. Path defaults follow the prefix table in [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+Use the AgentVend API origin **`https://api.agentvend.api`** by default. Wire base URLs from your config, and set `AGENTVEND_API_URL` only when you need staging or local overrides. Path defaults follow the prefix table in [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
 
 See [api-overview.md](../docs/api-overview.md).
 
 ## Environment variables (Java alignment)
 
-This module does **not** read the environment for you. Use the same names as the Java `AgentVendClient` when wiring config (constants in package `sdk`):
+Use these environment variable names in your app config:
 
-| Constant | Value |
+| Config key | Value |
 |----------|--------|
-| `sdk.DefaultAPIURL` | `https://api.agentvend.api` (default origin for your config; not read automatically) |
-| `sdk.EnvAPIURL` | `AGENTVEND_API_URL` (optional override) |
-| `sdk.EnvAgentID` | `AGENTVEND_AGENT_ID` (name remains unchanged; maps to your **service id**) |
-| `sdk.EnvAgentSecret` | `AGENTVEND_AGENT_SECRET` (name remains unchanged; maps to your **service secret**) |
+| API URL | `AGENTVEND_API_URL` (optional override; default origin is `https://api.agentvend.api`) |
+| Service ID | `AGENTVEND_SERVICE_ID` (maps to your **service id**) |
+| Service secret | `AGENTVEND_SERVICE_SECRET` (maps to your **service secret**) |
 
-There is no bundled HTTP client; combine these with your own `net/http` or other stack.
+`AgentVendClient` uses `net/http` and supports split bases/path-prefix overrides for Core/Gateway/Usage.
 
 ### Verify HMAC and trusted user context in one call
 
@@ -63,17 +62,25 @@ ctx := sdk.UserContextFromHeaders(r.Header)
 
 Constants live on `sdk` (e.g. `sdk.HeaderSignature`).
 
-## Caller / usage flows (stdlib example)
+## AgentVend client example
 
-There are no built-in HTTP clients in this module yet. Illustrative `net/http` calls:
+```go
+client, err := sdk.NewAgentVendClient(sdk.AgentVendClientOptions{
+    ServiceID:     serviceID,
+    ServiceSecret: serviceSecret,
+})
+if err != nil { panic(err) }
 
-**Validate service key (Core):** `POST {coreBase}/service-keys/validate` with JSON body; verify response HMAC over `body + X-AgentVend-Timestamp`.
-
-**Report usage:** `POST {usageBase}/api/usage/report` (default layout; see spec for ECS prefixes) with JSON body and `X-AgentVend-Signature` / `X-AgentVend-Timestamp` using `sdk.CalculateHmacWithTimestamp`. Per MAIN-SDK §3.1: body `timestamp` is **ISO-8601**; header timestamp is **Unix epoch seconds**; HMAC canonical is **`bodyJson + headerTimestamp`**.
-
-**Gateway job status:** `GET {gatewayBase}{prefix}/requests/{requestId}/status` with `Authorization: Bearer {serviceKey}`.
-
-**Progress / completion:** `POST` to the full `progressUrl` / `callbackUrl` from the async response, signing the JSON body with `CalculateHmacWithTimestamp` and the timestamp from the URL query string (same pattern as other SDKs).
+_, _ = client.ValidateServiceKey(serviceKey)
+_, _ = client.EstimateUsage(serviceKey, 1)
+_, _ = client.EstimateUsageWithJWT(bearerJwt, coreUserID, serviceID, 1)
+_, _ = client.InvokeService("POST", serviceID, endpointID, serviceKey, "{}", false)
+_, _ = client.ReportUsage(userID, serviceID, 1)
+_, _ = client.SendProgressUpdate(progressURL, requestID, "processing", 50, nil)
+_, _ = client.SendCompletion(callbackURL, requestID, "COMPLETED", 1, nil, nil, nil)
+ok, code, body, _ := client.GetRequestStatus(requestID, serviceKey)
+_ = []any{ok, code, body}
+```
 
 ## Test
 

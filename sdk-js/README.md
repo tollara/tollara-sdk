@@ -11,11 +11,10 @@ HTTP paths, headers, and signing rules match [**MAIN-SDK-API-SPEC.md**](../docs-
 By default, the SDK uses the production AgentVend API origin. Override when needed (non-production or private deployments):
 
 - **`AgentVendClient`:** pass `apiUrl`, or set **`AGENTVEND_API_URL`**
-- **Standalone helpers:** optional `baseUrl` on each call (same default when omitted)
 
-## Unified client (recommended)
+## AgentVend client (recommended)
 
-`AgentVendClient` uses optional **`AGENTVEND_AGENT_ID`** (service UUID; env name unchanged per spec), required **`AGENTVEND_AGENT_SECRET`** (unless passed as `serviceSecret`), and optional **`AGENTVEND_API_URL`**.
+`AgentVendClient` uses optional **`AGENTVEND_SERVICE_ID`** (service UUID), required **`AGENTVEND_SERVICE_SECRET`** (unless passed as `serviceSecret`), and optional **`AGENTVEND_API_URL`**.
 
 ```ts
 import { AgentVendClient } from '@agentvend/service-sdk';
@@ -42,7 +41,7 @@ if (estimate) {
 
 ### Verify signature and user context together
 
-When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses the newer user-context suffix (no quota segment in the signed material). `verifySignatureFromHeaders` reads that header automatically.
+Verification defaults to signing version **v2** (newer user-context suffix, no quota segment in the signed material). `verifySignatureFromHeaders` also reads `X-AgentVend-Signing-Version` when present.
 
 ```ts
 import { verifySignatureFromHeadersAndGetUserContext } from '@agentvend/service-sdk';
