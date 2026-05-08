@@ -17,16 +17,16 @@ On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve
 ## HMAC (aligned with other SDKs)
 
 - **Usage service** (report / progress / completion) and **signed Core JSON responses** (validate, service-key usage estimate): canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; **`timestamp`** in **`X-AgentVend-Timestamp`** is **Unix epoch seconds**). For **report**, the JSON body’s **`timestamp`** field is an **ISO-8601** instant. Then **`Base64(HMAC-SHA256(canonical, serviceSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp`.
-- **JWT usage estimate** (Core `…/billing/usage/estimate`): **not** HMAC-signed; do not expect signature headers.
+- **JWT usage estimate**: **not** HMAC-signed; do not expect signature headers.
 - **Gateway → service inbound:** canonical = `payload + timestamp + userContextString`. Verification defaults to v2 via **`BuildGatewayUserContextStringV2`** (leading `2`, no quota segment). `Verifier.BuildGatewayUserContextString` remains the legacy suffix.
 
-## Completion status (usage API)
+## Completion status (async completion payloads)
 
 JSON `status` for async completion must be uppercase **`COMPLETED`** or **`FAILED`**. Use `CompletionStatus.Completed` / `.Failed` with **`ToApiString()`** when building bodies (the clients do this). Do not rely on default `System.Text.Json` enum serialization for API payloads.
 
 ### AgentVend client
 
-`AgentVendClient.Create` honors optional **`AGENTVEND_SERVICE_ID`**, required **`AGENTVEND_SERVICE_SECRET`** (or options), and optional **`AGENTVEND_API_URL`**.
+`AgentVendClient.Create` honors optional **`AGENTVEND_SERVICE_ID`**, required **`AGENTVEND_SERVICE_SECRET`** (or options), and optional **`AGENTVEND_API_URL`**. Legacy **`AGENTVEND_AGENT_ID`** / **`AGENTVEND_AGENT_SECRET`** are still read if the `SERVICE_*` variables are unset.
 
 ```csharp
 var client = AgentVendClient.Create(new AgentVendClientOptions
@@ -92,7 +92,7 @@ dotnet test AgentVend.AgentSdk.Tests/AgentVend.ServiceSdk.Tests.csproj
 
 ### 0.0.5 (current)
 
-- **Gateway invoke** and **JWT usage estimate** on `AgentVendClient`; usage report aligns with spec (ISO body `timestamp`, epoch-second header for HMAC).
+- **Gateway invoke** and **JWT usage estimate** on `AgentVendClient`; usage report uses an ISO-8601 `timestamp` in the JSON body and Unix epoch seconds in `X-AgentVend-Timestamp` for HMAC.
 - **Usage report response** model includes optional cap/time/overage fields.
 
 ### 0.0.4
