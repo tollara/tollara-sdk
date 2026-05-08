@@ -24,6 +24,7 @@ module AgentVendSdk
     billing_model: "X-AgentVend-Billing-Model",
     measurement_type: "X-AgentVend-Measurement-Type",
     unit_label: "X-AgentVend-Unit-Label"
+    signing_version: "X-AgentVend-Signing-Version"
   }.freeze
 
   class AgentVendClient
@@ -245,11 +246,22 @@ module AgentVendSdk
     (user_id || "").to_s + (plan || "").to_s + r.join(",") + (quota_remaining || "").to_s + sub + (billing || "").to_s + (measurement || "").to_s + (unit || "").to_s
   end
 
-  def self.verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining, subscription_active, billing = nil, measurement = nil, unit = nil)
+  def self.build_gateway_user_context_string_v2(user_id, plan, roles, subscription_active, billing, measurement, unit)
+    r = roles || []
+    sub = subscription_active ? "true" : "false"
+    "2" + (user_id || "").to_s + (plan || "").to_s + r.join(",") + sub + (billing || "").to_s + (measurement || "").to_s + (unit || "").to_s
+  end
+
+  def self.verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining, subscription_active, billing = nil, measurement = nil, unit = nil, signing_version = nil)
     return false if signature.to_s.empty? || timestamp.to_s.empty? || agent_secret.to_s.empty?
     r = roles || []
     q = format_quota_for_signing(quota_remaining)
-    user_context_string = build_gateway_user_context_string(user_id, plan, r, q, subscription_active, billing, measurement, unit)
+    user_context_string =
+      if signing_version.to_s.strip == "2"
+        build_gateway_user_context_string_v2(user_id, plan, r, subscription_active, billing, measurement, unit)
+      else
+        build_gateway_user_context_string(user_id, plan, r, q, subscription_active, billing, measurement, unit)
+      end
     data_to_sign = (payload || "").to_s + timestamp.to_s + user_context_string
     expected = calculate_hmac(data_to_sign, agent_secret)
     constant_time_equals(expected, signature)
@@ -306,7 +318,8 @@ module AgentVendSdk
       subscription_active: sub_active,
       billing_model_type: bm,
       measurement_type: mt,
-      unit_label: ul
+      unit_label: ul,
+      signing_version: header_get_ci(headers, HEADERS[:signing_version])
     )
   end
 

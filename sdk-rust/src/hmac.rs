@@ -63,6 +63,7 @@ pub struct InboundHmacVerify {
     pub timestamp: String,
     pub payload: String,
     pub signed: SignedUserContext,
+    pub signing_version: Option<String>,
 }
 
 fn format_quota(q: Option<f64>) -> String {
@@ -86,12 +87,27 @@ pub fn build_gateway_user_context_string(s: &SignedUserContext) -> String {
     format!("{u}{p}{r}{q}{sub}{b}{m}{ul}")
 }
 
+pub fn build_gateway_user_context_string_v2(s: &SignedUserContext) -> String {
+    let u = s.user_id.as_deref().unwrap_or("");
+    let p = s.plan.as_deref().unwrap_or("");
+    let r = s.roles.join(",");
+    let sub = if s.subscription_active { "true" } else { "false" };
+    let b = s.billing_model_type.as_deref().unwrap_or("");
+    let m = s.measurement_type.as_deref().unwrap_or("");
+    let ul = s.unit_label.as_deref().unwrap_or("");
+    format!("2{u}{p}{r}{sub}{b}{m}{ul}")
+}
+
 /// Verify inbound gateway request HMAC. Canonical: payload + timestamp + user_context_string.
 pub fn verify_inbound_hmac(agent_secret: &str, req: &InboundHmacVerify) -> bool {
     if req.signature.is_empty() || req.timestamp.is_empty() || agent_secret.is_empty() {
         return false;
     }
-    let user_context_string = build_gateway_user_context_string(&req.signed);
+    let user_context_string = if req.signing_version.as_deref() == Some("2") {
+        build_gateway_user_context_string_v2(&req.signed)
+    } else {
+        build_gateway_user_context_string(&req.signed)
+    };
     let data_to_sign = format!("{}{}{}", req.payload, req.timestamp, user_context_string);
     let expected = calculate_hmac(&data_to_sign, agent_secret);
     constant_time_equals(&expected, &req.signature)
@@ -155,6 +171,7 @@ pub fn verify_signature_from_headers(
         timestamp,
         payload: payload.to_string(),
         signed,
+        signing_version: header_get_ci(headers_map, headers::SIGNING_VERSION),
     };
     verify_inbound_hmac(agent_secret, &req)
 }
@@ -223,6 +240,7 @@ mod tests {
             timestamp: ts.to_string(),
             payload: payload.to_string(),
             signed,
+            signing_version: None,
         };
         assert!(verify_inbound_hmac(secret, &req));
     }
@@ -277,6 +295,7 @@ mod tests {
             timestamp: ts.into(),
             payload: payload.into(),
             signed,
+            signing_version: None,
         };
         assert!(verify_inbound_hmac(secret, &req));
     }

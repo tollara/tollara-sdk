@@ -1,4 +1,4 @@
-import { AgentVendClient, DEFAULT_API_URL, ENV_API_URL, ENV_AGENT_SECRET } from './agentVendClient';
+import { AgentVendClient, DEFAULT_API_URL, ENV_API_URL, ENV_SERVICE_SECRET } from './agentVendClient';
 import { calculateHmac } from './hmac';
 
 const SERVICE_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -105,11 +105,11 @@ describe('AgentVendClient', () => {
 
   it('reads apiUrl and secret from process.env when omitted', async () => {
     const prevUrl = process.env[ENV_API_URL];
-    const prevSecret = process.env[ENV_AGENT_SECRET];
+    const prevSecret = process.env[ENV_SERVICE_SECRET];
     const base = 'http://env-js.test';
     process.env[ENV_API_URL] = base;
-    process.env[ENV_AGENT_SECRET] = SERVICE_SECRET;
-    process.env.AGENTVEND_AGENT_ID = SERVICE_ID;
+    process.env[ENV_SERVICE_SECRET] = SERVICE_SECRET;
+    process.env.AGENTVEND_SERVICE_ID = SERVICE_ID;
 
     const mockFetch = jest.fn(async () => new Response('{}', { status: 200 }));
     try {
@@ -122,9 +122,9 @@ describe('AgentVendClient', () => {
     } finally {
       if (prevUrl === undefined) delete process.env[ENV_API_URL];
       else process.env[ENV_API_URL] = prevUrl;
-      if (prevSecret === undefined) delete process.env[ENV_AGENT_SECRET];
-      else process.env[ENV_AGENT_SECRET] = prevSecret;
-      delete process.env.AGENTVEND_AGENT_ID;
+      if (prevSecret === undefined) delete process.env[ENV_SERVICE_SECRET];
+      else process.env[ENV_SERVICE_SECRET] = prevSecret;
+      delete process.env.AGENTVEND_SERVICE_ID;
     }
   });
 });
