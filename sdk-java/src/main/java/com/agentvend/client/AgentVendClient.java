@@ -15,9 +15,8 @@ import java.time.Instant;
  * invoke and polling).
  * <p>
  * The API origin defaults to {@value #DEFAULT_API_URL} when neither {@link Builder#apiUrl(String)} nor {@value #ENV_API_URL} is set.
- * {@link Builder#serviceId(String)} / {@link Builder#serviceSecret(String)} or {@value #ENV_AGENT_ID} / {@value #ENV_AGENT_SECRET}
- * (secret required for signing and Core response verification). Environment variable names stay {@code AGENTVEND_AGENT_*}
- * per platform spec; they configure the service identity and shared secret.
+ * {@link Builder#serviceId(String)} / {@link Builder#serviceSecret(String)} or {@value #ENV_SERVICE_ID} / {@value #ENV_SERVICE_SECRET}
+ * (secret required for signing and Core response verification). Legacy aliases {@code AGENTVEND_AGENT_*} are still accepted.
  * Default path prefixes match {@code docs-sdk/MAIN-SDK-API-SPEC.md} (default deployment); override with
  * {@link Builder#corePathPrefix(String)}, {@link Builder#gatewayPathPrefix(String)}, {@link Builder#usagePathPrefix(String)}
  * for ECS or local Docker layouts.
@@ -37,12 +36,14 @@ public final class AgentVendClient {
      * Environment variable for the service UUID (optional; sent to Core on validate when set).
      * Used when {@link Builder#serviceId(String)} is not set.
      */
+    public static final String ENV_SERVICE_ID = "AGENTVEND_SERVICE_ID";
     public static final String ENV_AGENT_ID = "AGENTVEND_AGENT_ID";
 
     /**
      * Environment variable for the service shared secret (required for Usage HMAC and Core validate response verification).
      * Used when {@link Builder#serviceSecret(String)} is not set.
      */
+    public static final String ENV_SERVICE_SECRET = "AGENTVEND_SERVICE_SECRET";
     public static final String ENV_AGENT_SECRET = "AGENTVEND_AGENT_SECRET";
 
     /** Default {@code /api/v1} (Core servlet context). */
@@ -81,11 +82,15 @@ public final class AgentVendClient {
         HttpClient httpClient = b.httpClient != null ? b.httpClient : HttpClient.newHttpClient();
         this.httpClient = httpClient;
 
-        String resolvedServiceId = firstNonBlank(b.serviceId, System.getenv(ENV_AGENT_ID));
-        String resolvedServiceSecret = firstNonBlank(b.serviceSecret, System.getenv(ENV_AGENT_SECRET));
+        String resolvedServiceId = firstNonBlank(
+                b.serviceId,
+                firstNonBlank(System.getenv(ENV_SERVICE_ID), System.getenv(ENV_AGENT_ID)));
+        String resolvedServiceSecret = firstNonBlank(
+                b.serviceSecret,
+                firstNonBlank(System.getenv(ENV_SERVICE_SECRET), System.getenv(ENV_AGENT_SECRET)));
         if (resolvedServiceSecret.isEmpty()) {
             throw new IllegalStateException(
-                    "Service secret is required: set Builder.serviceSecret(...) or environment variable " + ENV_AGENT_SECRET);
+                    "Service secret is required: set Builder.serviceSecret(...) or environment variable " + ENV_SERVICE_SECRET);
         }
 
         this.core = new ServiceKeyValidationClient(coreRoot, emptyToNull(resolvedServiceId), resolvedServiceSecret, httpClient);
@@ -279,7 +284,7 @@ public final class AgentVendClient {
         }
 
         /**
-         * Service UUID (overrides {@value AgentVendClient#ENV_AGENT_ID}).
+         * Service UUID (overrides {@value AgentVendClient#ENV_SERVICE_ID}).
          * Optional if Core can infer the service from the key alone.
          */
         public Builder serviceId(String serviceId) {
@@ -288,7 +293,7 @@ public final class AgentVendClient {
         }
 
         /**
-         * Shared secret (overrides {@value AgentVendClient#ENV_AGENT_SECRET}).
+         * Shared secret (overrides {@value AgentVendClient#ENV_SERVICE_SECRET}).
          * Required after merge with the environment; used for Usage signing and Core response HMAC verification.
          */
         public Builder serviceSecret(String serviceSecret) {

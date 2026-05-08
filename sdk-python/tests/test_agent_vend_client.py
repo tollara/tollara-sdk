@@ -96,8 +96,8 @@ def test_custom_usage_path_prefix_on_client():
 @responses.activate
 def test_from_env_uses_default_base_without_agents_api_url(monkeypatch):
     monkeypatch.delenv(ENV_API_URL, raising=False)
-    monkeypatch.setenv("AGENTVEND_AGENT_SECRET", SERVICE_SECRET)
-    monkeypatch.setenv("AGENTVEND_AGENT_ID", SERVICE_ID)
+    monkeypatch.setenv("AGENTVEND_SERVICE_SECRET", SERVICE_SECRET)
+    monkeypatch.setenv("AGENTVEND_SERVICE_ID", SERVICE_ID)
     base = DEFAULT_API_URL.rstrip("/")
     responses.add(
         responses.GET,
@@ -115,8 +115,8 @@ def test_from_env_uses_default_base_without_agents_api_url(monkeypatch):
 def test_from_env_overrides_base_with_agents_api_url(monkeypatch):
     base = "http://env-from.test"
     monkeypatch.setenv(ENV_API_URL, base)
-    monkeypatch.setenv("AGENTVEND_AGENT_SECRET", SERVICE_SECRET)
-    monkeypatch.setenv("AGENTVEND_AGENT_ID", SERVICE_ID)
+    monkeypatch.setenv("AGENTVEND_SERVICE_SECRET", SERVICE_SECRET)
+    monkeypatch.setenv("AGENTVEND_SERVICE_ID", SERVICE_ID)
     responses.add(
         responses.GET,
         f"{base}/api/requests/r2/status",

@@ -34,7 +34,7 @@ class AgentVendClientTest {
                         .httpClient(HttpClient.newHttpClient())
                         .build())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(AgentVendClient.ENV_AGENT_SECRET);
+                .hasMessageContaining(AgentVendClient.ENV_SERVICE_SECRET);
     }
 
     @Test

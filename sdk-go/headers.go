@@ -12,4 +12,5 @@ const (
 	HeaderBillingModel       = "X-AgentVend-Billing-Model"
 	HeaderMeasurementType    = "X-AgentVend-Measurement-Type"
 	HeaderUnitLabel          = "X-AgentVend-Unit-Label"
+	HeaderSigningVersion     = "X-AgentVend-Signing-Version"
 )

@@ -24,6 +24,8 @@ import {
 import { resolveBaseUrl } from './urls';
 
 export const ENV_API_URL = 'AGENTVEND_API_URL';
+export const ENV_SERVICE_ID = 'AGENTVEND_SERVICE_ID';
+export const ENV_SERVICE_SECRET = 'AGENTVEND_SERVICE_SECRET';
 export const ENV_AGENT_ID = 'AGENTVEND_AGENT_ID';
 export const ENV_AGENT_SECRET = 'AGENTVEND_AGENT_SECRET';
 
@@ -49,9 +51,9 @@ export type AgentVendClientOptions = {
    * All service calls use this origin with fixed paths (validate, usage, gateway polling).
    */
   apiUrl?: string | null;
-  /** Service UUID; falls back to `AGENTVEND_AGENT_ID` (env name unchanged per platform spec). */
+  /** Service UUID; falls back to `AGENTVEND_SERVICE_ID` (legacy `AGENTVEND_AGENT_ID` also accepted). */
   serviceId?: string | null;
-  /** Shared secret; falls back to `AGENTVEND_AGENT_SECRET`. */
+  /** Shared secret; falls back to `AGENTVEND_SERVICE_SECRET` (legacy `AGENTVEND_AGENT_SECRET` also accepted). */
   serviceSecret?: string | null;
   fetch?: typeof globalThis.fetch;
 };
@@ -62,6 +64,8 @@ export type AgentVendClientOptions = {
  */
 export class AgentVendClient {
   static readonly ENV_API_URL = ENV_API_URL;
+  static readonly ENV_SERVICE_ID = ENV_SERVICE_ID;
+  static readonly ENV_SERVICE_SECRET = ENV_SERVICE_SECRET;
   static readonly ENV_AGENT_ID = ENV_AGENT_ID;
   static readonly ENV_AGENT_SECRET = ENV_AGENT_SECRET;
   static readonly DEFAULT_API_URL = DEFAULT_API_URL;
@@ -77,14 +81,14 @@ export class AgentVendClient {
   constructor(options: AgentVendClientOptions = {}) {
     const resolved = resolveBaseUrl(firstNonBlank(options.apiUrl, envGet(ENV_API_URL)), DEFAULT_API_URL);
 
-    const secret = firstNonBlank(options.serviceSecret, envGet(ENV_AGENT_SECRET));
+    const secret = firstNonBlank(options.serviceSecret, firstNonBlank(envGet(ENV_SERVICE_SECRET), envGet(ENV_AGENT_SECRET)));
     if (!secret) {
       throw new Error(
-        `Service secret is required: set serviceSecret or environment variable ${ENV_AGENT_SECRET}`
+        `Service secret is required: set serviceSecret or environment variable ${ENV_SERVICE_SECRET}`
       );
     }
 
-    const sidRaw = firstNonBlank(options.serviceId, envGet(ENV_AGENT_ID));
+    const sidRaw = firstNonBlank(options.serviceId, firstNonBlank(envGet(ENV_SERVICE_ID), envGet(ENV_AGENT_ID)));
     const sid = sidRaw === '' ? null : sidRaw || null;
 
     this.apiOrigin = resolved;
