@@ -10,18 +10,13 @@ Dependencies are **Jackson**, **SLF4J**, and the **JDK** `java.net.http.HttpClie
 
 ### Recommended: `AgentVendClient`
 
-Use **`AgentVendClient`** with one API origin. Path prefixes and HTTP contracts follow [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) (canonical); override prefixes when using ECS layouts or local Docker.
+Use **`AgentVendClient`** with one API origin.
 
 | Setting | Default | Notes |
 |--------|---------|--------|
 | API origin | **`https://api.agentvend.api`** (`AgentVendClient.DEFAULT_API_URL`) | Override with `Builder.apiUrl(...)`, or env **`AGENTVEND_API_URL`** for staging/tests — no trailing slash required |
 | Service ID | From env **`AGENTVEND_SERVICE_ID`**, or `Builder.serviceId(...)` | Optional if Core can infer the service from the key |
 | Service secret | From env **`AGENTVEND_SERVICE_SECRET`**, or `Builder.serviceSecret(...)` | **Required** (Usage HMAC + Core response verification) |
-| Core prefix | `/api/v1` | `Builder.corePathPrefix(...)` for `/core/api/v1` (ECS) |
-| Gateway prefix | `/api` | `Builder.gatewayPathPrefix(...)` for `/gateway/api/v1` (ECS) |
-| Usage prefix | `/api/usage` | `Builder.usagePathPrefix(...)` for `/usage/api/v1` (ECS) |
-
-Split hosts (optional): `Builder.coreApiUrl(...)`, `gatewayApiUrl(...)`, `usageApiUrl(...)` each default to the main API URL when unset.
 
 **Progress / completion** still use the **full** `progressUrl` / `callbackUrl` strings from the gateway (including query params).
 
@@ -132,7 +127,7 @@ Open [central.sonatype.com/publishing](https://central.sonatype.com/publishing):
 
 ### Verify inbound HMAC (service backend)
 
-Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed. Verification defaults to HMAC user-context **v2** (leading `"2"`, no quota segment), aligned with [MAIN-SDK-API-SPEC.md §4](../docs-sdk/MAIN-SDK-API-SPEC.md).
+Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed. Verification defaults to HMAC user-context **v2** (leading `"2"`, no quota segment).
 
 ```java
 import com.agentvend.client.AgentVendRequestVerifier;
@@ -215,4 +210,4 @@ GatewayHttpResponse status = client.getRequestStatus(requestId, serviceKey);
 
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and the canonical HTTP contract [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+See this README for the public SDK contract and usage examples.

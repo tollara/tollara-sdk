@@ -6,9 +6,9 @@ HMAC helpers, inbound verification, and an `AgentVendClient` for validate/estima
 
 ## Configuration (base URLs)
 
-Use the AgentVend API origin **`https://api.agentvend.api`** by default. Configure Gateway, Core, and Usage bases per [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md); set `AGENTVEND_API_URL` only when you need a non-production origin.
+Use the AgentVend API origin **`https://api.agentvend.api`** by default; set `AGENTVEND_API_URL` only when you need a non-production origin.
 
-See [api-overview.md](../docs/api-overview.md).
+Use this README as the public usage reference.
 
 ## Environment variables (Java alignment)
 
@@ -18,7 +18,7 @@ Use these environment variable names in your deployment config:
 - `AGENTVEND_SERVICE_ID` (optional depending on Core; maps to your service id)
 - `AGENTVEND_SERVICE_SECRET` (maps to your service secret)
 
-`AgentVendClient` uses Net::HTTP and supports split bases/path-prefix overrides for Core/Gateway/Usage.
+`AgentVendClient` uses Net::HTTP and supports advanced configuration options when needed.
 
 ### Verify HMAC and trusted user context in one call
 
@@ -80,4 +80,4 @@ client.send_completion(callback_url, request_id, "COMPLETED", 1)
 client.get_request_status(request_id, service_key)
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+See this README for public SDK usage details.

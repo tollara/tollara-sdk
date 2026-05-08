@@ -4,22 +4,19 @@
 
 Verify HMAC on incoming gateway requests, validate service keys, run usage pre-flight (service-key **and** JWT paths), **gateway invoke**, report usage, progress/completion, and poll async job status on the gateway.
 
-HTTP contracts: [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md). HMAC details: [hmac-spec.md](../docs/hmac-spec.md).
+This README covers the public SDK contract and usage examples.
 
 ## Configuration
 
 ### Recommended: `AgentVendClient`
 
-Use **`AgentVendClient`** with one API **origin** (scheme + host, optional port). Path prefixes match **MAIN-SDK-API-SPEC** defaults unless overridden.
+Use **`AgentVendClient`** with one API **origin** (scheme + host, optional port).
 
 | Setting | Default | Notes |
 |--------|---------|--------|
 | API origin | **`https://api.agentvend.api`** (`AgentVendClient.DEFAULT_API_URL`) | Override with `api_url=...`, or env **`AGENTVEND_API_URL`** for staging/tests — no trailing slash required |
 | Service identity | From env **`AGENTVEND_SERVICE_ID`**, or `service_id=...` | Optional if Core can infer the service from the key |
 | Service secret | From env **`AGENTVEND_SERVICE_SECRET`**, or `service_secret=...` | **Required** (Usage HMAC + Core response verification) |
-| Core path prefix | **`/api/v1`** (`DEFAULT_CORE_PATH_PREFIX`) | ECS-style: `core_path_prefix="/core/api/v1"` on `AgentVendClient(...)` |
-| Gateway path prefix | **`/api`** (`DEFAULT_GATEWAY_PATH_PREFIX`) | Override with `gateway_path_prefix=...` on `AgentVendClient` |
-| Usage path prefix | **`/api/usage`** (`DEFAULT_USAGE_PATH_PREFIX`) | ECS: `usage_path_prefix="/usage/api/v1"` on `AgentVendClient` |
 
 **Progress / completion** still use the **full** `progress_url` / `callback_url` strings from the gateway (including query params).
 
@@ -152,4 +149,4 @@ pytest
 
 Project metadata (name `agentvend-service-sdk`, license, URLs) lives in `pyproject.toml`.
 
-For the full HTTP matrix (invoke, validate, estimates, usage, gateway polling), see [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+The SDK methods shown in this README cover invoke, validate, estimates, usage reporting, and gateway polling flows.

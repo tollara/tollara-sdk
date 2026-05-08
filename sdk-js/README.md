@@ -4,7 +4,7 @@
 
 Verify inbound HMAC, validate **service keys**, run usage pre-flight (service-key **and** JWT paths), **gateway invoke** (sync/async), report usage, progress, completion, and poll async job status.
 
-HTTP paths, headers, and signing rules match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md). HMAC algorithms and gateway canonical strings: [hmac-spec.md](../docs/hmac-spec.md).
+This README covers the public SDK contract and usage examples.
 
 ## API origin
 
@@ -66,7 +66,7 @@ npm install @agentvend/service-sdk
 - `validateServiceKey` / `estimateUsage` — Core **service-key** paths; response HMAC verified when headers present
 - `estimateUsageWithJwt` — Core `POST …/billing/usage/estimate` with Bearer JWT (unsigned response)
 - `invokeService` — gateway `…/service/{serviceId}/endpoint/…/invoke` and `…/invoke/async`
-- `reportUsage`, `reportProgress`, `reportCompletion` — usage service (**report** body uses ISO `timestamp`; `X-AgentVend-Timestamp` = epoch **seconds** for HMAC — see spec §3)
+- `reportUsage`, `reportProgress`, `reportCompletion` — usage service (**report** body uses ISO `timestamp`; `X-AgentVend-Timestamp` = epoch **seconds** for HMAC)
 - `getRequestStatus`, `getRequestResult` — async job polling
 
 ## Examples
@@ -187,4 +187,4 @@ Package name: **`@agentvend/service-sdk`** ([npm scoped packages](https://docs.n
 
 Optional: `npm publish --dry-run` to inspect the tarball without uploading. `repository`, `files` (`dist`, `README.md`), and `prepublishOnly` are already set in `package.json`.
 
-Contract reference: [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+Contract reference: this README and the package API surface.

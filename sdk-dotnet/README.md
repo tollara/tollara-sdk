@@ -4,7 +4,7 @@
 
 Verify HMAC, validate service keys, run usage pre-flight (service-key **and** JWT), **gateway invoke**, report usage, progress, completion, and poll job status on the gateway.
 
-Canonical HTTP contract: [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md). HMAC algorithms: [hmac-spec.md](../docs/hmac-spec.md).
+This README covers the public SDK contract and usage examples.
 
 On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve; use the [sdk-dotnet folder](https://github.com/maffers001/agentvend-sdk/tree/master/sdk-dotnet) in the repository for the same files with working links.
 
@@ -16,7 +16,7 @@ On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve
 
 ## HMAC (aligned with other SDKs)
 
-- **Usage service** (report / progress / completion) and **signed Core JSON responses** (validate, service-key usage estimate): canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; **`timestamp`** in **`X-AgentVend-Timestamp`** is **Unix epoch seconds**). For **report**, the JSON body’s **`timestamp`** field is an **ISO-8601** instant (spec §3.1). Then **`Base64(HMAC-SHA256(canonical, serviceSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp`.
+- **Usage service** (report / progress / completion) and **signed Core JSON responses** (validate, service-key usage estimate): canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; **`timestamp`** in **`X-AgentVend-Timestamp`** is **Unix epoch seconds**). For **report**, the JSON body’s **`timestamp`** field is an **ISO-8601** instant. Then **`Base64(HMAC-SHA256(canonical, serviceSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp`.
 - **JWT usage estimate** (Core `…/billing/usage/estimate`): **not** HMAC-signed; do not expect signature headers.
 - **Gateway → service inbound:** canonical = `payload + timestamp + userContextString`. Verification defaults to v2 via **`BuildGatewayUserContextStringV2`** (leading `2`, no quota segment). `Verifier.BuildGatewayUserContextString` remains the legacy suffix.
 
@@ -127,4 +127,4 @@ dotnet test AgentVend.AgentSdk.Tests/AgentVend.ServiceSdk.Tests.csproj
 
 Package metadata (license, repo URL, readme embedded in the package) is defined in the `.csproj`.
 
-Further detail: [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+Further detail is available in this README and the package API surface.
