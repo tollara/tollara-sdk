@@ -7,6 +7,8 @@ use crate::validation_client;
 use std::env;
 
 pub const ENV_API_URL: &str = "AGENTVEND_API_URL";
+pub const ENV_SERVICE_ID: &str = "AGENTVEND_SERVICE_ID";
+pub const ENV_SERVICE_SECRET: &str = "AGENTVEND_SERVICE_SECRET";
 pub const ENV_AGENT_ID: &str = "AGENTVEND_AGENT_ID";
 pub const ENV_AGENT_SECRET: &str = "AGENTVEND_AGENT_SECRET";
 
@@ -116,15 +118,21 @@ impl AgentVendClient {
 
         let service_secret = first_non_blank(
             config.service_secret.as_deref(),
-            env::var(ENV_AGENT_SECRET).ok().as_deref(),
+            env::var(ENV_SERVICE_SECRET)
+                .ok()
+                .as_deref()
+                .or_else(|| env::var(ENV_AGENT_SECRET).ok().as_deref()),
         );
         if service_secret.is_empty() {
-            return Err("Service secret is required: set service_secret or AGENTVEND_AGENT_SECRET");
+            return Err("Service secret is required: set service_secret or AGENTVEND_SERVICE_SECRET");
         }
 
         let service_id_raw = first_non_blank(
             config.service_id.as_deref(),
-            env::var(ENV_AGENT_ID).ok().as_deref(),
+            env::var(ENV_SERVICE_ID)
+                .ok()
+                .as_deref()
+                .or_else(|| env::var(ENV_AGENT_ID).ok().as_deref()),
         );
         let service_id = if service_id_raw.is_empty() {
             None
@@ -170,6 +178,40 @@ impl AgentVendClient {
             service_key,
             &self.service_secret,
             self.service_id.as_deref(),
+        )
+        .await
+    }
+
+    pub async fn estimate_usage(
+        &self,
+        service_key: &str,
+        estimated_units: f64,
+    ) -> Option<validation_client::UsageEstimateResult> {
+        validation_client::estimate_usage(
+            &self.http,
+            &self.core_root,
+            service_key,
+            &self.service_secret,
+            estimated_units,
+            self.service_id.as_deref(),
+        )
+        .await
+    }
+
+    pub async fn estimate_usage_with_jwt(
+        &self,
+        bearer_token: &str,
+        user_id: &str,
+        service_id: &str,
+        estimated_units: f64,
+    ) -> Option<validation_client::UsageEstimateResult> {
+        validation_client::estimate_usage_with_jwt(
+            &self.http,
+            &self.core_root,
+            bearer_token,
+            user_id,
+            service_id,
+            estimated_units,
         )
         .await
     }

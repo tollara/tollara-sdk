@@ -8,15 +8,15 @@ Dependencies are **Jackson**, **SLF4J**, and the **JDK** `java.net.http.HttpClie
 
 ## Configuration
 
-### Recommended: single `AgentVendClient`
+### Recommended: `AgentVendClient`
 
 Use **`AgentVendClient`** with one API origin. Path prefixes and HTTP contracts follow [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) (canonical); override prefixes when using ECS layouts or local Docker.
 
 | Setting | Default | Notes |
 |--------|---------|--------|
 | API origin | **`https://api.agentvend.api`** (`AgentVendClient.DEFAULT_API_URL`) | Override with `Builder.apiUrl(...)`, or env **`AGENTVEND_API_URL`** for staging/tests — no trailing slash required |
-| Service ID | From env **`AGENTVEND_AGENT_ID`**, or `Builder.serviceId(...)` | Env name is unchanged per platform spec; optional if Core can infer the service from the key |
-| Service secret | From env **`AGENTVEND_AGENT_SECRET`**, or `Builder.serviceSecret(...)` | **Required** (Usage HMAC + Core response verification) |
+| Service ID | From env **`AGENTVEND_SERVICE_ID`**, or `Builder.serviceId(...)` | Optional if Core can infer the service from the key |
+| Service secret | From env **`AGENTVEND_SERVICE_SECRET`**, or `Builder.serviceSecret(...)` | **Required** (Usage HMAC + Core response verification) |
 | Core prefix | `/api/v1` | `Builder.corePathPrefix(...)` for `/core/api/v1` (ECS) |
 | Gateway prefix | `/api` | `Builder.gatewayPathPrefix(...)` for `/gateway/api/v1` (ECS) |
 | Usage prefix | `/api/usage` | `Builder.usagePathPrefix(...)` for `/usage/api/v1` (ECS) |
@@ -34,14 +34,10 @@ Builder values win when both are set; otherwise the SDK reads:
 | Variable | Purpose |
 |----------|---------|
 | **`AGENTVEND_API_URL`** | Optional. Overrides the default production API origin when set. |
-| **`AGENTVEND_AGENT_ID`** | Service UUID if you omit `serviceId(...)` (optional); env key name unchanged |
-| **`AGENTVEND_AGENT_SECRET`** | Service shared secret if you omit `serviceSecret(...)` (**required** one way or the other); env key name unchanged |
+| **`AGENTVEND_SERVICE_ID`** | Service UUID if you omit `serviceId(...)` (optional) |
+| **`AGENTVEND_SERVICE_SECRET`** | Service shared secret if you omit `serviceSecret(...)` (**required** one way or the other) |
 
-In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_AGENT_ID`, and `ENV_AGENT_SECRET`. The default base URL is `AgentVendClient.DEFAULT_API_URL`.
-
-### Low-level clients
-
-`ServiceKeyValidationClient`, `UsageServiceClient`, `GatewayClient`, and **`GatewayInvokeClient`** remain available if you need fully manual URL assembly.
+In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_SERVICE_ID`, and `ENV_SERVICE_SECRET`. The default base URL is `AgentVendClient.DEFAULT_API_URL`.
 
 ## Install
 
@@ -136,7 +132,7 @@ Open [central.sonatype.com/publishing](https://central.sonatype.com/publishing):
 
 ### Verify inbound HMAC (service backend)
 
-Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed. When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses HMAC user-context **v2** (leading `"2"`, no quota segment); see [MAIN-SDK-API-SPEC.md §4](../docs-sdk/MAIN-SDK-API-SPEC.md).
+Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed. Verification defaults to HMAC user-context **v2** (leading `"2"`, no quota segment), aligned with [MAIN-SDK-API-SPEC.md §4](../docs-sdk/MAIN-SDK-API-SPEC.md).
 
 ```java
 import com.agentvend.client.AgentVendRequestVerifier;
@@ -178,7 +174,7 @@ import java.math.BigDecimal;
 import java.net.http.HttpClient;
 
 // Default API origin is production; set .apiUrl(...) or AGENTVEND_API_URL only to override.
-// .serviceSecret(...) (or AGENTVEND_AGENT_SECRET) is required.
+// .serviceSecret(...) (or AGENTVEND_SERVICE_SECRET) is required.
 AgentVendClient client = AgentVendClient.builder()
     .serviceId(serviceId)
     // Shared secret: signs outbound Usage calls and verifies Core validate responses (required).

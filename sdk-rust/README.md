@@ -6,15 +6,14 @@ HMAC verification, user context parsing, and (with the `http` feature) Core vali
 
 ## Configuration (base URLs)
 
-**`AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Set `api_url` or **`AGENTVEND_API_URL`** only to override. Default path prefixes match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) (Core `/api/v1`, Gateway `/api`, Usage `/api/usage`); lower-level modules still take explicit bases. Use full `progress_url` / `callback_url` for async flows.
+**`AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Set `api_url` or **`AGENTVEND_API_URL`** only to override. Default path prefixes match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) (Core `/api/v1`, Gateway `/api`, Usage `/api/usage`). Use full `progress_url` / `callback_url` for async flows.
 
 See [api-overview.md](../docs/api-overview.md) for high-level service roles.
 
 ### Spec alignment (this crate)
 
-- **Implemented:** HMAC verification, Core validate / agent-key usage estimate, usage progress & completion, usage report, gateway job status polling (with the `http` feature).
-- **Not implemented:** gateway **invoke** (`…/invoke`, `…/invoke/async`) and Core **JWT** usage estimate (`…/billing/usage/estimate`).
-- **Usage `report` vs MAIN-SDK §3.1:** this crate still sends **`timestamp` as epoch milliseconds** in the JSON body and uses that same string for **`X-AgentVend-Timestamp`** and HMAC. The canonical spec uses an **ISO-8601** body `timestamp` and **Unix epoch seconds** in the header; other SDKs in this repo follow that. Prefer those SDKs for new callers until Rust is updated.
+- **Implemented:** HMAC verification, Core validate/service-key estimate/JWT estimate, gateway invoke, usage report/progress/completion, gateway status/result polling (with the `http` feature).
+- **Usage report signing:** JSON body uses ISO-8601 `timestamp`; `X-AgentVend-Timestamp` uses Unix epoch seconds; canonical HMAC is `bodyJson + headerTimestamp`.
 
 ## Install
 
@@ -58,9 +57,11 @@ let client = AgentVendClient::try_new(AgentVendClientConfig {
     ..Default::default()
 })?;
 
-// Or `try_from_env()` with AGENTVEND_AGENT_SECRET (and optional URL overrides).
+// Or `try_from_env()` with AGENTVEND_SERVICE_SECRET (and optional URL overrides).
 
 client.validate_service_key(service_key).await;
+client.estimate_usage(service_key, 1.0).await;
+client.estimate_usage_with_jwt(bearer_jwt, core_user_id, "service-uuid", 1.0).await;
 client.report_usage(user_id, service_id, 1.0).await?;
 let (ok, status, body) = client.get_request_status(request_id, service_key).await?;
 let (status, body) = client
@@ -73,24 +74,6 @@ let (status, body) = client
         false,
     )
     .await?;
-```
-
-Lower-level modules:
-
-```rust
-use agentvend_service_sdk::validation_client;
-use agentvend_service_sdk::usage_client;
-use agentvend_service_sdk::gateway_client;
-
-// validate_service_key(&client, core_base_url, service_key, service_secret, service_id)
-// report_usage / report_usage_at (optional usage_path_prefix); report_progress_simple; report_completion*, CompletionStatus
-let (ok, status, body) = gateway_client::get_request_status(
-    &client,
-    "https://api.agentvend.api",
-    "/api",
-    request_id,
-    service_key,
-).await?;
 ```
 
 ## Tests

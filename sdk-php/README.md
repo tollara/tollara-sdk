@@ -2,23 +2,23 @@
 
 **Package:** `agentvend/service-sdk` (Packagist)
 
-HMAC signing and **inbound gateway verification** (`AgentVend\AgentSdk\Verifier`). Use Guzzle or another HTTP client for Core, Usage, and Gateway requests.
+HMAC signing, **inbound gateway verification** (`AgentVend\AgentSdk\Verifier`), and an `AgentVendClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
 ## Configuration (base URLs)
 
-This package does not assemble HTTP clients for you. Default production origin is **`https://api.agentvend.api`** (same as unified clients in Java/Python/JS/.NET/Rust). You may omit a configured base when your app only needs that origin; set **`AGENTVEND_API_URL`** (or your config equivalent) only to override—for example staging. Path defaults match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) for default vs ECS layouts.
+Use the AgentVend API origin **`https://api.agentvend.api`** by default. You may omit a configured base when your app only needs that origin; set **`AGENTVEND_API_URL`** (or your config equivalent) only to override—for example staging. Path defaults match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) for default vs ECS layouts.
 
 See [api-overview.md](../docs/api-overview.md).
 
 ## Environment variables (Java alignment)
 
-This package does **not** load configuration from the environment. Use the same variable names as the Java `AgentVendClient` in your app config:
+Use these environment variable names in your app config:
 
 - `AGENTVEND_API_URL` — Optional. API origin; defaults to `https://api.agentvend.api` in product terms if unset.
-- `AGENTVEND_AGENT_ID` — Service UUID (optional for some Core flows). Variable name remains unchanged.
-- `AGENTVEND_AGENT_SECRET` — Service secret for outbound signing and inbound HMAC verification. Variable name remains unchanged.
+- `AGENTVEND_SERVICE_ID` — Service UUID (optional for some Core flows).
+- `AGENTVEND_SERVICE_SECRET` — Service secret for outbound signing and inbound HMAC verification.
 
-There is no unified HTTP client in this SDK; use Guzzle or similar and the paths in [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+`AgentVendClient` uses HTTP requests directly and supports split bases/path-prefix overrides for Core/Gateway/Usage.
 
 ### Verify HMAC and trusted user context in one call
 
@@ -61,14 +61,24 @@ $sig = Hmac::calculateHmac($data, $key);
 $sig = Hmac::calculateHmacWithTimestamp($bodyJson, $timestamp, $serviceSecret);
 ```
 
-## HTTP examples (Guzzle)
+## AgentVend client example
 
-**Validate service key:** `POST {coreBase}/service-keys/validate`, then verify HMAC on response body + `AgentVendHeaders::TIMESTAMP` header.
+```php
+use AgentVend\AgentSdk\AgentVendClient;
 
-**Report usage:** `POST {usageBase}/api/usage/report` with JSON body; set `AgentVendHeaders::SIGNATURE` and `TIMESTAMP` using `calculateHmacWithTimestamp`. Per MAIN-SDK §3.1: JSON `timestamp` is **ISO-8601**; header value is **Unix epoch seconds**; canonical = **`bodyJson + headerTimestamp`**.
+$client = new AgentVendClient(
+    serviceId: $serviceId,
+    serviceSecret: $serviceSecret
+);
 
-**Progress / completion:** POST to full URLs from async invoke; sign body + timestamp from query string.
-
-**Gateway polling:** `GET {gatewayBase}{prefix}/requests/{id}/status` with `Authorization: Bearer {serviceKey}`.
+$client->validateServiceKey($serviceKey);
+$client->estimateUsage($serviceKey, 1.0);
+$client->estimateUsageWithJwt($bearerJwt, $coreUserId, $serviceId, 1.0);
+$client->invokeService('POST', $serviceId, $endpointId, $serviceKey, '{}', false);
+$client->reportUsage($userId, $serviceId, 1.0);
+$client->sendProgressUpdate($progressUrl, $requestId, 'processing', 50);
+$client->sendCompletion($callbackUrl, $requestId, 'COMPLETED', 1.0);
+$client->getRequestStatus($requestId, $serviceKey);
+```
 
 See [HMAC spec](../docs/hmac-spec.md) and [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).

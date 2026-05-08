@@ -2,23 +2,23 @@
 
 **Gem:** `agentvend_service_sdk` (RubyGems). **Module:** `AgentVendSdk`.
 
-HMAC helpers and inbound verification. Use Net::HTTP, Faraday, or similar for Core, Usage, and Gateway APIs.
+HMAC helpers, inbound verification, and an `AgentVendClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
 ## Configuration (base URLs)
 
-The gem does not ship a unified HTTP client. Default production API origin is **`https://api.agentvend.api`** (aligned with other SDKs’ `AgentVendClient`). Configure Gateway, Core, and Usage bases per [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md); set `AGENTVEND_API_URL` only when you need a non-production origin.
+Use the AgentVend API origin **`https://api.agentvend.api`** by default. Configure Gateway, Core, and Usage bases per [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md); set `AGENTVEND_API_URL` only when you need a non-production origin.
 
 See [api-overview.md](../docs/api-overview.md).
 
 ## Environment variables (Java alignment)
 
-The gem does **not** read the environment. Use the same names as the Java `AgentVendClient` in your deployment config:
+Use these environment variable names in your deployment config:
 
 - `AGENTVEND_API_URL` (optional override; production default is `https://api.agentvend.api`)
-- `AGENTVEND_AGENT_ID` (optional depending on Core; variable name remains unchanged and maps to your service id)
-- `AGENTVEND_AGENT_SECRET` (variable name remains unchanged and maps to your service secret)
+- `AGENTVEND_SERVICE_ID` (optional depending on Core; maps to your service id)
+- `AGENTVEND_SERVICE_SECRET` (maps to your service secret)
 
-There is no unified HTTP client here; use Net::HTTP, Faraday, etc., with the URLs in [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+`AgentVendClient` uses Net::HTTP and supports split bases/path-prefix overrides for Core/Gateway/Usage.
 
 ### Verify HMAC and trusted user context in one call
 
@@ -62,11 +62,22 @@ AgentVendSdk.calculate_hmac(data, key)
 AgentVendSdk.calculate_hmac_with_timestamp(body_string, timestamp, key)
 ```
 
-## HTTP examples
+## AgentVend client example
 
-- **Validate service key:** `POST` to `{core_base}/service-keys/validate`; verify HMAC on response text + timestamp header (`HEADERS[:timestamp]`).
-- **Report usage:** `POST` to `{usage_base}/api/usage/report` with signed headers. Per MAIN-SDK §3.1: JSON `timestamp` is **ISO-8601**; `X-AgentVend-Timestamp` is **Unix epoch seconds**; canonical = body string + that header value.
-- **Progress / completion:** POST to full URLs from async response; sign JSON body with timestamp from query string.
-- **Gateway:** `GET` `{gateway}{prefix}/requests/{request_id}/status` with `Authorization: Bearer #{service_key}`.
+```ruby
+client = AgentVendSdk::AgentVendClient.new(
+  service_id: service_id,
+  service_secret: service_secret
+)
+
+client.validate_service_key(service_key)
+client.estimate_usage(service_key, 1)
+client.estimate_usage_with_jwt(bearer_jwt, core_user_id, service_id, 1)
+client.invoke_service("POST", service_id, endpoint_id, service_key, body: "{}", async: false)
+client.report_usage(user_id, service_id, 1)
+client.send_progress_update(progress_url, request_id, "processing", 50)
+client.send_completion(callback_url, request_id, "COMPLETED", 1)
+client.get_request_status(request_id, service_key)
+```
 
 See [HMAC spec](../docs/hmac-spec.md) and [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).

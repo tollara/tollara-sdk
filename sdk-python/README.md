@@ -8,18 +8,18 @@ HTTP contracts: [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md). HM
 
 ## Configuration
 
-### Recommended: single `AgentVendClient`
+### Recommended: `AgentVendClient`
 
 Use **`AgentVendClient`** with one API **origin** (scheme + host, optional port). Path prefixes match **MAIN-SDK-API-SPEC** defaults unless overridden.
 
 | Setting | Default | Notes |
 |--------|---------|--------|
 | API origin | **`https://api.agentvend.api`** (`AgentVendClient.DEFAULT_API_URL`) | Override with `api_url=...`, or env **`AGENTVEND_API_URL`** for staging/tests — no trailing slash required |
-| Service identity | From env **`AGENTVEND_AGENT_ID`**, or `service_id=...` | Optional if Core can infer the service from the key |
-| Service secret | From env **`AGENTVEND_AGENT_SECRET`**, or `service_secret=...` | **Required** (Usage HMAC + Core response verification) |
-| Core path prefix | **`/api/v1`** (`DEFAULT_CORE_PATH_PREFIX`) | ECS-style: `core_path_prefix="/core/api/v1"` on `AgentVendClient(...)` or low-level helpers |
-| Gateway path prefix | **`/api`** (`DEFAULT_GATEWAY_PATH_PREFIX`) | Override with `gateway_path_prefix=...` on `AgentVendClient` or gateway helpers |
-| Usage path prefix | **`/api/usage`** (`DEFAULT_USAGE_PATH_PREFIX`) | ECS: `usage_path_prefix="/usage/api/v1"` on `AgentVendClient` or `report_usage` helpers |
+| Service identity | From env **`AGENTVEND_SERVICE_ID`**, or `service_id=...` | Optional if Core can infer the service from the key |
+| Service secret | From env **`AGENTVEND_SERVICE_SECRET`**, or `service_secret=...` | **Required** (Usage HMAC + Core response verification) |
+| Core path prefix | **`/api/v1`** (`DEFAULT_CORE_PATH_PREFIX`) | ECS-style: `core_path_prefix="/core/api/v1"` on `AgentVendClient(...)` |
+| Gateway path prefix | **`/api`** (`DEFAULT_GATEWAY_PATH_PREFIX`) | Override with `gateway_path_prefix=...` on `AgentVendClient` |
+| Usage path prefix | **`/api/usage`** (`DEFAULT_USAGE_PATH_PREFIX`) | ECS: `usage_path_prefix="/usage/api/v1"` on `AgentVendClient` |
 
 **Progress / completion** still use the **full** `progress_url` / `callback_url` strings from the gateway (including query params).
 
@@ -32,14 +32,10 @@ Constructor arguments override environment variables when both are set.
 | Variable | Purpose |
 |----------|---------|
 | **`AGENTVEND_API_URL`** | Optional. Overrides the default production API origin when set (staging, local stacks, tests). |
-| **`AGENTVEND_AGENT_ID`** | Service UUID if you omit `service_id=...` (optional) |
-| **`AGENTVEND_AGENT_SECRET`** | Service secret if you omit `service_secret=...` (**required** one way or the other) |
+| **`AGENTVEND_SERVICE_ID`** | Service UUID if you omit `service_id=...` (optional) |
+| **`AGENTVEND_SERVICE_SECRET`** | Service secret if you omit `service_secret=...` (**required** one way or the other) |
 
-In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_SERVICE_ID`, and `ENV_SERVICE_SECRET` (legacy aliases `ENV_AGENT_ID` / `ENV_AGENT_SECRET` are kept). The default base URL is `AgentVendClient.DEFAULT_API_URL`.
-
-### Low-level helpers
-
-`validate_service_key`, `report_usage`, `get_request_status`, and related functions take a single `base_url` using the SDK’s default URL layout for AgentVend services.
+In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_SERVICE_ID`, and `ENV_SERVICE_SECRET`. The default base URL is `AgentVendClient.DEFAULT_API_URL`.
 
 ## Requirements
 
@@ -61,7 +57,7 @@ pip install agentvend-service-sdk[http]
 
 ### Verify inbound HMAC (agent backend)
 
-Pass a **header map** (keys matched case-insensitively) and the **raw body** the gateway signed (same bytes as in the canonical string). Header names follow `AgentVendHeaders` (`X-AgentVend-*`). When the gateway sends **`X-AgentVend-Signing-Version: 2`**, verification uses the newer user-context suffix (no quota segment in the signed material).
+Pass a **header map** (keys matched case-insensitively) and the **raw body** the gateway signed (same bytes as in the canonical string). Header names follow `AgentVendHeaders` (`X-AgentVend-*`). Verification defaults to signing version **v2** (newer user-context suffix, no quota segment in the signed material).
 
 **Preferred:** verify and read user context in one step (`None` if the HMAC is invalid):
 
@@ -93,7 +89,7 @@ For full control, build `InboundHmacRequest` with `SignedUserContext` and call `
 from agentvend_service_sdk import AgentVendClient, CompletionStatus
 
 # Default API origin is production; pass api_url=... or set AGENTVEND_API_URL only to override.
-# service_secret is required (here or via AGENTVEND_AGENT_SECRET).
+# service_secret is required (here or via AGENTVEND_SERVICE_SECRET).
 client = AgentVendClient(
     service_id=service_id,
     service_secret=service_secret,
@@ -123,100 +119,6 @@ client.send_completion(
 
 status = client.get_request_status(request_id, service_key)
 result = client.get_request_result(request_id, service_key)
-```
-
-## Low-level functions (explicit URLs per call)
-
-Use these when you are not using `AgentVendClient`, or when you pass an explicit `base_url` per call.
-
-### Verify HMAC (low-level)
-
-```python
-from agentvend_service_sdk import (
-    AgentVendHeaders,
-    verify_signature_from_headers,
-    get_user_context,
-)
-
-service_secret = "your-service-secret"
-headers = {
-    "x-agentvend-signature": sig,
-    "x-agentvend-timestamp": ts,
-}
-valid = verify_signature_from_headers(service_secret, headers, raw_body)
-if valid:
-    ctx = get_user_context(headers)
-```
-
-### Typed inbound request
-
-```python
-from agentvend_service_sdk import verify_inbound_hmac, InboundHmacRequest, SignedUserContext
-
-req = InboundHmacRequest(
-    signature=sig,
-    timestamp=ts,
-    payload="",
-    signed_user_context=SignedUserContext(
-        user_id="u1",
-        plan="p1",
-        roles=["r1"],
-        quota_remaining=10.0,
-        subscription_active=False,
-    ),
-)
-assert verify_inbound_hmac(service_secret, req)
-```
-
-### Validate service key and usage estimate (low-level)
-
-```python
-from agentvend_service_sdk import validate_service_key, estimate_usage, estimate_usage_with_jwt, invoke_service
-
-# Pass your Core service base URL (same layout as the unified client’s Core target).
-result = validate_service_key(core_base_url, "bearer-token", "service-secret", service_id="service-uuid")
-est = estimate_usage(core_base_url, "bearer-token", "service-secret", 1.0, service_id="service-uuid")
-jwt_est = estimate_usage_with_jwt(
-    core_base_url, "jwt", core_user_id, service_id, 1.0, core_path_prefix="/api/v1"
-)
-invoke_service(
-    gateway_base_url, "POST", service_id, endpoint_id, service_key, body="{}", async_=False
-)
-```
-
-### Report usage, progress, completion (low-level)
-
-```python
-from agentvend_service_sdk import (
-    CompletionStatus,
-    report_usage,
-    report_usage_at,
-    report_progress,
-    report_completion_with_result,
-)
-
-report_usage(usage_service_base_url, user_id, service_id, 1.0, service_secret)
-report_usage_at(
-    usage_service_base_url,
-    user_id,
-    service_id,
-    1.0,
-    service_secret,
-    timestamp=1700000000.0,  # epoch seconds (or ms if > 1e11)
-)
-report_progress(progress_url, request_id, "stage", 50, service_secret)
-report_completion_with_result(
-    callback_url, request_id, CompletionStatus.COMPLETED, service_secret, "ok", units=1.0
-)
-```
-
-### Gateway job status / result (low-level)
-
-```python
-from agentvend_service_sdk import get_request_status, get_request_result
-
-st = get_request_status(gateway_base_url, request_id, service_key)
-res = get_request_result(gateway_base_url, request_id, service_key)
 ```
 
 ## Tests (from source)
