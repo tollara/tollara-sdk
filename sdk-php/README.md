@@ -6,9 +6,9 @@ HMAC signing, **inbound gateway verification** (`AgentVend\AgentSdk\Verifier`), 
 
 ## Configuration (base URLs)
 
-Use the AgentVend API origin **`https://api.agentvend.api`** by default. You may omit a configured base when your app only needs that origin; set **`AGENTVEND_API_URL`** (or your config equivalent) only to override—for example staging. Path defaults match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) for default vs ECS layouts.
+Use the AgentVend API origin **`https://api.agentvend.api`** by default. You may omit a configured base when your app only needs that origin; set **`AGENTVEND_API_URL`** (or your config equivalent) only to override—for example staging.
 
-See [api-overview.md](../docs/api-overview.md).
+Use this README as the public usage reference.
 
 ## Environment variables (Java alignment)
 
@@ -18,7 +18,7 @@ Use these environment variable names in your app config:
 - `AGENTVEND_SERVICE_ID` — Service UUID (optional for some Core flows).
 - `AGENTVEND_SERVICE_SECRET` — Service secret for outbound signing and inbound HMAC verification.
 
-`AgentVendClient` uses HTTP requests directly and supports split bases/path-prefix overrides for Core/Gateway/Usage.
+`AgentVendClient` uses HTTP requests directly and supports advanced configuration options when needed.
 
 ### Verify HMAC and trusted user context in one call
 
@@ -81,4 +81,4 @@ $client->sendCompletion($callbackUrl, $requestId, 'COMPLETED', 1.0);
 $client->getRequestStatus($requestId, $serviceKey);
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+See this README for public SDK usage details.

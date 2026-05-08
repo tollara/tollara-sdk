@@ -6,9 +6,9 @@ HMAC verification, user context parsing, and (with the `http` feature) Core vali
 
 ## Configuration (base URLs)
 
-**`AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Set `api_url` or **`AGENTVEND_API_URL`** only to override. Default path prefixes match [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md) (Core `/api/v1`, Gateway `/api`, Usage `/api/usage`). Use full `progress_url` / `callback_url` for async flows.
+**`AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Set `api_url` or **`AGENTVEND_API_URL`** only to override. Use full `progress_url` / `callback_url` for async flows.
 
-See [api-overview.md](../docs/api-overview.md) for high-level service roles.
+Use this README as the public usage reference.
 
 ### Spec alignment (this crate)
 
@@ -83,4 +83,4 @@ cargo test
 cargo test --features http
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [**MAIN-SDK-API-SPEC.md**](../docs-sdk/MAIN-SDK-API-SPEC.md).
+See this README for public SDK usage details.
