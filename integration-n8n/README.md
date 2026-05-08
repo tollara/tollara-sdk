@@ -13,19 +13,19 @@ n8n nodes for AgentVend: webhook trigger with HMAC verification, invoke service,
 ## Nodes
 
 - **AgentVend Trigger** – Webhook that verifies HMAC using the service secret and parses `X-AgentVend-*` headers. Outputs request body and user context.
-- **AgentVend Invoke** – Calls the gateway `POST /api/service/{serviceId}/endpoint/{endpointId}/invoke` with the given service key.
-- **AgentVend Progress** – Sends a progress update to the usage service (use the `progressUrl` from an async invoke response).
-- **AgentVend Complete** – Sends completion to the usage service (use the `callbackUrl` from an async invoke response).
-- **AgentVend Validate Key** – Validates a service key via the core service and returns user/plan/quota.
+- **AgentVend Invoke** – Calls the gateway invoke API with the given service key.
+- **AgentVend Progress** – Sends a progress update (use the `progressUrl` from an async invoke response).
+- **AgentVend Complete** – Sends completion (use the `callbackUrl` from an async invoke response).
+- **AgentVend Validate Key** – Validates a service key and returns user/plan/quota.
 
 ## Credentials
 
 **AgentVend API**
 
 - **Service Secret** (required) – Used for HMAC signing and verification.
-- **Gateway URL** – Base URL of the gateway (e.g. `https://api.agentvend.api`).
-- **Core Service URL** – Base URL of the core service (e.g. `https://api.agentvend.api/core/api/v1`).
-- **Usage Service URL** – Base URL of the usage service (e.g. `https://api.agentvend.api`).
+- **Gateway URL** – API origin for gateway calls (e.g. `https://api.agentvend.api`).
+- **Core Service URL** – API origin for validate/estimate (often the same as the gateway URL; use the values from your AgentVend deployment).
+- **Usage Service URL** – API origin for usage reporting when not using absolute `progressUrl` / `callbackUrl` (often the same as the gateway URL).
 
 ## Build
 

@@ -18,7 +18,7 @@ public sealed class AgentVendClientOptions
 }
 
 /// <summary>
-/// Unified client for Core validate and estimates, Usage report/progress/complete, Gateway invoke and polling.
+/// AgentVend client for Core validate and estimates, Usage report/progress/complete, Gateway invoke and polling.
 /// The API origin defaults to <see cref="DefaultApiUrl"/> when neither <see cref="AgentVendClientOptions.ApiUrl"/> nor <c>AGENTVEND_API_URL</c> is set.
 /// </summary>
 public sealed class AgentVendClient
@@ -27,8 +27,14 @@ public sealed class AgentVendClient
     public const string DefaultApiUrl = "https://api.agentvend.api";
 
     public const string EnvApiUrl = "AGENTVEND_API_URL";
-    public const string EnvServiceId = "AGENTVEND_AGENT_ID";
-    public const string EnvServiceSecret = "AGENTVEND_AGENT_SECRET";
+    /// <summary>Preferred environment variable for the service UUID (optional).</summary>
+    public const string EnvServiceId = "AGENTVEND_SERVICE_ID";
+    /// <summary>Preferred environment variable for the service shared secret (required).</summary>
+    public const string EnvServiceSecret = "AGENTVEND_SERVICE_SECRET";
+    /// <summary>Legacy alias for <see cref="EnvServiceId"/>.</summary>
+    public const string EnvAgentId = "AGENTVEND_AGENT_ID";
+    /// <summary>Legacy alias for <see cref="EnvServiceSecret"/>.</summary>
+    public const string EnvAgentSecret = "AGENTVEND_AGENT_SECRET";
 
     public const string DefaultCorePathPrefix = "/api/v1";
     public const string DefaultGatewayPathPrefix = "/api";
@@ -80,12 +86,16 @@ public sealed class AgentVendClient
         var gwPrefix = options.GatewayPathPrefix ?? DefaultGatewayPathPrefix;
         var usagePrefix = options.UsagePathPrefix;
 
-        var secret = FirstNonBlank(options.ServiceSecret, Environment.GetEnvironmentVariable(EnvServiceSecret));
+        var secret = FirstNonBlank(
+            options.ServiceSecret,
+            FirstNonBlank(Environment.GetEnvironmentVariable(EnvServiceSecret), Environment.GetEnvironmentVariable(EnvAgentSecret)));
         if (string.IsNullOrEmpty(secret))
             throw new InvalidOperationException(
-                $"Service secret is required: set {nameof(AgentVendClientOptions.ServiceSecret)} or environment variable {EnvServiceSecret}");
+                $"Service secret is required: set {nameof(AgentVendClientOptions.ServiceSecret)} or environment variable {EnvServiceSecret} (legacy {EnvAgentSecret} also accepted)");
 
-        var serviceIdRaw = FirstNonBlank(options.ServiceId, Environment.GetEnvironmentVariable(EnvServiceId));
+        var serviceIdRaw = FirstNonBlank(
+            options.ServiceId,
+            FirstNonBlank(Environment.GetEnvironmentVariable(EnvServiceId), Environment.GetEnvironmentVariable(EnvAgentId)));
         var serviceId = string.IsNullOrEmpty(serviceIdRaw) ? null : serviceIdRaw;
 
         var http = options.HttpClient ?? new HttpClient();
