@@ -1,6 +1,6 @@
 # AgentVend SDK (.NET)
 
-**Package:** `AgentVend.ServiceSdk` (NuGet), **version** `0.0.5`.
+**Package:** `AgentVend.ServiceSdk` (NuGet), **version** `0.0.6`.
 
 Verify HMAC, validate service keys, run usage pre-flight (service-key **and** JWT), **gateway invoke**, report usage, progress, completion, and poll job status on the gateway.
 
@@ -90,7 +90,11 @@ dotnet test AgentVend.AgentSdk.Tests/AgentVend.ServiceSdk.Tests.csproj
 
 ## Changelog (high level)
 
-### 0.0.5 (current)
+### 0.0.6 (current)
+
+- **Environment variables:** `AgentVendClient.Create` prefers `AGENTVEND_SERVICE_ID` / `AGENTVEND_SERVICE_SECRET`; legacy `AGENTVEND_AGENT_ID` / `AGENTVEND_AGENT_SECRET` are still accepted when the `SERVICE_*` variables are unset.
+
+### 0.0.5
 
 - **Gateway invoke** and **JWT usage estimate** on `AgentVendClient`; usage report uses an ISO-8601 `timestamp` in the JSON body and Unix epoch seconds in `X-AgentVend-Timestamp` for HMAC.
 - **Usage report response** model includes optional cap/time/overage fields.
@@ -107,7 +111,7 @@ dotnet test AgentVend.AgentSdk.Tests/AgentVend.ServiceSdk.Tests.csproj
 
 ## Release (NuGet.org)
 
-1. **Version** — Set `<Version>` in `AgentVend.ServiceSdk.csproj` to a new **SemVer** value (e.g. `0.0.5`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
+1. **Version** — Set `<Version>` in `AgentVend.ServiceSdk.csproj` to a new **SemVer** value (e.g. `0.0.6`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
 2. **Verify** — Run tests (command above).
 3. **Pack** — From `sdk-dotnet`:
 

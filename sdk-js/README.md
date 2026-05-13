@@ -1,6 +1,6 @@
 # AgentVend SDK (JavaScript/TypeScript)
 
-**Package:** `@agentvend/service-sdk` (version **0.0.6** in this repo)
+**Package:** `@agentvend/service-sdk` (version **0.0.7** in this repo)
 
 Verify inbound HMAC, validate **service keys**, run usage pre-flight (service-key **and** JWT paths), **gateway invoke** (sync/async), report usage, progress, completion, and poll async job status.
 

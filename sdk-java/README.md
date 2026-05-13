@@ -41,7 +41,7 @@ Use the same version as `version` in [`build.gradle`](build.gradle) (below match
 **Gradle:**
 
 ```kotlin
-implementation("com.agentvend:service-sdk:0.0.4")
+implementation("com.agentvend:service-sdk:0.0.5")
 ```
 
 **Maven:**
@@ -50,7 +50,7 @@ implementation("com.agentvend:service-sdk:0.0.4")
 <dependency>
   <groupId>com.agentvend</groupId>
   <artifactId>service-sdk</artifactId>
-  <version>0.0.4</version>
+  <version>0.0.5</version>
 </dependency>
 ```
 

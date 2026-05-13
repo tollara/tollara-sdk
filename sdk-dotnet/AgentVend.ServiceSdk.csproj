@@ -4,7 +4,7 @@
     <PackageId>AgentVend.ServiceSdk</PackageId>
     <AssemblyName>AgentVend.ServiceSdk</AssemblyName>
     <RootNamespace>AgentVend</RootNamespace>
-    <Version>0.0.5</Version>
+    <Version>0.0.6</Version>
     <Title>AgentVend Service SDK</Title>
     <Authors>AgentVend</Authors>
     <Copyright>Copyright © AgentVend 2026</Copyright>
