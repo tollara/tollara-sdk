@@ -1,6 +1,6 @@
 {
   "name": "@agentvend/service-sdk",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
