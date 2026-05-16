@@ -1,4 +1,4 @@
-import { AgentVendHeaders } from './agentVendHeaders';
+import { TollaraHeaders } from './tollaraHeaders';
 import { CompletionStatus } from './completionStatus';
 import { calculateHmacWithTimestamp } from './hmac';
 import {
@@ -32,8 +32,8 @@ describe('usageClient', () => {
       expect(init?.headers).toEqual(
         expect.objectContaining({
           'Content-Type': 'application/json',
-          [AgentVendHeaders.SIGNATURE]: expect.any(String),
-          [AgentVendHeaders.TIMESTAMP]: expect.any(String),
+          [TollaraHeaders.SIGNATURE]: expect.any(String),
+          [TollaraHeaders.TIMESTAMP]: expect.any(String),
         })
       );
       return new Response(
@@ -65,8 +65,8 @@ describe('usageClient', () => {
       const expectedSig = calculateHmacWithTimestamp(rawBody, timestamp, 'secret');
       expect(init?.headers).toEqual(
         expect.objectContaining({
-          [AgentVendHeaders.TIMESTAMP]: timestamp,
-          [AgentVendHeaders.SIGNATURE]: expectedSig,
+          [TollaraHeaders.TIMESTAMP]: timestamp,
+          [TollaraHeaders.SIGNATURE]: expectedSig,
         })
       );
       const parsed = JSON.parse(rawBody) as { userId: string; serviceId: string; unitsUsed: number; timestamp: string };
@@ -112,8 +112,8 @@ describe('usageClient', () => {
       const expectedSig = calculateHmacWithTimestamp(rawBody, '1700000000', 'secret');
       expect(init?.headers).toEqual(
         expect.objectContaining({
-          [AgentVendHeaders.TIMESTAMP]: '1700000000',
-          [AgentVendHeaders.SIGNATURE]: expectedSig,
+          [TollaraHeaders.TIMESTAMP]: '1700000000',
+          [TollaraHeaders.SIGNATURE]: expectedSig,
         })
       );
       return new Response('', { status: 200 });
@@ -142,8 +142,8 @@ describe('usageClient', () => {
       const expectedSig = calculateHmacWithTimestamp(rawBody, '1700000001', 'secret');
       expect(init?.headers).toEqual(
         expect.objectContaining({
-          [AgentVendHeaders.TIMESTAMP]: '1700000001',
-          [AgentVendHeaders.SIGNATURE]: expectedSig,
+          [TollaraHeaders.TIMESTAMP]: '1700000001',
+          [TollaraHeaders.SIGNATURE]: expectedSig,
         })
       );
       const parsed = JSON.parse(rawBody);

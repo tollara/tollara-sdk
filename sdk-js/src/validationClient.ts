@@ -1,4 +1,4 @@
-import { AgentVendHeaders } from './agentVendHeaders';
+import { TollaraHeaders } from './tollaraHeaders';
 import { DEFAULT_API_URL, DEFAULT_CORE_PATH_PREFIX } from './constants';
 import { calculateHmac, constantTimeEquals, validateHmacSignature } from './hmac';
 import { joinUrl, resolveBaseUrl } from './urls';
@@ -41,13 +41,13 @@ interface CachedResult {
 }
 
 /**
- * Validates a service key via the AgentVend API and verifies response HMAC.
+ * Validates a service key via the Tollara API and verifies response HMAC.
  * Uses `baseUrl` (default production API origin) + `/api/v1/service-keys/validate`.
  * Optional in-memory cache with 60s TTL via {@link createValidationCache}.
  */
 export async function validateServiceKey(
   params: {
-    /** API origin; defaults to `https://api.agentvend.api`. */
+    /** API origin; defaults to `https://api.tollara.ai`. */
     baseUrl?: string | null;
     serviceKey: string;
     serviceId: string | null;
@@ -76,8 +76,8 @@ export async function validateServiceKey(
   if (!res.ok) return null;
 
   const responseText = await res.text();
-  const signature = res.headers.get(AgentVendHeaders.SIGNATURE);
-  const timestamp = res.headers.get(AgentVendHeaders.TIMESTAMP);
+  const signature = res.headers.get(TollaraHeaders.SIGNATURE);
+  const timestamp = res.headers.get(TollaraHeaders.TIMESTAMP);
   if (!signature || !timestamp) return null;
 
   const dataToVerify = responseText + timestamp;
@@ -122,7 +122,7 @@ export async function validateServiceKey(
 
 /**
  * Usage pre-flight for a service key (Core). Same trust model as {@link validateServiceKey}: JSON body, response HMAC.
- * Verifies signatures on 200 / 403 / 429 when `X-AgentVend-Signature` and `X-AgentVend-Timestamp` are present.
+ * Verifies signatures on 200 / 403 / 429 when `X-Tollara-Signature` and `X-Tollara-Timestamp` are present.
  */
 export async function estimateUsage(params: {
   baseUrl?: string | null;
@@ -157,8 +157,8 @@ export async function estimateUsage(params: {
   const responseText = await res.text();
   if (!responseText.trim()) return null;
 
-  const signature = res.headers.get(AgentVendHeaders.SIGNATURE);
-  const timestamp = res.headers.get(AgentVendHeaders.TIMESTAMP);
+  const signature = res.headers.get(TollaraHeaders.SIGNATURE);
+  const timestamp = res.headers.get(TollaraHeaders.TIMESTAMP);
   if (!signature || !timestamp) return null;
   if (!validateHmacSignature(signature, responseText + timestamp, serviceSecret)) return null;
 

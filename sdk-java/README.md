@@ -1,26 +1,26 @@
-# AgentVend SDK (Java)
+# Tollara SDK (Java)
 
-Client SDK for AgentVend: verify HMAC on incoming gateway requests, validate **service keys**, **usage pre-flight** (service-key and JWT estimates), **gateway invoke** (sync/async), report usage, progress/completion, and poll async job status on the gateway.
+Client SDK for Tollara: verify HMAC on incoming gateway requests, validate **service keys**, **usage pre-flight** (service-key and JWT estimates), **gateway invoke** (sync/async), report usage, progress/completion, and poll async job status on the gateway.
 
-**Package:** `com.agentvend:service-sdk`
+**Package:** `com.tollara:service-sdk`
 
 Dependencies are **Jackson**, **SLF4J**, and the **JDK** `java.net.http.HttpClient` (no Spring).
 
 ## Configuration
 
-### Recommended: `AgentVendClient`
+### Recommended: `TollaraClient`
 
-Use **`AgentVendClient`** with one API origin.
+Use **`TollaraClient`** with one API origin.
 
 | Setting | Default | Notes |
 |--------|---------|--------|
-| API origin | **`https://api.agentvend.api`** (`AgentVendClient.DEFAULT_API_URL`) | Override with `Builder.apiUrl(...)`, or env **`AGENTVEND_API_URL`** for staging/tests — no trailing slash required |
-| Service ID | From env **`AGENTVEND_SERVICE_ID`**, or `Builder.serviceId(...)` | Optional if Core can infer the service from the key |
-| Service secret | From env **`AGENTVEND_SERVICE_SECRET`**, or `Builder.serviceSecret(...)` | **Required** (Usage HMAC + Core response verification) |
+| API origin | **`https://api.tollara.ai`** (`TollaraClient.DEFAULT_API_URL`) | Override with `Builder.apiUrl(...)`, or env **`TOLLARA_API_URL`** for staging/tests — no trailing slash required |
+| Service ID | From env **`TOLLARA_SERVICE_ID`**, or `Builder.serviceId(...)` | Optional if Core can infer the service from the key |
+| Service secret | From env **`TOLLARA_SERVICE_SECRET`**, or `Builder.serviceSecret(...)` | **Required** (Usage HMAC + Core response verification) |
 
 **Progress / completion** still use the **full** `progressUrl` / `callbackUrl` strings from the gateway (including query params).
 
-**Usage report signing (Usage §3):** the JSON body includes an ISO-8601 **`timestamp`** field; **`X-AgentVend-Timestamp`** is **Unix epoch seconds** (same value concatenated to the raw body string for HMAC). Progress/completion use the **timestamp from the URL** query string for signing, as returned by the platform.
+**Usage report signing (Usage §3):** the JSON body includes an ISO-8601 **`timestamp`** field; **`X-Tollara-Timestamp`** is **Unix epoch seconds** (same value concatenated to the raw body string for HMAC). Progress/completion use the **timestamp from the URL** query string for signing, as returned by the platform.
 
 ### Environment variables
 
@@ -28,11 +28,11 @@ Builder values win when both are set; otherwise the SDK reads:
 
 | Variable | Purpose |
 |----------|---------|
-| **`AGENTVEND_API_URL`** | Optional. Overrides the default production API origin when set. |
-| **`AGENTVEND_SERVICE_ID`** | Service UUID if you omit `serviceId(...)` (optional) |
-| **`AGENTVEND_SERVICE_SECRET`** | Service shared secret if you omit `serviceSecret(...)` (**required** one way or the other) |
+| **`TOLLARA_API_URL`** | Optional. Overrides the default production API origin when set. |
+| **`TOLLARA_SERVICE_ID`** | Service UUID if you omit `serviceId(...)` (optional) |
+| **`TOLLARA_SERVICE_SECRET`** | Service shared secret if you omit `serviceSecret(...)` (**required** one way or the other) |
 
-In code, names are also available as `AgentVendClient.ENV_API_URL`, `ENV_SERVICE_ID`, and `ENV_SERVICE_SECRET`. The default base URL is `AgentVendClient.DEFAULT_API_URL`.
+In code, names are also available as `TollaraClient.ENV_API_URL`, `ENV_SERVICE_ID`, and `ENV_SERVICE_SECRET`. The default base URL is `TollaraClient.DEFAULT_API_URL`.
 
 ## Install
 
@@ -41,16 +41,16 @@ Use the same version as `version` in [`build.gradle`](build.gradle) (below match
 **Gradle:**
 
 ```kotlin
-implementation("com.agentvend:service-sdk:0.0.5")
+implementation("com.tollara:service-sdk:2.0.0")
 ```
 
 **Maven:**
 
 ```xml
 <dependency>
-  <groupId>com.agentvend</groupId>
+  <groupId>com.tollara</groupId>
   <artifactId>service-sdk</artifactId>
-  <version>0.0.5</version>
+  <version>2.0.0</version>
 </dependency>
 ```
 
@@ -74,7 +74,7 @@ From this directory:
 4. Follow steps 1–6 below (signing, credentials, `./gradlew finalizeSonatypeCentralUpload`, Portal release).
 5. Update consumer docs (this README’s **Install** section) to the new version when you cut a release.
 
-Namespace **`com.agentvend`** must stay verified in [Maven Central Portal](https://central.sonatype.com/). This project uses Gradle **`maven-publish`** plus **`signing`**, uploads to Sonatype’s [OSSRH Staging API compatibility endpoint](https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/), then runs a **finalize** POST so the deployment appears under [Publishing](https://central.sonatype.com/publishing).
+Namespace **`com.tollara`** must stay verified in [Maven Central Portal](https://central.sonatype.com/). This project uses Gradle **`maven-publish`** plus **`signing`**, uploads to Sonatype’s [OSSRH Staging API compatibility endpoint](https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/), then runs a **finalize** POST so the deployment appears under [Publishing](https://central.sonatype.com/publishing).
 
 ### 1. One-time: GPG key for signing
 
@@ -115,7 +115,7 @@ From `sdk-java`:
 
 That runs **`publishMavenJavaPublicationToOssrhStagingApiRepository`** (signed artifacts + checksums) and then **`finalizeSonatypeCentralUpload`** (POST to Sonatype so the bundle shows in the Portal). The finalize step **must use the same public IP** as the upload (run both in one CI job or one local session).
 
-Optional Gradle properties: `mavenCentralNamespace` (default `com.agentvend`), `mavenCentralPublishingType` (`user_managed` vs `automatic` — see Sonatype docs), `sonatype.manualUploadPath` / `sonatype.stagingApiHost` if Sonatype changes URLs (confirm against their OpenAPI if needed).
+Optional Gradle properties: `mavenCentralNamespace` (default `com.tollara`), `mavenCentralPublishingType` (`user_managed` vs `automatic` — see Sonatype docs), `sonatype.manualUploadPath` / `sonatype.stagingApiHost` if Sonatype changes URLs (confirm against their OpenAPI if needed).
 
 ### 6. Release in the Portal
 
@@ -127,20 +127,20 @@ Open [central.sonatype.com/publishing](https://central.sonatype.com/publishing):
 
 ### Verify inbound HMAC (service backend)
 
-Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-AgentVend-*` headers using the canonical names from `AgentVendHeaders`, and falls back to lowercase names when needed. Verification defaults to HMAC user-context **v2** (leading `"2"`, no quota segment).
+Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-Tollara-*` headers using the canonical names from `TollaraHeaders`, and falls back to lowercase names when needed. Verification defaults to HMAC user-context **v2** (leading `"2"`, no quota segment).
 
 ```java
-import com.agentvend.client.AgentVendRequestVerifier;
+import com.tollara.client.TollaraRequestVerifier;
 import jakarta.servlet.http.HttpServletRequest; // or your stack’s request type
 
 import java.util.Optional;
 
 // Create a verifier for this service’s shared secret (used to validate gateway HMACs).
-AgentVendRequestVerifier verifier = new AgentVendRequestVerifier(serviceSecret);
+TollaraRequestVerifier verifier = new TollaraRequestVerifier(serviceSecret);
 String rawBody = rawRequestBodyUtf8;
 
 // Preferred: verify and read user context in one step (empty Optional if the HMAC is invalid).
-Optional<AgentVendRequestVerifier.UserContext> verified =
+Optional<TollaraRequestVerifier.UserContext> verified =
         verifier.verifyInboundHmacAndGetUserContext(request::getHeader, rawBody);
 verified.ifPresent(ctx -> {
     // ctx.getUserId(), ctx.getPlan(), …
@@ -149,7 +149,7 @@ verified.ifPresent(ctx -> {
 // Or verify and read separately:
 boolean valid = verifier.verifyInboundHmac(request::getHeader, rawBody);
 if (valid) {
-    AgentVendRequestVerifier.UserContext ctx = verifier.userContextFromHeaders(request::getHeader);
+    TollaraRequestVerifier.UserContext ctx = verifier.userContextFromHeaders(request::getHeader);
 }
 ```
 
@@ -158,19 +158,19 @@ You can also pass a `Map<String, String>` (`verifyInboundHmac(map, rawBody)` and
 ### Caller / backend HTTP APIs (single client)
 
 ```java
-import com.agentvend.client.AgentVendClient;
-import com.agentvend.client.GatewayHttpResponse;
-import com.agentvend.client.GatewayInvokeResult;
-import com.agentvend.client.model.CompletionStatus;
-import com.agentvend.client.model.UsageEstimateResult;
-import com.agentvend.client.model.UsageReportResponse;
+import com.tollara.client.TollaraClient;
+import com.tollara.client.GatewayHttpResponse;
+import com.tollara.client.GatewayInvokeResult;
+import com.tollara.client.model.CompletionStatus;
+import com.tollara.client.model.UsageEstimateResult;
+import com.tollara.client.model.UsageReportResponse;
 
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
 
-// Default API origin is production; set .apiUrl(...) or AGENTVEND_API_URL only to override.
-// .serviceSecret(...) (or AGENTVEND_SERVICE_SECRET) is required.
-AgentVendClient client = AgentVendClient.builder()
+// Default API origin is production; set .apiUrl(...) or TOLLARA_API_URL only to override.
+// .serviceSecret(...) (or TOLLARA_SERVICE_SECRET) is required.
+TollaraClient client = TollaraClient.builder()
     .serviceId(serviceId)
     // Shared secret: signs outbound Usage calls and verifies Core validate responses (required).
     .serviceSecret(serviceSecret)
@@ -184,7 +184,7 @@ var validation = client.validateServiceKey("bearer-token");
 // Verifies response HMAC on 200 / 403 / 429 when signature headers are present.
 UsageEstimateResult estimate = client.estimateUsage("bearer-token", new BigDecimal("1"));
 if (estimate != null) {
-    boolean allowed = estimate.isWouldAllow(); // would AgentVend allow the task to complete based on available usage limits?
+    boolean allowed = estimate.isWouldAllow(); // would Tollara allow the task to complete based on available usage limits?
     int status = estimate.getHttpStatus();
     // estimate.getSufficientCredits(), getWouldExceedCap(), getBreakdown(), …
 }

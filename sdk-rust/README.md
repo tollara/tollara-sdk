@@ -1,26 +1,26 @@
-# AgentVend SDK (Rust)
+# Tollara SDK (Rust)
 
-**Crate:** `agentvend-service-sdk` (crates.io)
+**Crate:** `tollara-service-sdk` (crates.io)
 
 HMAC verification, user context parsing, and (with the `http` feature) Core validation, Usage reporting, progress/completion, and gateway job polling.
 
 ## Configuration (base URLs)
 
-**`AgentVendClient`:** the API origin defaults to **`https://api.agentvend.api`** (`DEFAULT_API_URL`). Set `api_url` or **`AGENTVEND_API_URL`** only to override. Use full `progress_url` / `callback_url` for async flows.
+**`TollaraClient`:** the API origin defaults to **`https://api.tollara.ai`** (`DEFAULT_API_URL`). Set `api_url` or **`TOLLARA_API_URL`** only to override. Use full `progress_url` / `callback_url` for async flows.
 
 Use this README as the public usage reference.
 
 ### Spec alignment (this crate)
 
 - **Implemented:** HMAC verification, Core validate/service-key estimate/JWT estimate, gateway invoke, usage report/progress/completion, gateway status/result polling (with the `http` feature).
-- **Usage report signing:** JSON body uses ISO-8601 `timestamp`; `X-AgentVend-Timestamp` uses Unix epoch seconds; canonical HMAC is `bodyJson + headerTimestamp`.
+- **Usage report signing:** JSON body uses ISO-8601 `timestamp`; `X-Tollara-Timestamp` uses Unix epoch seconds; canonical HMAC is `bodyJson + headerTimestamp`.
 
 ## Install
 
 ```toml
 [dependencies]
-agentvend-service-sdk = "1.0"
-# agentvend-service-sdk = { version = "1.0", features = ["http"] }
+tollara-service-sdk = "1.0"
+# tollara-service-sdk = { version = "1.0", features = ["http"] }
 ```
 
 ## Build
@@ -36,7 +36,7 @@ cargo build --features http
 
 ```rust
 use std::collections::HashMap;
-use agentvend_service_sdk::{
+use tollara_service_sdk::{
     verify_inbound_hmac, verify_signature_from_headers, parse_user_context,
     InboundHmacVerify, SignedUserContext,
 };
@@ -48,16 +48,16 @@ let ctx = parse_user_context(&headers_map);
 ### HTTP clients (`--features http`)
 
 ```rust
-use agentvend_service_sdk::agent_vend_client::{AgentVendClient, AgentVendClientConfig};
-use agentvend_service_sdk::gateway_client::GatewayHttpMethod;
+use tollara_service_sdk::tollara_client::{TollaraClient, TollaraClientConfig};
+use tollara_service_sdk::gateway_client::GatewayHttpMethod;
 
-let client = AgentVendClient::try_new(AgentVendClientConfig {
+let client = TollaraClient::try_new(TollaraClientConfig {
     service_id: Some("service-uuid".into()),
     service_secret: Some("secret".into()),
     ..Default::default()
 })?;
 
-// Or `try_from_env()` with AGENTVEND_SERVICE_SECRET (and optional URL overrides).
+// Or `try_from_env()` with TOLLARA_SERVICE_SECRET (and optional URL overrides).
 
 client.validate_service_key(service_key).await;
 client.estimate_usage(service_key, 1.0).await;

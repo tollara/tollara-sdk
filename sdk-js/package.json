@@ -1,7 +1,7 @@
 {
-  "name": "@agentvend/service-sdk",
-  "version": "0.0.7",
-  "description": "AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion",
+  "name": "@tollara/service-sdk",
+  "version": "2.0.0",
+  "description": "Tollara SDK - verify HMAC, validate keys, report usage, progress, completion",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -17,7 +17,7 @@
     "test": "jest",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["agentvend", "sdk", "hmac"],
+  "keywords": ["tollara", "sdk", "hmac"],
   "author": "",
   "license": "MIT",
   "files": [
@@ -26,13 +26,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/agentvend/agentvend-sdk.git",
+    "url": "git+https://github.com/tollara/tollara-sdk.git",
     "directory": "sdk-js"
   },
   "bugs": {
-    "url": "https://github.com/agentvend/agentvend-sdk/issues"
+    "url": "https://github.com/tollara/tollara-sdk/issues"
   },
-  "homepage": "https://github.com/agentvend/agentvend-sdk/tree/master/sdk-js#readme",
+  "homepage": "https://github.com/tollara/tollara-sdk/tree/master/sdk-js#readme",
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.0",

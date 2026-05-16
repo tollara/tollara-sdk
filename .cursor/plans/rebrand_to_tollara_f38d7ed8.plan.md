@@ -4,31 +4,31 @@ overview: "Full rebrand of AgentVend.ai to Tollara.ai across this SDK monorepo a
 todos:
   - id: naming-policy
     content: Update PACKAGE_NAME.md, root README, .cursor/rules, docs-sdk + docs/ specs (Tollara, X-Tollara-*, TOLLARA_*, api.tollara.ai)
-    status: pending
+    status: completed
   - id: java-reference
     content: "Rename sdk-java: com.tollara packages, Tollara* types, headers, env, build.gradle, tests, README"
-    status: pending
+    status: completed
   - id: mirror-sdks
     content: Apply same renames to sdk-js, sdk-dotnet, sdk-python, sdk-go, sdk-rust, sdk-ruby, sdk-php (manifests + paths + tests)
-    status: pending
+    status: completed
   - id: integrations
     content: Rebrand integration-n8n and integration-openclaw (packages, nodes, credentials, skills, deps on @tollara/service-sdk)
-    status: pending
+    status: completed
   - id: ci-changelog
     content: Fix ci.yml dotnet path; add CHANGELOG major bump; verify grep-clean + all test suites
-    status: pending
+    status: completed
   - id: registry-prep
     content: Claim com.tollara, @tollara, Tollara.ServiceSdk, tollara-service-sdk, etc.; deprecate old AgentVend packages
-    status: pending
+    status: completed
   - id: platform-sync
     content: "Coordinate platform PR: gateway/core/usage emit X-Tollara-*, TOLLARA_* config, api.tollara.ai DNS, staging E2E"
-    status: pending
+    status: completed
   - id: ancillary-docs
-    content: "Rebrand docs/sdk-repo-project-context.md, sdk-callers-and-backends.md, maven-central publishing, implementation-prompt, session work-log; update port_java_sdk_parity plan references"
-    status: pending
+    content: Rebrand docs/sdk-repo-project-context.md, sdk-callers-and-backends.md, maven-central publishing, implementation-prompt, session work-log; update port_java_sdk_parity plan references
+    status: completed
   - id: licenses-assets
-    content: "Update LICENSE/copyright lines; n8n package.json n8n.nodes/credentials dist paths; OpenClaw all src files; regenerate Python egg-info if present"
-    status: pending
+    content: Update LICENSE/copyright lines; n8n package.json n8n.nodes/credentials dist paths; OpenClaw all src files; regenerate Python egg-info if present
+    status: completed
 isProject: false
 ---
 

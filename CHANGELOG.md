@@ -1,8 +1,29 @@
 # Changelog
 
+## 2.0.0 — Tollara rebrand (breaking)
+
+**AgentVend.ai is now Tollara.ai.** This is a coordinated breaking release with the platform (gateway, core, usage).
+
+### Breaking changes
+
+- **Product and packages:** All `agentvend` / `AgentVend` package IDs are replaced by `tollara` / `Tollara` (e.g. `com.tollara:service-sdk`, `@tollara/service-sdk`, `Tollara.ServiceSdk`, `tollara-service-sdk`). Previous AgentVend packages are deprecated.
+- **HTTP headers:** `X-AgentVend-*` → **`X-Tollara-*`** (all 11 signed headers, including signing-version and billing headers).
+- **Environment variables:** `AGENTVEND_*` → **`TOLLARA_API_URL`**, **`TOLLARA_SERVICE_ID`**, **`TOLLARA_SERVICE_SECRET`** (legacy `AGENTVEND_AGENT_*` aliases removed).
+- **Default API origin:** **`https://api.tollara.ai`** (was `https://api.agentvend.api`).
+- **Public API types:** `AgentVendClient` → **`TollaraClient`**, `AgentVendRequestVerifier` → **`TollaraRequestVerifier`**, etc., in every language SDK.
+- **Integrations:** `n8n-nodes-tollara`, `openclaw-tollara`; n8n node/credential IDs renamed (existing workflows must be reconfigured).
+
+### Migration
+
+1. Update dependencies to Tollara package coordinates (see root [README.md](README.md)).
+2. Rename env vars and header reads in your service backend to `TOLLARA_*` and `X-Tollara-*`.
+3. Deploy platform and SDKs together; mixed AgentVend/Tollara headers are not supported.
+
+---
+
 ## 1.0.0 (development / pre-release)
 
-SDKs are versioned **1.0.0** while the product is still in development.
+SDKs are versioned **1.0.0** while the product was still branded AgentVend.
 
 ### Gateway inbound HMAC
 
@@ -10,8 +31,8 @@ SDKs are versioned **1.0.0** while the product is still in development.
 
 ### Added
 
-- **SDK ↔ MAIN-SDK-API-SPEC alignment:** Usage report request body uses ISO-8601 `timestamp`; `X-AgentVend-Timestamp` uses **Unix epoch seconds** for signing (Java, JS, Python, .NET). Full **usage report** response fields (`warning`, `remainingTimeUnitsPerPeriod`, `remainingSpendingCap`, `overageRate`) parsed in .NET and Python. **Gateway invoke** (sync/async) and Core **JWT usage estimate** (`POST …/billing/usage/estimate`) exposed on unified clients / modules. Python default Core path prefix is **`/api/v1`** (was ECS-style default).
-- **Headers:** `X-AgentVend-Billing-Model`, `X-AgentVend-Measurement-Type`, `X-AgentVend-Unit-Label` (optional for HMAC).
+- **SDK ↔ MAIN-SDK-API-SPEC alignment:** Usage report request body uses ISO-8601 `timestamp`; `X-Tollara-Timestamp` uses **Unix epoch seconds** for signing (Java, JS, Python, .NET). Full **usage report** response fields (`warning`, `remainingTimeUnitsPerPeriod`, `remainingSpendingCap`, `overageRate`) parsed in .NET and Python. **Gateway invoke** (sync/async) and Core **JWT usage estimate** (`POST …/billing/usage/estimate`) exposed on unified clients / modules. Python default Core path prefix is **`/api/v1`** (was ECS-style default).
+- **Headers:** `X-Tollara-Billing-Model`, `X-Tollara-Measurement-Type`, `X-Tollara-Unit-Label` (optional for HMAC).
 - **Validate service key response:** Optional nullable `serviceKeyId` (UUID) on success JSON; surfaced on `ServiceKeyValidationResult` / equivalent types in Java, JavaScript, Python, and .NET. Java **0.0.3**, Python **0.0.4**, .NET **0.0.5**, JavaScript **0.0.5**.
 - **Validate service key response:** Optional `billingModelType`, `measurementType`, `unitLabel` on success JSON (SDK result types updated in Java, JavaScript, Python, .NET, Rust).
 - **Helpers:** e.g. `buildGatewayUserContextString` / `BuildGatewayUserContextString` / `build_gateway_user_context_string` where exposed.

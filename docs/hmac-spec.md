@@ -1,6 +1,6 @@
 # HMAC specification (cross-language)
 
-All SDKs must implement the same HMAC behavior so verification matches the AgentVend gateway and usage service.
+All SDKs must implement the same HMAC behavior so verification matches the Tollara gateway and usage service.
 
 ## Algorithm
 
@@ -15,20 +15,20 @@ The gateway sends requests to agent backends with signed headers. The agent must
 **Canonical string to sign:** `payload + timestamp + userContextString` (concatenation, no separators).
 
 - **payload**: Raw request body as string. Use empty string if there is no body. If the platform serializes JSON, use the same byte-for-byte string (e.g. normalized JSON).
-- **timestamp**: Same value as `X-AgentVend-Timestamp` (numeric string).
+- **timestamp**: Same value as `X-Tollara-Timestamp` (numeric string).
 - **userContextString** (exact order, no extra separators):
   1. `userId` or `""`
   2. `plan` or `""`
   3. Comma-joined roles (omit the comma list entirely when there are no roles — i.e. contribute `""`)
   4. `quotaRemaining` string: if the quota header/value is present, append its canonical decimal string (e.g. `10`, `50.5`; match your language’s agreement with the gateway — typically no unnecessary trailing zeros). If absent/null, append `""`.
-  5. `subscriptionActive` as exactly `"true"` or `"false"` (from `X-AgentVend-Subscription-Active`; treat missing header as inactive → `"false"`).
+  5. `subscriptionActive` as exactly `"true"` or `"false"` (from `X-Tollara-Subscription-Active`; treat missing header as inactive → `"false"`).
   6. `billingModelType` or `""`
   7. `measurementType` or `""`
   8. `unitLabel` or `""`
 
 **Signature:** `Base64(HMAC-SHA256(canonicalString, agentSecret))`.
 
-Compare the computed signature with `X-AgentVend-Signature` using **constant-time comparison** to avoid timing attacks.
+Compare the computed signature with `X-Tollara-Signature` using **constant-time comparison** to avoid timing attacks.
 
 ## Outbound (agent → usage service: report / progress / complete)
 
@@ -37,17 +37,17 @@ When the agent calls the usage service (report, progress, completion), it must s
 **Canonical string:** `bodyString + timestamp`
 
 - **bodyString**: JSON string of the request body (same serialization used in the HTTP body).
-- **timestamp**: Same value as the `X-AgentVend-Timestamp` header (string).
+- **timestamp**: Same value as the `X-Tollara-Timestamp` header (string).
 
 **Signature:** `Base64(HMAC-SHA256(canonicalString, agentSecret))`.
 
-Set headers: `X-AgentVend-Signature`, `X-AgentVend-Timestamp`.
+Set headers: `X-Tollara-Signature`, `X-Tollara-Timestamp`.
 
 ## Validation response (core → client)
 
 When the client calls the core service to validate an agent key, the response is signed.
 
-**Verification:** Response body (raw JSON string) + timestamp (from response header `X-AgentVend-Timestamp`) concatenated; compute `HMAC(responseBody + timestamp, agentSecret)`; compare to `X-AgentVend-Signature` using constant-time comparison.
+**Verification:** Response body (raw JSON string) + timestamp (from response header `X-Tollara-Timestamp`) concatenated; compute `HMAC(responseBody + timestamp, agentSecret)`; compare to `X-Tollara-Signature` using constant-time comparison.
 
 ## Replay protection
 
@@ -105,4 +105,4 @@ Compute `HMAC-SHA256(canonical, key)`, Base64; each SDK’s verifier should acce
 
 ## Older canonical form (deprecated)
 
-An earlier draft used `userContextString` = `userId + plan + roles + quota` only (no subscription or billing suffix). The **current** spec is the extended string above; gateways and agents must agree on `X-AgentVend-Subscription-Active` and the optional billing headers. See [sdk-api-spec.md](sdk-api-spec.md) §4.
+An earlier draft used `userContextString` = `userId + plan + roles + quota` only (no subscription or billing suffix). The **current** spec is the extended string above; gateways and agents must agree on `X-Tollara-Subscription-Active` and the optional billing headers. See [sdk-api-spec.md](sdk-api-spec.md) §4.

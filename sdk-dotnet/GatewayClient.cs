@@ -1,15 +1,15 @@
 using System.Net.Http;
 using System.Net.Http.Headers;
 
-namespace AgentVend;
+namespace Tollara;
 
 /// <summary>Caller-side gateway polling (sdk-api-spec §1.3–1.4).</summary>
 public static class GatewayClient
 {
-    /// <summary>Poll status using the SDK default API origin and gateway path prefix (same as <see cref="AgentVendClient"/>).</summary>
+    /// <summary>Poll status using the SDK default API origin and gateway path prefix (same as <see cref="TollaraClient"/>).</summary>
     public static Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(HttpClient http, string requestId,
         string serviceKey, CancellationToken ct = default) =>
-        GetRequestStatusAsync(http, AgentVendClient.DefaultApiUrl, AgentVendClient.DefaultGatewayPathPrefix, requestId,
+        GetRequestStatusAsync(http, TollaraClient.DefaultApiUrl, TollaraClient.DefaultGatewayPathPrefix, requestId,
             serviceKey, ct);
 
     /// <summary>Poll status against explicit gateway base and path prefix (for custom or local stacks).</summary>
@@ -25,10 +25,10 @@ public static class GatewayClient
         return await GetAsync(http, url, serviceKey, ct);
     }
 
-    /// <summary>Fetch result using the SDK default API origin and gateway path prefix (same as <see cref="AgentVendClient"/>).</summary>
+    /// <summary>Fetch result using the SDK default API origin and gateway path prefix (same as <see cref="TollaraClient"/>).</summary>
     public static Task<(bool Ok, int StatusCode, string Body)> GetRequestResultAsync(HttpClient http, string requestId,
         string serviceKey, CancellationToken ct = default) =>
-        GetRequestResultAsync(http, AgentVendClient.DefaultApiUrl, AgentVendClient.DefaultGatewayPathPrefix, requestId,
+        GetRequestResultAsync(http, TollaraClient.DefaultApiUrl, TollaraClient.DefaultGatewayPathPrefix, requestId,
             serviceKey, ct);
 
     /// <summary>Fetch result against explicit gateway base and path prefix (for custom or local stacks).</summary>

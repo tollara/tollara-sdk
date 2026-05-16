@@ -1,6 +1,6 @@
-# AgentVend SDK: Callers vs Agent Backends
+# Tollara SDK: Callers vs Agent Backends
 
-This document explains **how the AgentVend SDK is used** in the two main integration roles: **callers** (clients that invoke agents) and **agent backends** (your HTTP server, either **proxied** via the gateway or **non-proxied** and reached directly). It complements the normative HTTP details in **[sdk-api-spec.md](./sdk-api-spec.md)** and the SDK monorepo orientation in **[sdk-repo-project-context.md](./sdk-repo-project-context.md)**.
+This document explains **how the Tollara SDK is used** in the two main integration roles: **callers** (clients that invoke agents) and **agent backends** (your HTTP server, either **proxied** via the gateway or **non-proxied** and reached directly). It complements the normative HTTP details in **[sdk-api-spec.md](./sdk-api-spec.md)** and the SDK monorepo orientation in **[sdk-repo-project-context.md](./sdk-repo-project-context.md)**.
 
 **Related docs**
 
@@ -11,9 +11,9 @@ This document explains **how the AgentVend SDK is used** in the two main integra
 
 There is **no other doc** in this folder dedicated solely to caller vs backend *usage*; those files focus on API contracts and repository layout.
 
-**Base URLs:** Unified `AgentVendClient` APIs in Java, Python, JavaScript/TypeScript, Rust (`http` feature), and .NET default the API origin to **`https://api.agentvend.api`**. Set `AGENTVEND_API_URL` (or the constructor/builder `apiUrl` / equivalent) only to override—for example staging or local stacks. Path prefixes default per [sdk-api-spec.md](./sdk-api-spec.md); override only for non-standard deployments. Low-level helpers still take explicit bases. Async flows should use the full `progressUrl` / `callbackUrl` values returned by the platform. See [api-overview.md](./api-overview.md) and [sdk-api-spec.md](./sdk-api-spec.md).
+**Base URLs:** Unified `TollaraClient` APIs in Java, Python, JavaScript/TypeScript, Rust (`http` feature), and .NET default the API origin to **`https://api.tollara.ai`**. Set `TOLLARA_API_URL` (or the constructor/builder `apiUrl` / equivalent) only to override—for example staging or local stacks. Path prefixes default per [sdk-api-spec.md](./sdk-api-spec.md); override only for non-standard deployments. Low-level helpers still take explicit bases. Async flows should use the full `progressUrl` / `callbackUrl` values returned by the platform. See [api-overview.md](./api-overview.md) and [sdk-api-spec.md](./sdk-api-spec.md).
 
-**Unified HTTP entry point:** Use `AgentVendClient` (or `AgentVendClient::try_new` / `AgentVendClient.Create`) so you do not have to wire each service by hand; optional env `AGENTVEND_API_URL` and optional split bases / path prefixes remain available when you need them.
+**Unified HTTP entry point:** Use `TollaraClient` (or `TollaraClient::try_new` / `TollaraClient.Create`) so you do not have to wire each service by hand; optional env `TOLLARA_API_URL` and optional split bases / path prefixes remain available when you need them.
 
 ---
 
@@ -36,13 +36,13 @@ flowchart LR
   end
 
   C -->|"Bearer service key, invoke"| GW
-  GW -->|"HMAC + X-AgentVend-* headers"| AG
+  GW -->|"HMAC + X-Tollara-* headers"| AG
   C -.->|"optional: validate key"| CORE
   AG -->|"signed report / progress / complete"| USAGE
 ```
 
 - **Caller** — Sits **outside** the agent’s server. For **proxied** agents it uses a **service API key** against the **gateway** invoke URL (and may optionally call **core** to validate a key). For **non-proxied** agents it typically sends **`Authorization: Bearer <serviceKey>`** directly to the agent’s public URL. Callers never see gateway HMAC headers.
-- **Agent backend** — The HTTP server that implements the agent. **Proxied** backends receive **gateway-signed** requests (`X-AgentVend-Signature`, user context headers). **Non-proxied** backends receive **Bearer** keys and must **validate** them with **core**. Both modes typically call the **usage** service to report consumption and (for async jobs) progress and completion.
+- **Agent backend** — The HTTP server that implements the agent. **Proxied** backends receive **gateway-signed** requests (`X-Tollara-Signature`, user context headers). **Non-proxied** backends receive **Bearer** keys and must **validate** them with **core**. Both modes typically call the **usage** service to report consumption and (for async jobs) progress and completion.
 
 ### Proxied vs non-proxied (backends)
 
@@ -73,7 +73,7 @@ sequenceDiagram
 
   Caller->>GW: HTTP invoke (Bearer service key, body/query)
   GW->>GW: Validate key, quota, routing
-  GW->>Agent: Forward request + HMAC + X-AgentVend-* headers
+  GW->>Agent: Forward request + HMAC + X-Tollara-* headers
   Agent-->>GW: Response
   GW-->>Caller: Same status/body as agent (opaque)
 ```
@@ -96,7 +96,7 @@ sequenceDiagram
   participant CORE as Core service
 
   Caller->>CORE: POST /agent-keys/validate (serviceKey, serviceId, serviceSecret in body as required)
-  CORE-->>Caller: JSON body + X-AgentVend-Signature + X-AgentVend-Timestamp
+  CORE-->>Caller: JSON body + X-Tollara-Signature + X-Tollara-Timestamp
   Note over Caller: SDK verifies HMAC before trusting body
 ```
 
@@ -142,14 +142,14 @@ Backends are either **proxied** (behind the gateway) or **non-proxied** (clients
 
 ### 3.1 Inbound: proxied agents (gateway-signed requests)
 
-The gateway validates the caller’s service key, then forwards to your URL with **HMAC** and **`X-AgentVend-*`** headers. You **must** verify that signature with the **service secret** before trusting the body or headers ([sdk-api-spec.md](./sdk-api-spec.md) §4).
+The gateway validates the caller’s service key, then forwards to your URL with **HMAC** and **`X-Tollara-*`** headers. You **must** verify that signature with the **service secret** before trusting the body or headers ([sdk-api-spec.md](./sdk-api-spec.md) §4).
 
 ```mermaid
 sequenceDiagram
   participant GW as Gateway
   participant Agent as Agent backend
 
-  GW->>Agent: Request + X-AgentVend-Signature + X-AgentVend-Timestamp + user context headers
+  GW->>Agent: Request + X-Tollara-Signature + X-Tollara-Timestamp + user context headers
   Note over Agent: SDK: verifySignature / getUserContext
   Agent->>Agent: Reject if invalid signature or stale timestamp
   Agent-->>GW: Business response
@@ -169,7 +169,7 @@ sequenceDiagram
 
   Caller->>Agent: Request + Bearer service key
   Agent->>CORE: validateServiceKey (serviceKey, serviceId, serviceSecret)
-  CORE-->>Agent: JSON + X-AgentVend-Signature + X-AgentVend-Timestamp
+  CORE-->>Agent: JSON + X-Tollara-Signature + X-Tollara-Timestamp
   Note over Agent: SDK verifies response HMAC, then trusts body
   Agent-->>Caller: Business response
 ```
@@ -257,6 +257,6 @@ Never expose the service secret in browser-only or untrusted caller code; for pu
 ## 6. Implementations and source of truth
 
 - **Normative HTTP and HMAC:** [sdk-api-spec.md](./sdk-api-spec.md).
-- **Java reference** in this monorepo: `client/java` (see its README). Published multi-language SDKs live in the separate **agentvend-sdk** repository described in [sdk-repo-project-context.md](./sdk-repo-project-context.md).
+- **Java reference** in this monorepo: `client/java` (see its README). Published multi-language SDKs live in the separate **tollara-sdk** repository described in [sdk-repo-project-context.md](./sdk-repo-project-context.md).
 
 When diagrams in this doc differ in detail from the spec, **the spec wins**.

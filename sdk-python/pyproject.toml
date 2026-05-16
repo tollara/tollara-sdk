@@ -3,10 +3,10 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentvend-service-sdk"
-version = "0.0.6"
-description = "AgentVend SDK - verify HMAC, validate keys, report usage, progress, completion"
-authors = [{ name = "AgentVend", email = "support@agentvend.ai" }]
+name = "tollara-service-sdk"
+version = "2.0.0"
+description = "Tollara SDK - verify HMAC, validate keys, report usage, progress, completion"
+authors = [{ name = "Tollara", email = "support@tollara.ai" }]
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
@@ -20,8 +20,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://www.agentvend.ai"
-Documentation = "https://agentvend.ai/docs"
+Homepage = "https://www.tollara.ai"
+Documentation = "https://tollara.ai/docs"
 
 [project.optional-dependencies]
 http = ["requests"]

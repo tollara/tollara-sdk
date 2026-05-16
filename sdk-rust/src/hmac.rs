@@ -263,13 +263,13 @@ mod tests {
         };
         let ucs = build_gateway_user_context_string(&signed);
         let sig = calculate_hmac(&format!("{}{}{}", payload, ts, ucs), secret);
-        m.insert("x-agentvend-signature".into(), sig);
-        m.insert("x-agentvend-timestamp".into(), ts.into());
-        m.insert("x-agentvend-user-id".into(), "user1".into());
-        m.insert("x-agentvend-plan".into(), "plan1".into());
-        m.insert("x-agentvend-roles".into(), "role1,role2".into());
-        m.insert("x-agentvend-quota-remaining".into(), "10".into());
-        m.insert("x-agentvend-subscription-active".into(), "false".into());
+        m.insert("x-tollara-signature".into(), sig);
+        m.insert("x-tollara-timestamp".into(), ts.into());
+        m.insert("x-tollara-user-id".into(), "user1".into());
+        m.insert("x-tollara-plan".into(), "plan1".into());
+        m.insert("x-tollara-roles".into(), "role1,role2".into());
+        m.insert("x-tollara-quota-remaining".into(), "10".into());
+        m.insert("x-tollara-subscription-active".into(), "false".into());
         assert!(verify_signature_from_headers(secret, &m, payload));
     }
 
@@ -318,13 +318,13 @@ mod tests {
         };
         let ucs = build_gateway_user_context_string(&signed);
         let sig = calculate_hmac(&format!("{}{}{}", payload, ts, ucs), secret);
-        m.insert("X-AgentVend-Signature".into(), sig);
-        m.insert("X-AgentVend-Timestamp".into(), ts.into());
-        m.insert("X-AgentVend-User-ID".into(), "user1".into());
-        m.insert("X-AgentVend-Plan".into(), "plan1".into());
-        m.insert("X-AgentVend-Roles".into(), "role1,role2".into());
-        m.insert("X-AgentVend-Quota-Remaining".into(), "10".into());
-        m.insert("X-AgentVend-Subscription-Active".into(), "false".into());
+        m.insert("X-Tollara-Signature".into(), sig);
+        m.insert("X-Tollara-Timestamp".into(), ts.into());
+        m.insert("X-Tollara-User-ID".into(), "user1".into());
+        m.insert("X-Tollara-Plan".into(), "plan1".into());
+        m.insert("X-Tollara-Roles".into(), "role1,role2".into());
+        m.insert("X-Tollara-Quota-Remaining".into(), "10".into());
+        m.insert("X-Tollara-Subscription-Active".into(), "false".into());
         let ctx = verify_signature_from_headers_and_get_user_context(secret, &m, payload).expect("context");
         assert_eq!(ctx.user_id.as_deref(), Some("user1"));
     }
@@ -332,8 +332,8 @@ mod tests {
     #[test]
     fn verify_signature_from_headers_and_get_user_context_invalid() {
         let mut m = HashMap::new();
-        m.insert("X-AgentVend-Signature".into(), "bad".into());
-        m.insert("X-AgentVend-Timestamp".into(), "1700000000".into());
+        m.insert("X-Tollara-Signature".into(), "bad".into());
+        m.insert("X-Tollara-Timestamp".into(), "1700000000".into());
         assert!(verify_signature_from_headers_and_get_user_context("my-agent-secret", &m, "").is_none());
     }
 }

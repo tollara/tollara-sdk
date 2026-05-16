@@ -1,4 +1,4 @@
-import { AgentVendHeaders } from './agentVendHeaders';
+import { TollaraHeaders } from './tollaraHeaders';
 import { calculateHmac } from './hmac';
 import { createValidationCache, estimateUsage, validateServiceKey } from './validationClient';
 
@@ -33,8 +33,8 @@ describe('validationClient', () => {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          [AgentVendHeaders.SIGNATURE]: signature,
-          [AgentVendHeaders.TIMESTAMP]: timestamp,
+          [TollaraHeaders.SIGNATURE]: signature,
+          [TollaraHeaders.TIMESTAMP]: timestamp,
         },
       });
 
@@ -91,8 +91,8 @@ describe('validationClient', () => {
       new Response(responseBody, {
         status: 200,
         headers: {
-          [AgentVendHeaders.SIGNATURE]: 'bad-signature',
-          [AgentVendHeaders.TIMESTAMP]: '1700000000',
+          [TollaraHeaders.SIGNATURE]: 'bad-signature',
+          [TollaraHeaders.TIMESTAMP]: '1700000000',
         },
       });
     const result = await validateServiceKey({
@@ -122,8 +122,8 @@ describe('validationClient', () => {
       return new Response(responseBody, {
         status: 200,
         headers: {
-          [AgentVendHeaders.SIGNATURE]: signature,
-          [AgentVendHeaders.TIMESTAMP]: timestamp,
+          [TollaraHeaders.SIGNATURE]: signature,
+          [TollaraHeaders.TIMESTAMP]: timestamp,
         },
       });
     });
@@ -163,8 +163,8 @@ describe('validationClient', () => {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          [AgentVendHeaders.SIGNATURE]: signature,
-          [AgentVendHeaders.TIMESTAMP]: timestamp,
+          [TollaraHeaders.SIGNATURE]: signature,
+          [TollaraHeaders.TIMESTAMP]: timestamp,
         },
       });
     };
@@ -190,8 +190,8 @@ describe('validationClient', () => {
       new Response(responseBody, {
         status: 200,
         headers: {
-          [AgentVendHeaders.SIGNATURE]: 'bad',
-          [AgentVendHeaders.TIMESTAMP]: '1700000000',
+          [TollaraHeaders.SIGNATURE]: 'bad',
+          [TollaraHeaders.TIMESTAMP]: '1700000000',
         },
       });
     const result = await estimateUsage({

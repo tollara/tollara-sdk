@@ -1,10 +1,10 @@
-# AgentVend SDK — implementation prompt
+# Tollara SDK — implementation prompt
 
-Use this document as the single copy-paste brief when updating the **agent-hub-sdk** (or AgentVend SDK) repository. It was extracted from the agent-hub internal plan (HMAC v2 / estimate docs). Adjust repository naming if needed.
+Use this document as the single copy-paste brief when updating the **tollara-sdk** repository. It was extracted from an internal platform plan (HMAC v2 / estimate docs).
 
 ---
 
-**Task:** Implement **estimateUsage** (agent-key pre-flight) across all SDK languages (Java, JS/TS, .NET, Python, etc.) for AgentVend, plus **HMAC v2** and **validate schema v2** updates.
+**Task:** Implement **estimateUsage** (agent-key pre-flight) across all SDK languages (Java, JS/TS, .NET, Python, etc.) for Tollara, plus **HMAC v2** and **validate schema v2** updates.
 
 ### estimateUsage (agent backend, same trust as validate)
 
@@ -14,14 +14,14 @@ Use this document as the single copy-paste brief when updating the **agent-hub-s
 
 **Auth:** **None** (no Bearer). Trust is **agentKey** + **agentSecret** in the JSON body, identical rules to `POST .../agent-keys/validate` (optional `agentId` when key alone resolves the agent; if `agentSecret` is sent non-empty it must match the agent).
 
-**Request JSON** (shape implemented in agent-hub core as `EstimateUsageAgentKeyRequest`; SDK only needs the contract below):
+**Request JSON** (shape implemented in platform core as `EstimateUsageAgentKeyRequest`; SDK only needs the contract below):
 
 - `agentKey`: string (required).
 - `agentId`: string UUID (optional; omit to resolve from key like validate).
 - `agentSecret`: string (optional when only key is used; if present non-empty, must match server-side secret).
 - `estimatedUnits`: number (required; must be **> 0**; decimal values allowed where the product’s unit model allows fractions).
 
-**Response JSON (200)** — explicit fields (do **not** depend on AgentVend Java types; this is the wire contract):
+**Response JSON (200)** — explicit fields (do **not** depend on Tollara Java types; this is the wire contract):
 
 | Field | JSON type | Always present on 200? | Meaning |
 | ----- | --------- | ---------------------- | ------- |
@@ -36,17 +36,17 @@ Use this document as the single copy-paste brief when updating the **agent-hub-s
 | `unitLabel` | string or `null` | often | Config label (e.g. `request`). |
 | `breakdown` | object or `null` | often | **SUBSCRIPTION** / **USAGE_POSTPAID:** calculator snapshot (`unitsUsed`, `baseUnitsUsed`, `overageUnits`, `chargeableOverageUnits`, `surplusOverageUnits`, costs, `unitsRemaining`, `remainingSpendingCap`, `totalUnitsUsedThisCycle`, `isOverLimit`, `isOverage`, `isOverageAllowed`). **PREPAID:** synthetic aligned fields. **USAGE_INSTANT:** usually `null`. Omitted-null subfields may be absent. |
 | `estimateSchemaVersion` | integer | yes | Starts at **1**; bump if the JSON shape of this response changes (SDKs can branch on this). JSON may gain fields without a bump in pre-production; always verify HMAC on raw bytes. |
-| `timestamp` | integer (64-bit safe) | yes | Unix epoch **seconds**; included in the signed body and aligns with `X-AgentVend-Timestamp` for verification. |
+| `timestamp` | integer (64-bit safe) | yes | Unix epoch **seconds**; included in the signed body and aligns with `X-Tollara-Timestamp` for verification. |
 
 **Semantics of HTTP status vs body:** On **403** / **429**, core may still return a **body** with the same field names and a **signed** response (check headers). Treat non-2xx as errors for application logic; still verify HMAC when the server sends signature headers.
 
 **HMAC verification (required on success paths that return signatures):**
 
 1. Read the raw response body as a **string** (UTF-8) **exactly** as received over the wire — do **not** re-`JSON.stringify` a parsed object for verification (field order, omitted nulls, and number formatting must match the server).
-2. Read `X-AgentVend-Timestamp` (string of decimal digits).
+2. Read `X-Tollara-Timestamp` (string of decimal digits).
 3. Compute `canonical = rawBody + timestamp` (string concatenation, **no** separator between body and timestamp).
 4. `signature = Base64(HMAC-SHA256(canonical, agentSecretUTF8))` (same as `POST .../agent-keys/validate` response verification).
-5. Constant-time compare to `X-AgentVend-Signature`.
+5. Constant-time compare to `X-Tollara-Signature`.
 
 **Non-200:** treat as error; **401** responses may be **unsigned** (same as validate error behavior).
 
@@ -65,7 +65,7 @@ Use this document as the single copy-paste brief when updating the **agent-hub-s
 
 ### Gateway HMAC v2 + validate response
 
-**User context string** for proxied invokes: literal **`"2"`** then concatenate: `userId`, `plan`, `roles` (comma-joined if any), `subscriptionActive` (`"true"`/`"false"`), `billingModelType`, `measurementType`, `unitLabel` (empty string for nulls per `GatewayHmacUserContext` in agent-hub `lib/common-utils`). **No quota segment.** Optional header `X-AgentVend-Signing-Version: 2`.
+**User context string** for proxied invokes: literal **`"2"`** then concatenate: `userId`, `plan`, `roles` (comma-joined if any), `subscriptionActive` (`"true"`/`"false"`), `billingModelType`, `measurementType`, `unitLabel` (empty string for nulls per `GatewayHmacUserContext`). **No quota segment.** Optional header `X-Tollara-Signing-Version: 2`.
 
 **Validate:** Response JSON includes `validationSchemaVersion: 2` and **no** `quotaRemaining`. Verify validate HMAC over **exact JSON body + timestamp** with `agentSecret` as today.
 
@@ -73,4 +73,4 @@ Use this document as the single copy-paste brief when updating the **agent-hub-s
 
 ---
 
-*Source: agent-hub repo — derived from `.cursor/plans/hmac_v2_and_estimate_docs_ee2ba765.plan.md` §9.*
+*Source: platform repo — derived from internal HMAC v2 / estimate documentation.*
