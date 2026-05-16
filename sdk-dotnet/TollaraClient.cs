@@ -31,11 +31,6 @@ public sealed class TollaraClient
     public const string EnvServiceId = "TOLLARA_SERVICE_ID";
     /// <summary>Preferred environment variable for the service shared secret (required).</summary>
     public const string EnvServiceSecret = "TOLLARA_SERVICE_SECRET";
-    /// <summary>Legacy alias for <see cref="EnvServiceId"/>.</summary>
-    public const string EnvAgentId = "TOLLARA_AGENT_ID";
-    /// <summary>Legacy alias for <see cref="EnvServiceSecret"/>.</summary>
-    public const string EnvAgentSecret = "TOLLARA_AGENT_SECRET";
-
     public const string DefaultCorePathPrefix = "/api/v1";
     public const string DefaultGatewayPathPrefix = "/api";
     public const string DefaultUsagePathPrefix = UsageClient.DefaultUsagePathPrefix;
@@ -86,16 +81,12 @@ public sealed class TollaraClient
         var gwPrefix = options.GatewayPathPrefix ?? DefaultGatewayPathPrefix;
         var usagePrefix = options.UsagePathPrefix;
 
-        var secret = FirstNonBlank(
-            options.ServiceSecret,
-            FirstNonBlank(Environment.GetEnvironmentVariable(EnvServiceSecret), Environment.GetEnvironmentVariable(EnvAgentSecret)));
+        var secret = FirstNonBlank(options.ServiceSecret, Environment.GetEnvironmentVariable(EnvServiceSecret));
         if (string.IsNullOrEmpty(secret))
             throw new InvalidOperationException(
-                $"Service secret is required: set {nameof(TollaraClientOptions.ServiceSecret)} or environment variable {EnvServiceSecret} (legacy {EnvAgentSecret} also accepted)");
+                $"Service secret is required: set {nameof(TollaraClientOptions.ServiceSecret)} or environment variable {EnvServiceSecret}");
 
-        var serviceIdRaw = FirstNonBlank(
-            options.ServiceId,
-            FirstNonBlank(Environment.GetEnvironmentVariable(EnvServiceId), Environment.GetEnvironmentVariable(EnvAgentId)));
+        var serviceIdRaw = FirstNonBlank(options.ServiceId, Environment.GetEnvironmentVariable(EnvServiceId));
         var serviceId = string.IsNullOrEmpty(serviceIdRaw) ? null : serviceIdRaw;
 
         var http = options.HttpClient ?? new HttpClient();

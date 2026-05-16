@@ -42,8 +42,8 @@ module TollaraSdk
       @core_path_prefix = normalize_prefix(core_path_prefix)
       @gateway_path_prefix = normalize_prefix(gateway_path_prefix)
       @usage_path_prefix = normalize_prefix(usage_path_prefix)
-      @service_id = (service_id || ENV["TOLLARA_SERVICE_ID"] || ENV["TOLLARA_AGENT_ID"]).to_s
-      @service_secret = (service_secret || ENV["TOLLARA_SERVICE_SECRET"] || ENV["TOLLARA_AGENT_SECRET"]).to_s
+      @service_id = (service_id || ENV["TOLLARA_SERVICE_ID"]).to_s
+      @service_secret = (service_secret || ENV["TOLLARA_SERVICE_SECRET"]).to_s
       raise ArgumentError, "service_secret is required" if @service_secret.strip.empty?
     end
 

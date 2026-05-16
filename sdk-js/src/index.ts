@@ -49,8 +49,6 @@ export {
   DEFAULT_GATEWAY_PATH_PREFIX,
   ENV_SERVICE_ID,
   ENV_SERVICE_SECRET,
-  ENV_AGENT_ID,
-  ENV_AGENT_SECRET,
   ENV_API_URL,
   type TollaraClientOptions,
 } from './tollaraClient';

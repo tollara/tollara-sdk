@@ -37,8 +37,6 @@ if TYPE_CHECKING:
 ENV_API_URL = "TOLLARA_API_URL"
 ENV_SERVICE_ID = "TOLLARA_SERVICE_ID"
 ENV_SERVICE_SECRET = "TOLLARA_SERVICE_SECRET"
-ENV_AGENT_ID = "TOLLARA_AGENT_ID"
-ENV_AGENT_SECRET = "TOLLARA_AGENT_SECRET"
 
 # Production API origin; override with `api_url=...` or `TOLLARA_API_URL` for tests/staging.
 DEFAULT_API_URL = "https://api.tollara.ai"
@@ -86,8 +84,6 @@ class TollaraClient:
     ENV_API_URL = ENV_API_URL
     ENV_SERVICE_ID = ENV_SERVICE_ID
     ENV_SERVICE_SECRET = ENV_SERVICE_SECRET
-    ENV_AGENT_ID = ENV_AGENT_ID
-    ENV_AGENT_SECRET = ENV_AGENT_SECRET
     DEFAULT_API_URL = DEFAULT_API_URL
     DEFAULT_CORE_PATH_PREFIX = DEFAULT_CORE_PATH_PREFIX
     DEFAULT_GATEWAY_PATH_PREFIX = DEFAULT_GATEWAY_PATH_PREFIX
@@ -117,13 +113,13 @@ class TollaraClient:
         gp = gateway_path_prefix if gateway_path_prefix is not None else DEFAULT_GATEWAY_PATH_PREFIX
         up = usage_path_prefix if usage_path_prefix is not None else DEFAULT_USAGE_PATH_PREFIX
 
-        sec = _first_non_blank(service_secret, _first_non_blank(os.environ.get(ENV_SERVICE_SECRET), os.environ.get(ENV_AGENT_SECRET)))
+        sec = _first_non_blank(service_secret, os.environ.get(ENV_SERVICE_SECRET))
         if not sec:
             raise ValueError(
                 f"Service secret is required: pass service_secret=... or set environment variable {ENV_SERVICE_SECRET}"
             )
 
-        aid = _first_non_blank(service_id, _first_non_blank(os.environ.get(ENV_SERVICE_ID), os.environ.get(ENV_AGENT_ID)))
+        aid = _first_non_blank(service_id, os.environ.get(ENV_SERVICE_ID))
         aid_opt: Optional[str] = aid if aid else None
 
         self._gateway_base_url = gw_base

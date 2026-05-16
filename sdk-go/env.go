@@ -5,9 +5,6 @@ const (
 	EnvAPIURL      = "TOLLARA_API_URL"
 	EnvServiceID     = "TOLLARA_SERVICE_ID"
 	EnvServiceSecret = "TOLLARA_SERVICE_SECRET"
-	// Backward-compatible aliases.
-	EnvAgentID     = "TOLLARA_AGENT_ID"
-	EnvAgentSecret = "TOLLARA_AGENT_SECRET"
 )
 
 // DefaultAPIURL is the production API origin used by unified clients in other SDKs when no URL is configured.
