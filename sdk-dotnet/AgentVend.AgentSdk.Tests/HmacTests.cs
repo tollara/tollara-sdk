@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace AgentVend.AgentSdk.Tests;
+namespace AgentVend.ServiceSdk.Tests;
 
 /// <summary>Vectors from docs/hmac-spec.md (outbound bodyString + timestamp).</summary>
 public class HmacTests

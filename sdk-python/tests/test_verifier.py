@@ -1,6 +1,6 @@
 """Tests for inbound HMAC verification helpers."""
 
-from agentvend_sdk import (
+from agentvend_service_sdk import (
     AgentVendHeaders,
     InboundHmacRequest,
     SignedUserContext,
@@ -12,7 +12,7 @@ from agentvend_sdk import (
     verify_signature_from_headers,
     verify_signature_from_headers_and_get_user_context,
 )
-from agentvend_sdk.verifier import build_gateway_user_context_string, build_gateway_user_context_string_v2
+from agentvend_service_sdk.verifier import build_gateway_user_context_string, build_gateway_user_context_string_v2
 
 
 def test_verify_inbound_hmac_accepts_gateway_hmac_v2_when_signing_version_header_is_2():

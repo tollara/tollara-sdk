@@ -1,5 +1,5 @@
 [package]
-name = "agentvend-agent-sdk"
+name = "agentvend-service-sdk"
 version = "1.0.0"
 edition = "2021"
 description = "AgentVend SDK - verify HMAC, validate keys, report usage"
@@ -11,6 +11,7 @@ sha2 = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 subtle = "2.5"
+chrono = { version = "0.4", features = ["clock"] }
 reqwest = { version = "0.11", optional = true, features = ["json"] }
 tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros"] }
 

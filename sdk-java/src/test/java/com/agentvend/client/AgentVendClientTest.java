@@ -9,9 +9,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AgentVendClientTest {
 
     @Test
-    void build_succeedsWithDefaultApiUrlWhenOnlyAgentSecret() {
+    void build_succeedsWithDefaultApiUrlWhenOnlyServiceSecret() {
         AgentVendClient.builder()
-                .agentSecret("s")
+                .serviceSecret("s")
                 .httpClient(HttpClient.newHttpClient())
                 .build();
     }
@@ -20,28 +20,28 @@ class AgentVendClientTest {
     void build_succeedsWithExplicitApiUrl() {
         AgentVendClient.builder()
                 .apiUrl("http://127.0.0.1:9")
-                .agentId("a")
-                .agentSecret("s")
+                .serviceId("a")
+                .serviceSecret("s")
                 .httpClient(HttpClient.newHttpClient())
                 .build();
     }
 
     @Test
-    void build_throwsWhenAgentSecretMissingAndEnvUnset() {
+    void build_throwsWhenServiceSecretMissingAndEnvUnset() {
         assertThatThrownBy(() -> AgentVendClient.builder()
                         .apiUrl("http://127.0.0.1:9")
-                        .agentId("a")
+                        .serviceId("a")
                         .httpClient(HttpClient.newHttpClient())
                         .build())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(AgentVendClient.ENV_AGENT_SECRET);
+                .hasMessageContaining(AgentVendClient.ENV_SERVICE_SECRET);
     }
 
     @Test
-    void build_succeedsWithoutAgentIdWhenOptional() {
+    void build_succeedsWithoutServiceIdWhenOptional() {
         AgentVendClient.builder()
                 .apiUrl("http://127.0.0.1:9")
-                .agentSecret("s")
+                .serviceSecret("s")
                 .httpClient(HttpClient.newHttpClient())
                 .build();
     }

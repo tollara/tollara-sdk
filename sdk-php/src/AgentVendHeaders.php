@@ -16,4 +16,5 @@ final class AgentVendHeaders
     public const BILLING_MODEL = 'X-AgentVend-Billing-Model';
     public const MEASUREMENT_TYPE = 'X-AgentVend-Measurement-Type';
     public const UNIT_LABEL = 'X-AgentVend-Unit-Label';
+    public const SIGNING_VERSION = 'X-AgentVend-Signing-Version';
 }

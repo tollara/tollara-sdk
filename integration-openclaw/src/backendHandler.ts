@@ -3,7 +3,7 @@
  * Use with your HTTP server: call verifyRequest, then your logic, then reportUsageIfNeeded.
  */
 
-import { verifySignatureFromHeaders, getUserContext, reportUsage } from '@agentvend/agent-sdk';
+import { verifySignatureFromHeaders, getUserContext, reportUsage } from '@agentvend/service-sdk';
 import type { PluginConfig } from './types';
 
 export interface IncomingRequest {
@@ -18,12 +18,12 @@ export interface BackendResult {
 }
 
 export function verifyRequest(
-  config: Pick<PluginConfig, 'agentSecret'>,
+  config: Pick<PluginConfig, 'serviceSecret'>,
   req: IncomingRequest
 ): BackendResult {
-  const secret = config.agentSecret;
+  const secret = config.serviceSecret;
   if (!secret) {
-    return { verified: false, error: 'agentSecret not configured' };
+    return { verified: false, error: 'serviceSecret not configured' };
   }
   const payload =
     typeof req.body === 'string' ? req.body : req.body != null ? JSON.stringify(req.body) : '';
@@ -37,16 +37,16 @@ export function verifyRequest(
 }
 
 export async function reportUsageIfNeeded(
-  config: Pick<PluginConfig, 'apiUrl' | 'agentSecret'>,
-  params: { userId: string; agentId: string; unitsUsed: number }
+  config: Pick<PluginConfig, 'apiUrl' | 'serviceSecret'>,
+  params: { userId: string; serviceId: string; unitsUsed: number }
 ): Promise<void> {
-  const { apiUrl, agentSecret } = config;
-  if (!agentSecret) return;
+  const { apiUrl, serviceSecret } = config;
+  if (!serviceSecret) return;
   await reportUsage({
     ...(apiUrl ? { baseUrl: apiUrl } : {}),
     userId: params.userId,
-    agentId: params.agentId,
+    serviceId: params.serviceId,
     unitsUsed: params.unitsUsed,
-    agentSecret,
+    serviceSecret,
   });
 }

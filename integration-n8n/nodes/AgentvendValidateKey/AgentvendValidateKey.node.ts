@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
-import { validateAgentKey } from '@agentvend/agent-sdk';
+import { validateServiceKey } from '@agentvend/service-sdk';
 
 export class AgentvendValidateKey implements INodeType {
   description: INodeTypeDescription = {
@@ -8,29 +8,29 @@ export class AgentvendValidateKey implements INodeType {
     icon: 'file:agentvend.svg',
     group: ['transform'],
     version: 1,
-    description: 'Validate an agent key via the core service',
+    description: 'Validate a service key via the core service',
     defaults: { name: 'AgentVend Validate Key' },
     inputs: ['main'],
     outputs: ['main'],
     credentials: [{ name: 'agentvendApi', required: true }],
     properties: [
-      { displayName: 'Agent Key', name: 'agentKey', type: 'string', typeOptions: { password: true }, default: '', required: true },
-      { displayName: 'Agent ID', name: 'agentId', type: 'string', default: '' },
+      { displayName: 'Service Key', name: 'serviceKey', type: 'string', typeOptions: { password: true }, default: '', required: true },
+      { displayName: 'Service ID', name: 'serviceId', type: 'string', default: '' },
     ],
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('agentvendApi');
     const apiUrl = (credentials as { apiUrl?: string }).apiUrl as string;
-    const agentSecret = (credentials as { agentSecret?: string }).agentSecret as string;
-    const agentKey = this.getNodeParameter('agentKey', 0) as string;
-    const agentId = (this.getNodeParameter('agentId', 0) as string) || undefined;
+    const serviceSecret = (credentials as { serviceSecret?: string }).serviceSecret as string;
+    const serviceKey = this.getNodeParameter('serviceKey', 0) as string;
+    const serviceId = (this.getNodeParameter('serviceId', 0) as string) || undefined;
 
-    const result = await validateAgentKey({
+    const result = await validateServiceKey({
       baseUrl: apiUrl,
-      agentKey,
-      agentId: agentId ?? null,
-      agentSecret,
+      serviceKey,
+      serviceId: serviceId ?? null,
+      serviceSecret,
     });
 
     return [[{ json: (result ?? {}) as IDataObject }]];

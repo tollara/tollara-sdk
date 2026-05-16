@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { reportProgress } from '@agentvend/agent-sdk';
+import { reportProgress } from '@agentvend/service-sdk';
 
 export class AgentvendProgress implements INodeType {
   description: INodeTypeDescription = {
@@ -24,7 +24,7 @@ export class AgentvendProgress implements INodeType {
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('agentvendApi');
-    const agentSecret = (credentials as { agentSecret?: string }).agentSecret as string;
+    const serviceSecret = (credentials as { serviceSecret?: string }).serviceSecret as string;
     const progressUrl = this.getNodeParameter('progressUrl', 0) as string;
     const requestId = this.getNodeParameter('requestId', 0) as string;
     const stage = this.getNodeParameter('stage', 0) as string;
@@ -37,7 +37,7 @@ export class AgentvendProgress implements INodeType {
       stage,
       percentageComplete,
       errorMessage: errorMessage || undefined,
-      agentSecret,
+      serviceSecret,
     });
 
     return [[{ json: { success: ok } }]];

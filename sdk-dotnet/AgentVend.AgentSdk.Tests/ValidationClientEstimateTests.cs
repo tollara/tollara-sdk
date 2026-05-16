@@ -4,12 +4,12 @@ using System.Text.Json;
 using AgentVend;
 using Xunit;
 
-namespace AgentVend.AgentSdk.Tests;
+namespace AgentVend.ServiceSdk.Tests;
 
 public class ValidationClientEstimateTests
 {
-    private const string AgentId = "550e8400-e29b-41d4-a716-446655440000";
-    private const string AgentSecret = "test-agent-secret";
+    private const string ServiceId = "550e8400-e29b-41d4-a716-446655440000";
+    private const string ServiceSecret = "test-agent-secret";
     private const string CoreRoot = "http://core.test/api/v1";
 
     private sealed class EstimateOkHandler : HttpMessageHandler
@@ -33,7 +33,7 @@ public class ValidationClientEstimateTests
             };
             var responseText = JsonSerializer.Serialize(bodyObj);
             var timestamp = "1700000000";
-            var signature = Hmac.CalculateHmac(responseText + timestamp, AgentSecret);
+            var signature = Hmac.CalculateHmac(responseText + timestamp, ServiceSecret);
             var msg = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(responseText, Encoding.UTF8, "application/json"),
@@ -48,7 +48,7 @@ public class ValidationClientEstimateTests
     public async Task EstimateUsageAsync_ReturnsResult_WhenSigned200()
     {
         using var http = new HttpClient(new EstimateOkHandler());
-        var result = await ValidationClient.EstimateUsageAsync(http, CoreRoot, "key-1", 1.5m, AgentId, AgentSecret);
+        var result = await ValidationClient.EstimateUsageAsync(http, CoreRoot, "key-1", 1.5m, ServiceId, ServiceSecret);
         Assert.NotNull(result);
         Assert.Equal(200, result!.HttpStatus);
         Assert.True(result.WouldAllow);
@@ -71,7 +71,7 @@ public class ValidationClientEstimateTests
             return Task.FromResult(msg);
         });
         using var http = new HttpClient(handler);
-        var result = await ValidationClient.EstimateUsageAsync(http, CoreRoot, "k", 1m, AgentId, AgentSecret);
+        var result = await ValidationClient.EstimateUsageAsync(http, CoreRoot, "k", 1m, ServiceId, ServiceSecret);
         Assert.Null(result);
     }
 
@@ -79,8 +79,8 @@ public class ValidationClientEstimateTests
     public async Task EstimateUsageAsync_ReturnsNull_WhenUnitsNotPositive()
     {
         using var http = new HttpClient(new FuncHttpHandler(_ => throw new InvalidOperationException("should not call")));
-        Assert.Null(await ValidationClient.EstimateUsageAsync(http, CoreRoot, "k", 0m, AgentId, AgentSecret));
-        Assert.Null(await ValidationClient.EstimateUsageAsync(http, CoreRoot, "k", -1m, AgentId, AgentSecret));
+        Assert.Null(await ValidationClient.EstimateUsageAsync(http, CoreRoot, "k", 0m, ServiceId, ServiceSecret));
+        Assert.Null(await ValidationClient.EstimateUsageAsync(http, CoreRoot, "k", -1m, ServiceId, ServiceSecret));
     }
 
     private sealed class FuncHttpHandler : HttpMessageHandler

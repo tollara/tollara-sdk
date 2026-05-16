@@ -1,46 +1,46 @@
 # AgentVend SDK (Ruby)
 
-**Gem:** `agentvend_sdk` (RubyGems). **Module:** `AgentVendSdk` (replaces the former `agentvend_agent_sdk` gem / `AgentVendAgentSdk` module).
+**Gem:** `agentvend_service_sdk` (RubyGems). **Module:** `AgentVendSdk`.
 
-HMAC helpers and inbound verification. Use Net::HTTP, Faraday, or similar for Core, Usage, and Gateway APIs.
+HMAC helpers, inbound verification, and an `AgentVendClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
 ## Configuration (base URLs)
 
-The gem does not ship a unified HTTP client. Default production API origin is **`https://api.agentvend.api`** (aligned with other SDKs’ `AgentVendClient`). Configure Gateway, Core, and Usage bases per [sdk-api-spec.md](../docs/sdk-api-spec.md); set `AGENTVEND_API_URL` only when you need a non-production origin.
+Use the AgentVend API origin **`https://api.agentvend.api`** by default; set `AGENTVEND_API_URL` only when you need a non-production origin.
 
-See [api-overview.md](../docs/api-overview.md).
+Use this README as the public usage reference.
 
 ## Environment variables (Java alignment)
 
-The gem does **not** read the environment. Use the same names as the Java `AgentVendClient` in your deployment config:
+Use these environment variable names in your deployment config:
 
 - `AGENTVEND_API_URL` (optional override; production default is `https://api.agentvend.api`)
-- `AGENTVEND_AGENT_ID` (optional depending on Core)
-- `AGENTVEND_AGENT_SECRET`
+- `AGENTVEND_SERVICE_ID` (optional depending on Core; maps to your service id)
+- `AGENTVEND_SERVICE_SECRET` (maps to your service secret)
 
-There is no unified HTTP client here; use Net::HTTP, Faraday, etc., with the URLs in [sdk-api-spec.md](../docs/sdk-api-spec.md).
+`AgentVendClient` uses Net::HTTP and supports advanced configuration options when needed.
 
 ### Verify HMAC and trusted user context in one call
 
 ```ruby
-ctx = AgentVendSdk.verify_signature_from_headers_and_user_context(agent_secret, headers_hash, raw_body)
+ctx = AgentVendSdk.verify_signature_from_headers_and_user_context(service_secret, headers_hash, raw_body)
 # ctx is nil if invalid; otherwise same shape as user_context_from_headers
 ```
 
 ## Install
 
 ```bash
-gem install agentvend_sdk
+gem install agentvend_service_sdk
 ```
 
 ## Verify inbound HMAC
 
 ```ruby
-require "agentvend_sdk"
+require "agentvend_service_sdk"
 
-AgentVendSdk.verify_signature_from_headers(agent_secret, headers_hash, raw_body)
+AgentVendSdk.verify_signature_from_headers(service_secret, headers_hash, raw_body)
 
-AgentVendSdk.verify_inbound_hmac(agent_secret,
+AgentVendSdk.verify_inbound_hmac(service_secret,
   signature: sig,
   timestamp: ts,
   payload: body,
@@ -62,11 +62,22 @@ AgentVendSdk.calculate_hmac(data, key)
 AgentVendSdk.calculate_hmac_with_timestamp(body_string, timestamp, key)
 ```
 
-## HTTP examples
+## AgentVend client example
 
-- **Validate:** `POST` to `{core_base}/agent-keys/validate`; verify HMAC on response text + timestamp header (`HEADERS[:timestamp]`).
-- **Report usage:** `POST` to `{usage_base}/api/usage/report` with signed headers.
-- **Progress / completion:** POST to full URLs from async response; sign JSON body with timestamp from query string.
-- **Gateway:** `GET` `{gateway}{prefix}/requests/{request_id}/status` with `Authorization: Bearer #{agent_key}`.
+```ruby
+client = AgentVendSdk::AgentVendClient.new(
+  service_id: service_id,
+  service_secret: service_secret
+)
 
-See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
+client.validate_service_key(service_key)
+client.estimate_usage(service_key, 1)
+client.estimate_usage_with_jwt(bearer_jwt, core_user_id, service_id, 1)
+client.invoke_service("POST", service_id, endpoint_id, service_key, body: "{}", async: false)
+client.report_usage(user_id, service_id, 1)
+client.send_progress_update(progress_url, request_id, "processing", 50)
+client.send_completion(callback_url, request_id, "COMPLETED", 1)
+client.get_request_status(request_id, service_key)
+```
+
+See this README for public SDK usage details.

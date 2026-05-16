@@ -2,13 +2,13 @@ using System.Net;
 using System.Text;
 using Xunit;
 
-namespace AgentVend.AgentSdk.Tests;
+namespace AgentVend.ServiceSdk.Tests;
 
 public class AgentVendClientTests
 {
-    private const string AgentId = "550e8400-e29b-41d4-a716-446655440000";
-    private const string AgentSecret = "test-agent-secret";
-    private const string AgentKey = "k";
+    private const string ServiceId = "550e8400-e29b-41d4-a716-446655440000";
+    private const string ServiceSecret = "test-agent-secret";
+    private const string ServiceKey = "k";
 
     private sealed class ListUriHandler : HttpMessageHandler
     {
@@ -47,11 +47,11 @@ public class AgentVendClientTests
         var client = AgentVendClient.Create(new AgentVendClientOptions
         {
             HttpClient = http,
-            AgentId = AgentId,
-            AgentSecret = AgentSecret,
+            ServiceId = ServiceId,
+            ServiceSecret = ServiceSecret,
         });
 
-        await client.GetRequestStatusAsync("job-1", AgentKey);
+        await client.GetRequestStatusAsync("job-1", ServiceKey);
 
         Assert.Equal("https://api.agentvend.api/api/requests/job-1/status", handler.LastUri);
     }
@@ -72,11 +72,11 @@ public class AgentVendClientTests
         {
             ApiUrl = "http://localhost:59901",
             HttpClient = http,
-            AgentId = AgentId,
-            AgentSecret = AgentSecret,
+            ServiceId = ServiceId,
+            ServiceSecret = ServiceSecret,
         });
 
-        var (ok, code, body) = await client.GetRequestStatusAsync("job-1", AgentKey);
+        var (ok, code, body) = await client.GetRequestStatusAsync("job-1", ServiceKey);
 
         Assert.True(ok);
         Assert.Equal(200, code);
@@ -93,11 +93,11 @@ public class AgentVendClientTests
         {
             ApiUrl = "http://localhost:59902",
             HttpClient = http,
-            AgentId = AgentId,
-            AgentSecret = AgentSecret,
+            ServiceId = ServiceId,
+            ServiceSecret = ServiceSecret,
         });
 
-        var report = await client.ReportUsageAsync("user-1", AgentId, 1m);
+        var report = await client.ReportUsageAsync("user-1", ServiceId, 1m);
 
         Assert.Equal("ok", report.Status);
         Assert.Single(handler.RequestUris);
@@ -113,12 +113,12 @@ public class AgentVendClientTests
         {
             ApiUrl = "http://localhost:59903",
             HttpClient = http,
-            AgentId = AgentId,
-            AgentSecret = AgentSecret,
+            ServiceId = ServiceId,
+            ServiceSecret = ServiceSecret,
             UsagePathPrefix = "/usage/api/v1",
         });
 
-        await client.ReportUsageAsync("user-1", AgentId, 1m);
+        await client.ReportUsageAsync("user-1", ServiceId, 1m);
 
         Assert.Equal("http://localhost:59903/usage/api/v1/report", handler.RequestUris[0]);
     }

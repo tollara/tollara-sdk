@@ -1,31 +1,31 @@
 # AgentVend SDK (PHP)
 
-**Package:** `agentvend/agent-sdk` (Packagist)
+**Package:** `agentvend/service-sdk` (Packagist)
 
-HMAC signing and **inbound gateway verification** (`AgentVend\AgentSdk\Verifier`). Use Guzzle or another HTTP client for Core, Usage, and Gateway requests.
+HMAC signing, **inbound gateway verification** (`AgentVend\AgentSdk\Verifier`), and an `AgentVendClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
 ## Configuration (base URLs)
 
-This package does not assemble HTTP clients for you. Default production origin is **`https://api.agentvend.api`** (same as unified clients in Java/Python/JS/.NET/Rust). You may omit a configured base when your app only needs that origin; set **`AGENTVEND_API_URL`** (or your config equivalent) only to override—for example staging. Path defaults match [sdk-api-spec.md](../docs/sdk-api-spec.md) for default vs ECS layouts.
+Use the AgentVend API origin **`https://api.agentvend.api`** by default. You may omit a configured base when your app only needs that origin; set **`AGENTVEND_API_URL`** (or your config equivalent) only to override—for example staging.
 
-See [api-overview.md](../docs/api-overview.md).
+Use this README as the public usage reference.
 
 ## Environment variables (Java alignment)
 
-This package does **not** load configuration from the environment. Use the same variable names as the Java `AgentVendClient` in your app config:
+Use these environment variable names in your app config:
 
 - `AGENTVEND_API_URL` — Optional. API origin; defaults to `https://api.agentvend.api` in product terms if unset.
-- `AGENTVEND_AGENT_ID` — Agent UUID (optional for some Core flows).
-- `AGENTVEND_AGENT_SECRET` — Shared secret for outbound signing and inbound HMAC verification.
+- `AGENTVEND_SERVICE_ID` — Service UUID (optional for some Core flows).
+- `AGENTVEND_SERVICE_SECRET` — Service secret for outbound signing and inbound HMAC verification.
 
-There is no unified HTTP client in this SDK; use Guzzle or similar and the paths in [sdk-api-spec.md](../docs/sdk-api-spec.md).
+`AgentVendClient` uses HTTP requests directly and supports advanced configuration options when needed.
 
 ### Verify HMAC and trusted user context in one call
 
 ```php
 use AgentVend\AgentSdk\Verifier;
 
-$ctx = Verifier::verifyInboundHmacAndGetUserContext($agentSecret, $headersArray, $rawBody);
+$ctx = Verifier::verifyInboundHmacAndGetUserContext($serviceSecret, $headersArray, $rawBody);
 if ($ctx !== null) {
     // $ctx is trusted user context (same shape as parseUserContext)
 }
@@ -34,7 +34,7 @@ if ($ctx !== null) {
 ## Install
 
 ```bash
-composer require agentvend/agent-sdk
+composer require agentvend/service-sdk
 ```
 
 ## Inbound verification
@@ -44,10 +44,10 @@ use AgentVend\AgentSdk\AgentVendHeaders;
 use AgentVend\AgentSdk\InboundHmacRequest;
 use AgentVend\AgentSdk\Verifier;
 
-$valid = Verifier::verifySignatureFromHeaders($agentSecret, $headersArray, $rawBody);
+$valid = Verifier::verifySignatureFromHeaders($serviceSecret, $headersArray, $rawBody);
 
 $req = new InboundHmacRequest($sig, $ts, $payload, $userId, $plan, $roles, $quotaRemaining, subscriptionActive: false);
-$valid = Verifier::verifyInboundHmac($agentSecret, $req);
+$valid = Verifier::verifyInboundHmac($serviceSecret, $req);
 
 $ctx = Verifier::parseUserContext($headersArray);
 ```
@@ -58,17 +58,27 @@ $ctx = Verifier::parseUserContext($headersArray);
 use AgentVend\AgentSdk\Hmac;
 
 $sig = Hmac::calculateHmac($data, $key);
-$sig = Hmac::calculateHmacWithTimestamp($bodyJson, $timestamp, $agentSecret);
+$sig = Hmac::calculateHmacWithTimestamp($bodyJson, $timestamp, $serviceSecret);
 ```
 
-## HTTP examples (Guzzle)
+## AgentVend client example
 
-**Validate:** `POST {coreBase}/agent-keys/validate`, then verify HMAC on response body + `AgentVendHeaders::TIMESTAMP` header.
+```php
+use AgentVend\AgentSdk\AgentVendClient;
 
-**Report usage:** `POST {usageBase}/api/usage/report` with JSON body; set `AgentVendHeaders::SIGNATURE` and `TIMESTAMP` using `calculateHmacWithTimestamp`.
+$client = new AgentVendClient(
+    serviceId: $serviceId,
+    serviceSecret: $serviceSecret
+);
 
-**Progress / completion:** POST to full URLs from async invoke; sign body + timestamp from query string.
+$client->validateServiceKey($serviceKey);
+$client->estimateUsage($serviceKey, 1.0);
+$client->estimateUsageWithJwt($bearerJwt, $coreUserId, $serviceId, 1.0);
+$client->invokeService('POST', $serviceId, $endpointId, $serviceKey, '{}', false);
+$client->reportUsage($userId, $serviceId, 1.0);
+$client->sendProgressUpdate($progressUrl, $requestId, 'processing', 50);
+$client->sendCompletion($callbackUrl, $requestId, 'COMPLETED', 1.0);
+$client->getRequestStatus($requestId, $serviceKey);
+```
 
-**Gateway polling:** `GET {gatewayBase}{prefix}/requests/{id}/status` with `Authorization: Bearer {agentKey}`.
-
-See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
+See this README for public SDK usage details.

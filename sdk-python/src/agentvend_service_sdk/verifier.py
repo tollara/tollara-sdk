@@ -127,10 +127,10 @@ def build_gateway_user_context_string_v2(
     return "2" + u + p + r + sub + b + m + ul
 
 
-def verify_inbound_hmac(agent_secret: str, request: InboundHmacRequest) -> bool:
+def verify_inbound_hmac(service_secret: str, request: InboundHmacRequest) -> bool:
     s = request.signed_user_context
     return verify_signature(
-        agent_secret,
+        service_secret,
         request.signature,
         request.timestamp,
         request.payload,
@@ -147,7 +147,7 @@ def verify_inbound_hmac(agent_secret: str, request: InboundHmacRequest) -> bool:
 
 
 def verify_signature_from_headers(
-    agent_secret: str,
+    service_secret: str,
     headers: Dict[str, Optional[str]],
     payload: Any,
 ) -> bool:
@@ -175,7 +175,7 @@ def verify_signature_from_headers(
     )
     sv = _header_get_ci(headers, AgentVendHeaders.SIGNING_VERSION)
     return verify_inbound_hmac(
-        agent_secret,
+        service_secret,
         InboundHmacRequest(
             signature=signature,
             timestamp=timestamp,
@@ -187,7 +187,7 @@ def verify_signature_from_headers(
 
 
 def verify_signature(
-    agent_secret: str,
+    service_secret: str,
     signature: str,
     timestamp: str,
     payload: Any,
@@ -201,7 +201,7 @@ def verify_signature(
     unit_label: Optional[str] = None,
     signing_version: Optional[str] = None,
 ) -> bool:
-    if not signature or not timestamp or not agent_secret:
+    if not signature or not timestamp or not service_secret:
         return False
     try:
         payload_string = "" if payload is None else (payload if isinstance(payload, str) else json.dumps(payload))
@@ -227,19 +227,19 @@ def verify_signature(
                 unit_label,
             )
         data_to_sign = payload_string + timestamp + user_context_string
-        expected = calculate_hmac(data_to_sign, agent_secret)
+        expected = calculate_hmac(data_to_sign, service_secret)
         return constant_time_equals(expected, signature)
     except Exception:
         return False
 
 
 def verify_inbound_context(
-    agent_secret: str,
+    service_secret: str,
     headers: Dict[str, Optional[str]],
     payload: Any,
 ) -> Optional[UserContext]:
     """Verify inbound HMAC; if valid return :class:`UserContext`, else ``None`` (do not trust headers)."""
-    if not verify_signature_from_headers(agent_secret, headers, payload):
+    if not verify_signature_from_headers(service_secret, headers, payload):
         return None
     return get_user_context(headers)
 

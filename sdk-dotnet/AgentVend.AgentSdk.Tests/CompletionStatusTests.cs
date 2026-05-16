@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Xunit;
 
-namespace AgentVend.AgentSdk.Tests;
+namespace AgentVend.ServiceSdk.Tests;
 
 public class CompletionStatusTests
 {

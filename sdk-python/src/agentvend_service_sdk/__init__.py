@@ -13,7 +13,14 @@ from .verifier import (
     SignedUserContext,
     InboundHmacRequest,
 )
-from .validation_client import validate_agent_key, AgentKeyValidationResult, estimate_usage, UsageEstimateResult
+from .billing_client import estimate_usage_with_jwt
+from .gateway_invoke import GatewayInvokeAsyncEnvelope, GatewayInvokeResult, invoke_service
+from .validation_client import (
+    validate_service_key,
+    ServiceKeyValidationResult,
+    estimate_usage,
+    UsageEstimateResult,
+)
 from .completion_status import CompletionStatus
 from .usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
@@ -33,6 +40,8 @@ from .client import (
     DEFAULT_GATEWAY_PATH_PREFIX,
     ENV_AGENT_ID,
     ENV_AGENT_SECRET,
+    ENV_SERVICE_ID,
+    ENV_SERVICE_SECRET,
     ENV_API_URL,
 )
 
@@ -53,9 +62,13 @@ __all__ = [
     "UserContext",
     "SignedUserContext",
     "InboundHmacRequest",
-    "validate_agent_key",
+    "validate_service_key",
     "estimate_usage",
-    "AgentKeyValidationResult",
+    "estimate_usage_with_jwt",
+    "invoke_service",
+    "GatewayInvokeResult",
+    "GatewayInvokeAsyncEnvelope",
+    "ServiceKeyValidationResult",
     "UsageEstimateResult",
     "CompletionStatus",
     "report_progress",
@@ -74,6 +87,8 @@ __all__ = [
     "ENV_API_URL",
     "ENV_AGENT_ID",
     "ENV_AGENT_SECRET",
+    "ENV_SERVICE_ID",
+    "ENV_SERVICE_SECRET",
     "DEFAULT_CORE_PATH_PREFIX",
     "DEFAULT_GATEWAY_PATH_PREFIX",
 ]

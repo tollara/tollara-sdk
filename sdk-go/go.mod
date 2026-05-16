@@ -1,3 +1,3 @@
-module github.com/agentvend/agent-sdk-go
+module github.com/agentvend/service-sdk-go
 
 go 1.21

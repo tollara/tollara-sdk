@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Xunit;
 
-namespace AgentVend.AgentSdk.Tests;
+namespace AgentVend.ServiceSdk.Tests;
 
 public class VerifierTests
 {

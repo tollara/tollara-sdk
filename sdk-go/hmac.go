@@ -63,6 +63,7 @@ type InboundHmacRequest struct {
 	BillingModelType     string
 	MeasurementType      string
 	UnitLabel            string
+	SigningVersion       string
 }
 
 // BuildGatewayUserContextString builds the HMAC suffix after payload+timestamp.
@@ -83,10 +84,43 @@ func BuildGatewayUserContextString(userID, plan string, roles []string, quotaRem
 	return sb.String()
 }
 
+// BuildGatewayUserContextStringV2 builds the v2 HMAC suffix with leading "2" and no quota segment.
+func BuildGatewayUserContextStringV2(userID, plan string, roles []string, subscriptionActive bool, billing, measurement, unit string) string {
+	var sb strings.Builder
+	sb.WriteString("2")
+	sb.WriteString(userID)
+	sb.WriteString(plan)
+	sb.WriteString(strings.Join(roles, ","))
+	if subscriptionActive {
+		sb.WriteString("true")
+	} else {
+		sb.WriteString("false")
+	}
+	sb.WriteString(billing)
+	sb.WriteString(measurement)
+	sb.WriteString(unit)
+	return sb.String()
+}
+
 // VerifyInboundHMAC verifies using a single request struct (preferred).
 func VerifyInboundHMAC(agentSecret string, req *InboundHmacRequest) bool {
 	if req == nil {
 		return false
+	}
+	if strings.TrimSpace(req.SigningVersion) == "2" {
+		return VerifySignatureV2(
+			agentSecret,
+			req.Signature,
+			req.Timestamp,
+			req.Payload,
+			req.UserID,
+			req.Plan,
+			req.Roles,
+			req.SubscriptionActive,
+			req.BillingModelType,
+			req.MeasurementType,
+			req.UnitLabel,
+		)
 	}
 	return VerifySignature(agentSecret, req.Signature, req.Timestamp, req.Payload, req.UserID, req.Plan, req.Roles, req.QuotaRemaining, req.SubscriptionActive, req.BillingModelType, req.MeasurementType, req.UnitLabel)
 }
@@ -113,6 +147,7 @@ func VerifyInboundHMACFromHeaders(agentSecret string, h http.Header, payload str
 		BillingModelType:   bm,
 		MeasurementType:    mt,
 		UnitLabel:          ul,
+		SigningVersion:     h.Get(HeaderSigningVersion),
 	}
 	return VerifyInboundHMAC(agentSecret, req)
 }
@@ -158,6 +193,17 @@ func VerifySignature(agentSecret, signature, timestamp, payload string, userID, 
 		return false
 	}
 	userContextString := BuildGatewayUserContextString(userID, plan, roles, quotaRemaining, subscriptionActive, billing, measurement, unit)
+	dataToSign := payload + timestamp + userContextString
+	expected := CalculateHmac(dataToSign, agentSecret)
+	return ConstantTimeEquals(expected, signature)
+}
+
+// VerifySignatureV2 validates inbound gateway request HMAC using v2 user context string.
+func VerifySignatureV2(agentSecret, signature, timestamp, payload string, userID, plan string, roles []string, subscriptionActive bool, billing, measurement, unit string) bool {
+	if signature == "" || timestamp == "" || agentSecret == "" {
+		return false
+	}
+	userContextString := BuildGatewayUserContextStringV2(userID, plan, roles, subscriptionActive, billing, measurement, unit)
 	dataToSign := payload + timestamp + userContextString
 	expected := CalculateHmac(dataToSign, agentSecret)
 	return ConstantTimeEquals(expected, signature)

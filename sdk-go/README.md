@@ -1,32 +1,31 @@
 # AgentVend SDK (Go)
 
-**Module:** `github.com/agentvend/agent-sdk-go`
+**Module:** `github.com/agentvend/service-sdk-go`
 
-HMAC helpers and inbound gateway verification. Use your own HTTP client (or `net/http`) for Core, Usage, and Gateway calls; see examples below.
+HMAC helpers, inbound gateway verification, and an `AgentVendClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
 ## Configuration (base URLs)
 
-Other language SDKs expose a unified `AgentVendClient` that defaults the API origin to **`https://api.agentvend.api`** (`sdk.DefaultAPIURL`). This Go module does **not** read the environment; wire bases from config—use `DefaultAPIURL` as the default production origin and `EnvAPIURL` / `AGENTVEND_API_URL` when you need staging or local overrides. Path defaults follow [sdk-api-spec.md](../docs/sdk-api-spec.md) §3.
+Use the AgentVend API origin **`https://api.agentvend.api`** by default. Set `AGENTVEND_API_URL` only when you need a non-production override.
 
-See [api-overview.md](../docs/api-overview.md).
+Use this README as the public usage reference.
 
 ## Environment variables (Java alignment)
 
-This module does **not** read the environment for you. Use the same names as the Java `AgentVendClient` when wiring config (constants in package `sdk`):
+Use these environment variable names in your app config:
 
-| Constant | Value |
+| Config key | Value |
 |----------|--------|
-| `sdk.DefaultAPIURL` | `https://api.agentvend.api` (default origin for your config; not read automatically) |
-| `sdk.EnvAPIURL` | `AGENTVEND_API_URL` (optional override) |
-| `sdk.EnvAgentID` | `AGENTVEND_AGENT_ID` |
-| `sdk.EnvAgentSecret` | `AGENTVEND_AGENT_SECRET` |
+| API URL | `AGENTVEND_API_URL` (optional override; default origin is `https://api.agentvend.api`) |
+| Service ID | `AGENTVEND_SERVICE_ID` (maps to your **service id**) |
+| Service secret | `AGENTVEND_SERVICE_SECRET` (maps to your **service secret**) |
 
-There is no bundled HTTP client; combine these with your own `net/http` or other stack.
+`AgentVendClient` uses `net/http` and supports advanced configuration options when needed.
 
 ### Verify HMAC and trusted user context in one call
 
 ```go
-ctx, ok := sdk.VerifyInboundHMACFromHeadersAndGetUserContext(agentSecret, r.Header, string(bodyBytes))
+ctx, ok := sdk.VerifyInboundHMACFromHeadersAndGetUserContext(serviceSecret, r.Header, string(bodyBytes))
 if ok {
     _ = ctx.UserID // trusted only when ok is true
 }
@@ -35,16 +34,16 @@ if ok {
 ## Install
 
 ```bash
-go get github.com/agentvend/agent-sdk-go
+go get github.com/agentvend/service-sdk-go
 ```
 
 ## Verify inbound HMAC
 
 ```go
-import "github.com/agentvend/agent-sdk-go"
+import "github.com/agentvend/service-sdk-go"
 
 // From net/http (package name is sdk):
-ok := sdk.VerifyInboundHMACFromHeaders(agentSecret, r.Header, string(bodyBytes))
+ok := sdk.VerifyInboundHMACFromHeaders(serviceSecret, r.Header, string(bodyBytes))
 
 // Or explicit struct:
 req := &sdk.InboundHmacRequest{
@@ -56,24 +55,32 @@ req := &sdk.InboundHmacRequest{
     Roles:     []string{"role1", "role2"},
     QuotaRemaining: "10",
 }
-ok = sdk.VerifyInboundHMAC(agentSecret, req)
+ok = sdk.VerifyInboundHMAC(serviceSecret, req)
 
 ctx := sdk.UserContextFromHeaders(r.Header)
 ```
 
 Constants live on `sdk` (e.g. `sdk.HeaderSignature`).
 
-## Caller / usage flows (stdlib example)
+## AgentVend client example
 
-There are no built-in HTTP clients in this module yet. Illustrative `net/http` calls:
+```go
+client, err := sdk.NewAgentVendClient(sdk.AgentVendClientOptions{
+    ServiceID:     serviceID,
+    ServiceSecret: serviceSecret,
+})
+if err != nil { panic(err) }
 
-**Validate key (Core):** `POST {coreBase}/agent-keys/validate` with JSON body; verify response HMAC over `body + X-AgentVend-Timestamp`.
-
-**Report usage:** `POST {usageBase}/api/usage/report` with JSON body and `X-AgentVend-Signature` / `X-AgentVend-Timestamp` using `sdk.CalculateHmacWithTimestamp`.
-
-**Gateway job status:** `GET {gatewayBase}{prefix}/requests/{requestId}/status` with `Authorization: Bearer {agentKey}`.
-
-**Progress / completion:** `POST` to the full `progressUrl` / `callbackUrl` from the async response, signing the JSON body with `CalculateHmacWithTimestamp` and the timestamp from the URL query string (same pattern as other SDKs).
+_, _ = client.ValidateServiceKey(serviceKey)
+_, _ = client.EstimateUsage(serviceKey, 1)
+_, _ = client.EstimateUsageWithJWT(bearerJwt, coreUserID, serviceID, 1)
+_, _ = client.InvokeService("POST", serviceID, endpointID, serviceKey, "{}", false)
+_, _ = client.ReportUsage(userID, serviceID, 1)
+_, _ = client.SendProgressUpdate(progressURL, requestID, "processing", 50, nil)
+_, _ = client.SendCompletion(callbackURL, requestID, "COMPLETED", 1, nil, nil, nil)
+ok, code, body, _ := client.GetRequestStatus(requestID, serviceKey)
+_ = []any{ok, code, body}
+```
 
 ## Test
 
@@ -81,4 +88,4 @@ There are no built-in HTTP clients in this module yet. Illustrative `net/http` c
 go test ./...
 ```
 
-See [HMAC spec](../docs/hmac-spec.md) and [API spec](../docs/sdk-api-spec.md).
+See this README for public SDK usage details.

@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 /**
- * Wire + parsed result for Core {@code POST /agent-keys/estimate-usage} (see docs/sdk-api-spec.md §2.3).
+ * Wire + parsed result for Core {@code POST /service-keys/estimate-usage} (see docs-sdk/MAIN-SDK-API-SPEC.md §2.3).
  */
 @Data
 @Builder
