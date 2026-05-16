@@ -23,10 +23,27 @@ todos:
   - id: platform-sync
     content: "Coordinate platform PR: gateway/core/usage emit X-Tollara-*, TOLLARA_* config, api.tollara.ai DNS, staging E2E"
     status: pending
+  - id: ancillary-docs
+    content: "Rebrand docs/sdk-repo-project-context.md, sdk-callers-and-backends.md, maven-central publishing, implementation-prompt, session work-log; update port_java_sdk_parity plan references"
+    status: pending
+  - id: licenses-assets
+    content: "Update LICENSE/copyright lines; n8n package.json n8n.nodes/credentials dist paths; OpenClaw all src files; regenerate Python egg-info if present"
+    status: pending
 isProject: false
 ---
 
 # Rebrand AgentVend to Tollara
+
+## Goals
+
+1. **Rebrand the product** from AgentVend.ai to Tollara.ai in all user-facing surfaces (public SDK READMEs, integration display names, package descriptions) without exposing internal API paths or HMAC implementation details.
+2. **Ship a single, coordinated breaking release** of the SDK monorepo and platform (gateway, core, usage) so production traffic uses one wire contract: `X-Tollara-*` headers, `TOLLARA_*` environment variables, and default API origin `https://api.tollara.ai`.
+3. **Publish new Tollara packages** on every registry (Maven, npm, NuGet, PyPI, Go, crates.io, RubyGems, Packagist, n8n, OpenClaw) and **deprecate** all `agentvend` / `AgentVend` artifacts — no dual-publish or backward-compatible header aliases.
+4. **Preserve behavioral parity** with the current SDKs: same HMAC algorithms, canonical strings, and API flows; only names, constants, and package coordinates change.
+5. **Keep Java as the reference implementation** and mirror renames consistently across all eight language SDKs plus n8n and OpenClaw integrations.
+6. **Leave the repo internally consistent**: specs, `.cursor` rules, CI, CHANGELOG, licenses, and grep gates reflect Tollara with zero stale AgentVend / marketplace / agent-hub references (except explicitly archived historical plans).
+
+---
 
 ## Your decisions (locked in)
 
@@ -154,7 +171,7 @@ Use scripted replace with review, in this order per language:
 | Check | Command / action |
 |-------|------------------|
 | No stale brand | repo-wide grep: `agentvend`, `AgentVend`, `AGENTVEND`, `X-AgentVend`, `agentvend.ai`, `api.agentvend.api` → **zero** (except CHANGELOG historical entry if desired) |
-| Java | `.\gradlew.bat build` in `sdk-js` |
+| Java | `.\gradlew.bat build` in `sdk-java` |
 | JS | `npm ci && npm test` in `sdk-js` |
 | .NET | `dotnet test Tollara.ServiceSdk.Tests` |
 | Python | `pytest` |
@@ -177,8 +194,171 @@ Use scripted replace with review, in this order per language:
 
 ---
 
+## Gaps filled in from [rebrand_to_agentvend plan](.cursor/plans/rebrand_to_agentvend_4391a355.plan.md)
+
+Compared to the prior marketplace → AgentVend rebrand, the following were **missing or under-specified** in the first Tollara draft and are now in scope:
+
+### Java (sdk-java) — file-level detail
+
+- Rename **all** `com.agentvend.*` types, not only the unified client:
+  - `TollaraUrls` (was `AgentVendUrls`), `TollaraHttpException`, `GatewayHmacUserContext`, `ServiceKeyValidationClient`, `UsageServiceClient`, `GatewayClient`, `GatewayInvokeClient`, model package under `com.tollara.client.model`
+- Header constants in **every** client that signs or reads headers (validation, usage, gateway invoke, verifier tests)
+- [`sdk-java/settings.gradle`](sdk-java/settings.gradle): `rootProject.name` still `agent-sdk` → e.g. `tollara-service-sdk`
+- Maven publish metadata: `mavenCentralNamespace`, POM `name`/`description`, developer email, SCM URLs ([`build.gradle`](sdk-java/build.gradle), [`docs/maven-central-java-sdk-publishing.md`](docs/maven-central-java-sdk-publishing.md))
+
+### JavaScript (sdk-js)
+
+- Rename **all** source modules that reference headers: `verifier.ts`, `usageClient.ts`, `validationClient.ts`, `gatewayClient.ts`, `constants.ts`, `urls.ts` (not only `agentVendClient.ts`)
+- Export env constants: `ENV_*` / `TOLLARA_*` on `TollaraClient` (including removal of legacy `AGENTVEND_AGENT_*` aliases per your decision)
+- `package.json`: **keywords** — remove `agentvend`, add `tollara`; update `repository` / `homepage` URLs
+- All `*.test.ts` files (verifier, usage, validation, gateway, client)
+
+### Python (sdk-python)
+
+- Case-insensitive header lookups in verifier/validation/usage (`x-agentvend-*` → `x-tollara-*`) — same pattern as prior rebrand
+- Regenerate or **gitignore** stale `*.egg-info` / `dist/` after package rename
+- Rename **all** modules under `agentvend_service_sdk/` (not only `client.py` / headers): `billing_client.py`, `gateway_invoke.py`, `hmac_utils.py`, etc.
+- Test files: `test_agent_vend_client.py` → `test_tollara_client.py`; integration tests for usage/validation/gateway/verifier
+
+### C# (sdk-dotnet)
+
+- Rename **every** `.cs` at project root and under tests: `Verifier.cs`, `UsageClient.cs`, `ValidationClient.cs`, `GatewayClient.cs`, `Hmac.cs`, not only `AgentVendClient.cs`
+- Physical **csproj** file rename + solution references if any
+- NuGet tags, `PackageProjectUrl`, release notes strings
+
+### Go / Rust / Ruby / PHP
+
+- Go: [`env.go`](sdk-go/env.go), [`hmac.go`](sdk-go/hmac.go), [`hmac_test.go`](sdk-go/hmac_test.go) — not only `client.go` / `headers.go`
+- Rust: `validation_client.rs`, `usage_client.rs`, `gateway_client.rs`, `hmac.rs` + [`tests/integration.rs`](sdk-rust/tests/integration.rs)
+- Ruby: rename [`agentvend_sdk.gemspec`](sdk-ruby/agentvend_sdk.gemspec) → `tollara_sdk.gemspec`; [`lib/agentvend_sdk.rb`](sdk-ruby/lib/agentvend_sdk.rb) → `lib/tollara_sdk.rb`; `HEADERS` hash
+- PHP: all `src/*.php` namespaces; README env var docs
+
+### n8n (integration-n8n) — node manifest detail
+
+Prior plan listed per-node renames; apply the same for Tollara:
+
+| From | To |
+|------|-----|
+| `AgentvendTrigger` | `TollaraTrigger` |
+| `AgentvendInvoke` | `TollaraInvoke` |
+| `AgentvendProgress` | `TollaraProgress` |
+| `AgentvendComplete` | `TollaraComplete` |
+| `AgentvendValidateKey` | `TollaraValidateKey` |
+| `AgentvendApi.credentials.ts` | `TollaraApi.credentials.ts` |
+
+Also update in each node file: internal `name` (e.g. `agentvendInvoke` → `tollaraInvoke`), `displayName`, `defaults.name`, credential reference `agentvendApi` → `tollaraApi`.
+
+- [`package.json`](integration-n8n/package.json) **`n8n.nodes` / `n8n.credentials` / `packageId`** dist paths (lines 27–37) — easy to miss if only renaming folders
+- `description`, `homepage`, `repository`, `keywords`
+- **Icon:** prior plan called for `agentvend.svg`; no icon in repo today — add `tollara.svg` only if n8n UI needs a branded icon
+
+### OpenClaw (integration-openclaw)
+
+- [`backendHandler.ts`](integration-openclaw/src/backendHandler.ts), [`callAgent.ts`](integration-openclaw/src/callAgent.ts), [`index.ts`](integration-openclaw/src/index.ts), [`types.ts`](integration-openclaw/src/types.ts)
+- [`openclaw.plugin.json`](integration-openclaw/openclaw.plugin.json): `id`, `name`, description fields
+- Skill content in [`skills/agentvend/SKILL.md`](integration-openclaw/skills/agentvend/SKILL.md) → `skills/tollara/SKILL.md`
+
+### Internal docs (section 11 from prior plan)
+
+Explicit file list beyond `MAIN-SDK-API-SPEC` / `hmac-spec` / `api-overview`:
+
+- [`docs/sdk-repo-project-context.md`](docs/sdk-repo-project-context.md)
+- [`docs/sdk-callers-and-backends.md`](docs/sdk-callers-and-backends.md)
+- [`docs/sdk-http-api-dependencies.md`](docs/sdk-http-api-dependencies.md)
+- [`docs/sdk-repo-implementation-prompt.md`](docs/sdk-repo-implementation-prompt.md)
+- [`docs/sdk-monorepo-session-context-and-work-log.md`](docs/sdk-monorepo-session-context-and-work-log.md)
+- [`docs/maven-central-java-sdk-publishing.md`](docs/maven-central-java-sdk-publishing.md)
+- Optional/historical: [`docs/main_website_sdk_and_integrations_docs_aba198ed.plan.md`](docs/main_website_sdk_and_integrations_docs_aba198ed.plan.md), [`.cursor/plans/port_java_sdk_parity_edc8cc42.plan.md`](.cursor/plans/port_java_sdk_parity_edc8cc42.plan.md) — update `AgentVend*` references or leave as archive
+- [`docs-sdk/rename_agent_service_entities_1546cd46.plan.md`](docs-sdk/rename_agent_service_entities_1546cd46.plan.md) — superseded; note “preserve AgentVend brand” clause is obsolete
+
+### Full header set (newer than original AgentVend plan)
+
+Original AgentVend plan listed 6 headers; codebase now has **11**. Ensure **all** become `X-Tollara-*` everywhere:
+
+- `Signature`, `Timestamp`, `User-ID`, `Plan`, `Roles`
+- `Quota-Remaining`, `Subscription-Active`
+- `Billing-Model`, `Measurement-Type`, `Unit-Label`
+- `Signing-Version`
+
+### Licenses and legal strings
+
+- [`sdk-python/LICENSE`](sdk-python/LICENSE) copyright line
+- Any `Copyright … AgentVend` in other LICENSE / NOTICE files (grep)
+
+### CI gaps (not in prior plan, still relevant)
+
+- **sdk-php** and **sdk-ruby** are not in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — consider adding minimal test jobs in same PR or follow-up
+- Fix verification typo: Java build is `sdk-java`, not `sdk-js`
+
+### Execution order (align with prior successful rebrand)
+
+Prior order: **(1) Java + package move, (2) shared specs, (3) other SDKs, (4) integrations, (5) root README/PACKAGE_NAME.**
+
+Tollara plan may keep “docs first” for spec alignment, but **run tests after each SDK** before moving on (Java → JS → … → n8n/OpenClaw).
+
+### Residual legacy names (grep after Tollara pass)
+
+Prior rebrand targeted `marketplace`, `agent-hub`, `bugisiw`, `your-org` — should be **zero** hits after Tollara; if any remain, clean in same PR:
+
+```text
+marketplace | agent-hub | bugisiw | com.bugisiw | X-Marketplace
+```
+
+---
+
 ## Out of scope for SDK PR (but same release train)
 
 - Main website / marketing copy on tollara.ai
 - Database table renames (unless platform team includes in same migration)
 - Historical `.cursor/plans/rebrand_to_agentvend_*.plan.md` — archive or leave as history
+
+---
+
+## Acceptance criteria
+
+### Branding and repository
+
+- [ ] Repo-wide grep for `agentvend`, `AgentVend`, `AGENTVEND`, `X-AgentVend`, `agentvend.ai`, and `api.agentvend.api` returns **no matches** in source, docs, manifests, or CI (excluding archived historical plan files if explicitly retained).
+- [ ] Residual pre-AgentVend names (`marketplace`, `agent-hub`, `bugisiw`, `X-Marketplace`, `com.bugisiw`) also return **no matches**.
+- [ ] [`PACKAGE_NAME.md`](PACKAGE_NAME.md) and [`.cursor/rules`](.cursor/rules/) state product **Tollara**, package prefix **tollara**, headers **X-Tollara-***, env **TOLLARA_***.
+- [ ] Root [`README.md`](README.md) lists correct Tollara install coordinates for every SDK and integration.
+
+### Wire contract and configuration
+
+- [ ] All SDKs define the full **11** `X-Tollara-*` header constants (signature through signing-version).
+- [ ] All SDKs use **`TOLLARA_API_URL`**, **`TOLLARA_SERVICE_ID`**, **`TOLLARA_SERVICE_SECRET`** as the canonical env vars; legacy `AGENTVEND_*` and `AGENTVEND_AGENT_*` are removed.
+- [ ] Default API origin in every unified client is **`https://api.tollara.ai`**.
+- [ ] Internal specs ([`docs-sdk/MAIN-SDK-API-SPEC.md`](docs-sdk/MAIN-SDK-API-SPEC.md), [`docs/hmac-spec.md`](docs/hmac-spec.md), [`docs/api-overview.md`](docs/api-overview.md)) use Tollara naming; HMAC test vector **payloads** unchanged, header **labels** updated.
+
+### Language SDKs (all eight)
+
+- [ ] **Java:** sources under `com/tollara/**`; published as `com.tollara:service-sdk`; `TollaraClient`, `TollaraRequestVerifier`, `TollaraHeaders`; `.\gradlew.bat build` passes.
+- [ ] **JS:** `@tollara/service-sdk`; `TollaraClient` exported from `index.ts`; `npm ci && npm test` passes.
+- [ ] **.NET:** `Tollara.ServiceSdk` project and tests; CI runs `dotnet test` against `Tollara.ServiceSdk.Tests.csproj` successfully.
+- [ ] **Python:** package `tollara_service_sdk`; `pip install -e ".[dev]" && pytest` passes; case-insensitive `x-tollara-*` lookups work.
+- [ ] **Go:** module `github.com/tollara/service-sdk-go`; `go test ./...` passes.
+- [ ] **Rust:** crate `tollara-service-sdk`; `cargo test` and `cargo test --features http` pass.
+- [ ] **Ruby:** gem `tollara_service_sdk`; `TollaraSdk` / `TollaraClient` load correctly.
+- [ ] **PHP:** Composer `tollara/service-sdk`; namespace `Tollara\ServiceSdk`.
+
+### Integrations
+
+- [ ] **n8n:** package `n8n-nodes-tollara`; all five nodes and `TollaraApi` credential renamed; `package.json` `n8n.nodes` / `n8n.credentials` paths match `dist/` output; `npm run build` succeeds.
+- [ ] **OpenClaw:** package `openclaw-tollara`; plugin id `tollara`; skill at `skills/tollara/SKILL.md`; depends on `@tollara/service-sdk`; build succeeds.
+
+### CI, legal, and publishing prep
+
+- [ ] [`.github/workflows/ci.yml`](.github/workflows/ci.yml) references correct Tollara project paths (especially .NET test csproj).
+- [ ] [`CHANGELOG.md`](CHANGELOG.md) documents a **major** breaking rebrand release.
+- [ ] LICENSE / copyright lines reference **Tollara** where applicable.
+- [ ] New registry namespaces/org claimed or documented (`com.tollara`, `@tollara`, etc.); old AgentVend packages marked deprecated with pointer to Tollara equivalents.
+
+### Platform (coordinated release — not verifiable in SDK repo alone)
+
+- [ ] Staging E2E: invoke, validate service key, async progress/complete, and inbound HMAC verification succeed using **`X-Tollara-*`** and **`TOLLARA_*`** only.
+- [ ] Production gateway emits **`X-Tollara-*`** on signed requests; no production traffic relies on **`X-AgentVend-*`**.
+- [ ] DNS / routing serves **`api.tollara.ai`** for the SDK default origin.
+
+### Public documentation quality
+
+- [ ] Each [`sdk-*/README.md`](sdk-java/README.md) uses **Tollara** and **`TollaraClient`** only; no AgentVend branding, no links to private HMAC/API spec docs, no internal URL override instructions for end users (per sdk-coding-rules).
