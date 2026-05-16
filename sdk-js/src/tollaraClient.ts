@@ -26,9 +26,6 @@ import { resolveBaseUrl } from './urls';
 export const ENV_API_URL = 'TOLLARA_API_URL';
 export const ENV_SERVICE_ID = 'TOLLARA_SERVICE_ID';
 export const ENV_SERVICE_SECRET = 'TOLLARA_SERVICE_SECRET';
-export const ENV_AGENT_ID = 'TOLLARA_AGENT_ID';
-export const ENV_AGENT_SECRET = 'TOLLARA_AGENT_SECRET';
-
 /** Re-exported for callers that read the default origin. */
 export { DEFAULT_API_URL, DEFAULT_CORE_PATH_PREFIX, DEFAULT_GATEWAY_PATH_PREFIX, DEFAULT_USAGE_PATH_PREFIX };
 
@@ -51,9 +48,9 @@ export type TollaraClientOptions = {
    * All service calls use this origin with fixed paths (validate, usage, gateway polling).
    */
   apiUrl?: string | null;
-  /** Service UUID; falls back to `TOLLARA_SERVICE_ID` (legacy `TOLLARA_AGENT_ID` also accepted). */
+  /** Service UUID; falls back to `TOLLARA_SERVICE_ID`. */
   serviceId?: string | null;
-  /** Shared secret; falls back to `TOLLARA_SERVICE_SECRET` (legacy `TOLLARA_AGENT_SECRET` also accepted). */
+  /** Shared secret; falls back to `TOLLARA_SERVICE_SECRET`. */
   serviceSecret?: string | null;
   fetch?: typeof globalThis.fetch;
 };
@@ -66,8 +63,6 @@ export class TollaraClient {
   static readonly ENV_API_URL = ENV_API_URL;
   static readonly ENV_SERVICE_ID = ENV_SERVICE_ID;
   static readonly ENV_SERVICE_SECRET = ENV_SERVICE_SECRET;
-  static readonly ENV_AGENT_ID = ENV_AGENT_ID;
-  static readonly ENV_AGENT_SECRET = ENV_AGENT_SECRET;
   static readonly DEFAULT_API_URL = DEFAULT_API_URL;
   static readonly DEFAULT_CORE_PATH_PREFIX = DEFAULT_CORE_PATH_PREFIX;
   static readonly DEFAULT_GATEWAY_PATH_PREFIX = DEFAULT_GATEWAY_PATH_PREFIX;
@@ -81,14 +76,14 @@ export class TollaraClient {
   constructor(options: TollaraClientOptions = {}) {
     const resolved = resolveBaseUrl(firstNonBlank(options.apiUrl, envGet(ENV_API_URL)), DEFAULT_API_URL);
 
-    const secret = firstNonBlank(options.serviceSecret, firstNonBlank(envGet(ENV_SERVICE_SECRET), envGet(ENV_AGENT_SECRET)));
+    const secret = firstNonBlank(options.serviceSecret, envGet(ENV_SERVICE_SECRET));
     if (!secret) {
       throw new Error(
         `Service secret is required: set serviceSecret or environment variable ${ENV_SERVICE_SECRET}`
       );
     }
 
-    const sidRaw = firstNonBlank(options.serviceId, firstNonBlank(envGet(ENV_SERVICE_ID), envGet(ENV_AGENT_ID)));
+    const sidRaw = firstNonBlank(options.serviceId, envGet(ENV_SERVICE_ID));
     const sid = sidRaw === '' ? null : sidRaw || null;
 
     this.apiOrigin = resolved;

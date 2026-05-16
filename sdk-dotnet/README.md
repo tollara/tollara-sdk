@@ -26,7 +26,7 @@ JSON `status` for async completion must be uppercase **`COMPLETED`** or **`FAILE
 
 ### Tollara client
 
-`TollaraClient.Create` honors optional **`TOLLARA_SERVICE_ID`**, required **`TOLLARA_SERVICE_SECRET`** (or options), and optional **`TOLLARA_API_URL`**. Legacy **`TOLLARA_AGENT_ID`** / **`TOLLARA_AGENT_SECRET`** are still read if the `SERVICE_*` variables are unset.
+`TollaraClient.Create` honors optional **`TOLLARA_SERVICE_ID`**, required **`TOLLARA_SERVICE_SECRET`** (or options), and optional **`TOLLARA_API_URL`**.
 
 ```csharp
 var client = TollaraClient.Create(new TollaraClientOptions
@@ -92,7 +92,7 @@ dotnet test Tollara.ServiceSdk.Tests/Tollara.ServiceSdk.Tests.csproj
 
 ### 0.0.6 (current)
 
-- **Environment variables:** `TollaraClient.Create` prefers `TOLLARA_SERVICE_ID` / `TOLLARA_SERVICE_SECRET`; legacy `TOLLARA_AGENT_ID` / `TOLLARA_AGENT_SECRET` are still accepted when the `SERVICE_*` variables are unset.
+- **Environment variables:** `TollaraClient.Create` uses `TOLLARA_SERVICE_ID` / `TOLLARA_SERVICE_SECRET` when options are omitted.
 
 ### 0.0.5
 

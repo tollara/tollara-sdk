@@ -98,8 +98,8 @@ type GatewayInvokeResult struct {
 
 func NewTollaraClient(opts TollaraClientOptions) (*TollaraClient, error) {
 	apiURL := firstNonBlank(opts.APIURL, os.Getenv(EnvAPIURL), DefaultAPIURL)
-	serviceID := firstNonBlank(opts.ServiceID, os.Getenv(EnvServiceID), os.Getenv(EnvAgentID))
-	serviceSecret := firstNonBlank(opts.ServiceSecret, os.Getenv(EnvServiceSecret), os.Getenv(EnvAgentSecret))
+	serviceID := firstNonBlank(opts.ServiceID, os.Getenv(EnvServiceID))
+	serviceSecret := firstNonBlank(opts.ServiceSecret, os.Getenv(EnvServiceSecret))
 	if strings.TrimSpace(serviceSecret) == "" {
 		return nil, fmt.Errorf("service secret is required: set ServiceSecret or %s", EnvServiceSecret)
 	}

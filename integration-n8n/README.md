@@ -4,6 +4,10 @@ n8n nodes for Tollara: webhook trigger with HMAC verification, invoke service, p
 
 **Package:** `n8n-nodes-tollara`
 
+## Upgrading from AgentVend nodes
+
+Version **2.0.0** renames internal node and credential IDs (e.g. `tollaraInvoke`, `tollaraApi`). Existing workflows built against `n8n-nodes-agentvend` must be recreated or reconfigured after upgrade.
+
 ## Install in n8n
 
 1. Build the SDK first (from repo root): `cd sdk-js && npm run build`

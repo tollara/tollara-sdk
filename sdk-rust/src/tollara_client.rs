@@ -9,8 +9,6 @@ use std::env;
 pub const ENV_API_URL: &str = "TOLLARA_API_URL";
 pub const ENV_SERVICE_ID: &str = "TOLLARA_SERVICE_ID";
 pub const ENV_SERVICE_SECRET: &str = "TOLLARA_SERVICE_SECRET";
-pub const ENV_AGENT_ID: &str = "TOLLARA_AGENT_ID";
-pub const ENV_AGENT_SECRET: &str = "TOLLARA_AGENT_SECRET";
 
 /// Production API origin; used when neither `api_url` nor `TOLLARA_API_URL` is set.
 pub const DEFAULT_API_URL: &str = "https://api.tollara.ai";
@@ -118,10 +116,7 @@ impl TollaraClient {
 
         let service_secret = first_non_blank(
             config.service_secret.as_deref(),
-            env::var(ENV_SERVICE_SECRET)
-                .ok()
-                .as_deref()
-                .or_else(|| env::var(ENV_AGENT_SECRET).ok().as_deref()),
+            env::var(ENV_SERVICE_SECRET).ok().as_deref(),
         );
         if service_secret.is_empty() {
             return Err("Service secret is required: set service_secret or TOLLARA_SERVICE_SECRET");
@@ -129,10 +124,7 @@ impl TollaraClient {
 
         let service_id_raw = first_non_blank(
             config.service_id.as_deref(),
-            env::var(ENV_SERVICE_ID)
-                .ok()
-                .as_deref()
-                .or_else(|| env::var(ENV_AGENT_ID).ok().as_deref()),
+            env::var(ENV_SERVICE_ID).ok().as_deref(),
         );
         let service_id = if service_id_raw.is_empty() {
             None

@@ -16,7 +16,7 @@ import java.time.Instant;
  * <p>
  * The API origin defaults to {@value #DEFAULT_API_URL} when neither {@link Builder#apiUrl(String)} nor {@value #ENV_API_URL} is set.
  * {@link Builder#serviceId(String)} / {@link Builder#serviceSecret(String)} or {@value #ENV_SERVICE_ID} / {@value #ENV_SERVICE_SECRET}
- * (secret required for signing and Core response verification). Legacy aliases {@code TOLLARA_AGENT_*} are still accepted.
+ * (secret required for signing and Core response verification).
  * Default path prefixes match {@code docs-sdk/MAIN-SDK-API-SPEC.md} (default deployment); override with
  * {@link Builder#corePathPrefix(String)}, {@link Builder#gatewayPathPrefix(String)}, {@link Builder#usagePathPrefix(String)}
  * for ECS or local Docker layouts.
@@ -37,14 +37,12 @@ public final class TollaraClient {
      * Used when {@link Builder#serviceId(String)} is not set.
      */
     public static final String ENV_SERVICE_ID = "TOLLARA_SERVICE_ID";
-    public static final String ENV_AGENT_ID = "TOLLARA_AGENT_ID";
 
     /**
      * Environment variable for the service shared secret (required for Usage HMAC and Core validate response verification).
      * Used when {@link Builder#serviceSecret(String)} is not set.
      */
     public static final String ENV_SERVICE_SECRET = "TOLLARA_SERVICE_SECRET";
-    public static final String ENV_AGENT_SECRET = "TOLLARA_AGENT_SECRET";
 
     /** Default {@code /api/v1} (Core servlet context). */
     public static final String DEFAULT_CORE_PATH_PREFIX = "/api/v1";
@@ -82,12 +80,8 @@ public final class TollaraClient {
         HttpClient httpClient = b.httpClient != null ? b.httpClient : HttpClient.newHttpClient();
         this.httpClient = httpClient;
 
-        String resolvedServiceId = firstNonBlank(
-                b.serviceId,
-                firstNonBlank(System.getenv(ENV_SERVICE_ID), System.getenv(ENV_AGENT_ID)));
-        String resolvedServiceSecret = firstNonBlank(
-                b.serviceSecret,
-                firstNonBlank(System.getenv(ENV_SERVICE_SECRET), System.getenv(ENV_AGENT_SECRET)));
+        String resolvedServiceId = firstNonBlank(b.serviceId, System.getenv(ENV_SERVICE_ID));
+        String resolvedServiceSecret = firstNonBlank(b.serviceSecret, System.getenv(ENV_SERVICE_SECRET));
         if (resolvedServiceSecret.isEmpty()) {
             throw new IllegalStateException(
                     "Service secret is required: set Builder.serviceSecret(...) or environment variable " + ENV_SERVICE_SECRET);

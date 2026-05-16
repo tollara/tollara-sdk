@@ -39,8 +39,8 @@ final class TollaraClient
         $this->corePathPrefix = $this->normalizePrefix($corePathPrefix);
         $this->gatewayPathPrefix = $this->normalizePrefix($gatewayPathPrefix);
         $this->usagePathPrefix = $this->normalizePrefix($usagePathPrefix);
-        $this->serviceId = trim((string) ($serviceId ?: getenv('TOLLARA_SERVICE_ID') ?: getenv('TOLLARA_AGENT_ID') ?: ''));
-        $this->serviceSecret = trim((string) ($serviceSecret ?: getenv('TOLLARA_SERVICE_SECRET') ?: getenv('TOLLARA_AGENT_SECRET') ?: ''));
+        $this->serviceId = trim((string) ($serviceId ?: getenv('TOLLARA_SERVICE_ID') ?: ''));
+        $this->serviceSecret = trim((string) ($serviceSecret ?: getenv('TOLLARA_SERVICE_SECRET') ?: ''));
         if ($this->serviceSecret === '') {
             throw new \InvalidArgumentException('serviceSecret is required');
         }
