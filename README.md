@@ -4,7 +4,7 @@ Client SDKs and integrations for **AgentVend** — a platform for marketing, mon
 
 This monorepo provides:
 
-- **Caller SDKs**: Validate agent keys, invoke agents (sync/async) via the gateway.
+- **Caller SDKs**: Validate service keys, invoke via the gateway (sync/async).
 - **Backend support**: Verify HMAC on incoming gateway requests, extract user context, report usage and (for async) progress/completion.
 
 For API and HMAC details, see [docs/](docs/).

@@ -49,9 +49,9 @@ describe('usageClient', () => {
     await reportUsage({
       baseUrl: 'http://u.test',
       userId: 'u1',
-      agentId: 'a1',
+      serviceId: 'a1',
       unitsUsed: 2,
-      agentSecret: 's',
+      serviceSecret: 's',
       fetch: mockFetch,
     });
 
@@ -69,12 +69,11 @@ describe('usageClient', () => {
           [AgentVendHeaders.SIGNATURE]: expectedSig,
         })
       );
-      expect(JSON.parse(rawBody)).toEqual({
-        userId: 'u1',
-        agentId: 'a1',
-        unitsUsed: 3,
-        timestamp: 1700000000,
-      });
+      const parsed = JSON.parse(rawBody) as { userId: string; serviceId: string; unitsUsed: number; timestamp: string };
+      expect(parsed.userId).toBe('u1');
+      expect(parsed.serviceId).toBe('a1');
+      expect(parsed.unitsUsed).toBe(3);
+      expect(parsed.timestamp).toBe(new Date(1700000000 * 1000).toISOString());
       return new Response(
         JSON.stringify({ status: 'ok', isOverLimit: false, remainingRequestsPerPeriod: 10 }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -84,10 +83,10 @@ describe('usageClient', () => {
     await reportUsage({
       baseUrl: 'http://u.test',
       userId: 'u1',
-      agentId: 'a1',
+      serviceId: 'a1',
       unitsUsed: 3,
       timestamp: 1700000000,
-      agentSecret: 'secret',
+      serviceSecret: 'secret',
       fetch: fetchMock as unknown as typeof fetch,
     });
   });
@@ -98,9 +97,9 @@ describe('usageClient', () => {
       reportUsage({
         baseUrl: 'http://u.test',
         userId: 'u1',
-        agentId: 'a1',
+        serviceId: 'a1',
         unitsUsed: 1,
-        agentSecret: 'secret',
+        serviceSecret: 'secret',
         fetch: mockFetch,
       })
     ).rejects.toThrow(/Usage report failed: 500 Internal/);
@@ -125,7 +124,7 @@ describe('usageClient', () => {
       requestId: 'req-1',
       stage: 'processing',
       percentageComplete: 50,
-      agentSecret: 'secret',
+      serviceSecret: 'secret',
       fetch: fetchMock as unknown as typeof fetch,
     });
 
@@ -160,7 +159,7 @@ describe('usageClient', () => {
       status: CompletionStatus.Completed,
       result: 'done',
       units: 1,
-      agentSecret: 'secret',
+      serviceSecret: 'secret',
       fetch: fetchMock as unknown as typeof fetch,
     });
     expect(ok).toBe(true);
@@ -171,7 +170,7 @@ describe('usageClient', () => {
       callbackUrl: 'http://u.test/api/usage/complete/req-3',
       requestId: 'req-3',
       status: CompletionStatus.Failed,
-      agentSecret: 'secret',
+      serviceSecret: 'secret',
       fetch: jest.fn() as unknown as typeof fetch,
     });
     expect(ok).toBe(false);

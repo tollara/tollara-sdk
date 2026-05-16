@@ -5,18 +5,19 @@ using System.Text.Json;
 
 namespace AgentVend;
 
-public record AgentKeyValidationResult(
+public record ServiceKeyValidationResult(
     string? UserId,
-    string? AgentId,
+    string? ServiceId,
     string? Plan,
     IReadOnlyList<string> Roles,
     decimal? QuotaRemaining,
     bool SubscriptionActive,
     string? BillingModelType,
     string? MeasurementType,
-    string? UnitLabel);
+    string? UnitLabel,
+    Guid? ServiceKeyId);
 
-/// <summary>Wire result for Core agent-key usage estimate (signed JSON).</summary>
+/// <summary>Wire result for Core service-key usage estimate (signed JSON).</summary>
 public record UsageEstimateResult(
     bool SufficientCredits,
     bool WouldExceedCap,
@@ -35,16 +36,16 @@ public record UsageEstimateResult(
 public static class ValidationClient
 {
     /// <summary>Validate using the SDK default API origin and Core path prefix (same as <see cref="AgentVendClient"/>).</summary>
-    public static Task<AgentKeyValidationResult?> ValidateAgentKeyAsync(HttpClient http, string agentKey, string? agentId,
-        string agentSecret, CancellationToken ct = default) =>
-        ValidateAgentKeyAsync(http, DefaultCoreServiceRoot(), agentKey, agentId, agentSecret, ct);
+    public static Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string serviceKey, string? serviceId,
+        string serviceSecret, CancellationToken ct = default) =>
+        ValidateServiceKeyAsync(http, DefaultCoreServiceRoot(), serviceKey, serviceId, serviceSecret, ct);
 
     /// <summary>Validate against an explicit Core service base (include path prefix, e.g. custom or local stack).</summary>
-    public static async Task<AgentKeyValidationResult?> ValidateAgentKeyAsync(HttpClient http, string coreServiceUrl,
-        string agentKey, string? agentId, string agentSecret, CancellationToken ct = default)
+    public static async Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string coreServiceUrl,
+        string serviceKey, string? serviceId, string serviceSecret, CancellationToken ct = default)
     {
-        var url = coreServiceUrl.TrimEnd('/') + "/agent-keys/validate";
-        var body = new { agentKey, agentId, agentSecret };
+        var url = coreServiceUrl.TrimEnd('/') + "/service-keys/validate";
+        var body = new { serviceKey, serviceId, serviceSecret };
         var bodyStr = JsonSerializer.Serialize(body);
         var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(bodyStr, Encoding.UTF8, "application/json") };
         var res = await http.SendAsync(req, ct);
@@ -53,37 +54,42 @@ public static class ValidationClient
         var signature = res.Headers.TryGetValues(AgentVendHeaders.Signature, out var sig) ? string.Join("", sig) : null;
         var timestamp = res.Headers.TryGetValues(AgentVendHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
-        if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, agentSecret)) return null;
+        if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret)) return null;
         var doc = JsonDocument.Parse(responseText);
         var root = doc.RootElement;
         if (root.TryGetProperty("valid", out var v) && !v.GetBoolean()) return null;
         var roles = root.TryGetProperty("roles", out var r) ? r.EnumerateArray().Select(x => x.GetString() ?? "").ToList() : new List<string>();
-        return new AgentKeyValidationResult(
+        Guid? serviceKeyId = null;
+        if (root.TryGetProperty("serviceKeyId", out var sk) && sk.ValueKind == JsonValueKind.String &&
+            Guid.TryParse(sk.GetString(), out var skGuid))
+            serviceKeyId = skGuid;
+        return new ServiceKeyValidationResult(
             root.TryGetProperty("userId", out var uid) ? uid.GetString() : null,
-            root.TryGetProperty("agentId", out var aid) ? aid.GetString() : agentId,
+            root.TryGetProperty("serviceId", out var sid) ? sid.GetString() : serviceId,
             root.TryGetProperty("plan", out var p) ? p.GetString() : null,
             roles,
             root.TryGetProperty("quotaRemaining", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetDecimal() : (decimal?)null,
             root.TryGetProperty("subscriptionActive", out var sa) && sa.GetBoolean(),
             root.TryGetProperty("billingModelType", out var bm) && bm.ValueKind == JsonValueKind.String ? bm.GetString() : null,
             root.TryGetProperty("measurementType", out var mt) && mt.ValueKind == JsonValueKind.String ? mt.GetString() : null,
-            root.TryGetProperty("unitLabel", out var ul) && ul.ValueKind == JsonValueKind.String ? ul.GetString() : null
+            root.TryGetProperty("unitLabel", out var ul) && ul.ValueKind == JsonValueKind.String ? ul.GetString() : null,
+            serviceKeyId
         );
     }
 
     /// <summary>Estimate usage using the SDK default Core root (same as <see cref="AgentVendClient"/>).</summary>
-    public static Task<UsageEstimateResult?> EstimateUsageAsync(HttpClient http, string agentKey, decimal estimatedUnits,
-        string? agentId, string agentSecret, CancellationToken ct = default) =>
-        EstimateUsageAsync(http, DefaultCoreServiceRoot(), agentKey, estimatedUnits, agentId, agentSecret, ct);
+    public static Task<UsageEstimateResult?> EstimateUsageAsync(HttpClient http, string serviceKey, decimal estimatedUnits,
+        string? serviceId, string serviceSecret, CancellationToken ct = default) =>
+        EstimateUsageAsync(http, DefaultCoreServiceRoot(), serviceKey, estimatedUnits, serviceId, serviceSecret, ct);
 
     /// <summary>POST estimate-usage to an explicit Core base (including path prefix).</summary>
     public static async Task<UsageEstimateResult?> EstimateUsageAsync(HttpClient http, string coreServiceUrl,
-        string agentKey, decimal estimatedUnits, string? agentId, string agentSecret, CancellationToken ct = default)
+        string serviceKey, decimal estimatedUnits, string? serviceId, string serviceSecret, CancellationToken ct = default)
     {
         if (estimatedUnits <= 0) return null;
-        if (string.IsNullOrWhiteSpace(agentKey)) return null;
-        var url = coreServiceUrl.TrimEnd('/') + "/agent-keys/estimate-usage";
-        var body = new { agentKey, agentId, agentSecret, estimatedUnits };
+        if (string.IsNullOrWhiteSpace(serviceKey)) return null;
+        var url = coreServiceUrl.TrimEnd('/') + "/service-keys/estimate-usage";
+        var body = new { serviceKey, serviceId, serviceSecret, estimatedUnits };
         var bodyStr = JsonSerializer.Serialize(body);
         var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(bodyStr, Encoding.UTF8, "application/json") };
         var res = await http.SendAsync(req, ct);
@@ -95,7 +101,52 @@ public static class ValidationClient
         var signature = res.Headers.TryGetValues(AgentVendHeaders.Signature, out var sig) ? string.Join("", sig) : null;
         var timestamp = res.Headers.TryGetValues(AgentVendHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
-        if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, agentSecret)) return null;
+        if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret)) return null;
+        using var doc = JsonDocument.Parse(responseText);
+        var root = doc.RootElement;
+        JsonElement? breakdown = null;
+        if (root.TryGetProperty("breakdown", out var br) && br.ValueKind == JsonValueKind.Object)
+            breakdown = br.Clone();
+        return new UsageEstimateResult(
+            root.TryGetProperty("sufficientCredits", out var sc) && sc.GetBoolean(),
+            root.TryGetProperty("wouldExceedCap", out var wec) && wec.GetBoolean(),
+            root.TryGetProperty("wouldAllow", out var wa) && wa.GetBoolean(),
+            ReadDecimal(root, "estimatedCost"),
+            ReadDecimal(root, "remainingCredits"),
+            ReadDecimal(root, "remainingSpendingCap"),
+            ReadString(root, "billingModelType"),
+            ReadString(root, "measurementType"),
+            ReadString(root, "unitLabel"),
+            breakdown,
+            root.TryGetProperty("estimateSchemaVersion", out var esv) && esv.TryGetInt32(out var ev) ? ev : 0,
+            root.TryGetProperty("timestamp", out var tsv) && tsv.TryGetInt64(out var tl) ? tl : 0L,
+            code
+        );
+    }
+
+    /// <summary>Core JWT usage estimate (§2.2). Response is not HMAC-signed.</summary>
+    public static Task<UsageEstimateResult?> EstimateUsageWithJwtAsync(HttpClient http, string bearerToken, string userId,
+        string serviceId, decimal estimatedUnits, CancellationToken ct = default) =>
+        EstimateUsageWithJwtAsync(http, DefaultCoreServiceRoot(), bearerToken, userId, serviceId, estimatedUnits, ct);
+
+    /// <summary>POST <c>…/billing/usage/estimate</c> with explicit Core root (including path prefix).</summary>
+    public static async Task<UsageEstimateResult?> EstimateUsageWithJwtAsync(HttpClient http, string coreServiceUrl,
+        string bearerToken, string userId, string serviceId, decimal estimatedUnits, CancellationToken ct = default)
+    {
+        if (estimatedUnits <= 0) return null;
+        if (string.IsNullOrWhiteSpace(bearerToken) || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(serviceId))
+            return null;
+        var url = coreServiceUrl.TrimEnd('/') + "/billing/usage/estimate";
+        var body = new { userId, serviceId, estimatedUnits };
+        var bodyStr = JsonSerializer.Serialize(body);
+        var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(bodyStr, Encoding.UTF8, "application/json") };
+        req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + bearerToken.Trim());
+        var res = await http.SendAsync(req, ct);
+        var code = (int)res.StatusCode;
+        if (code != (int)HttpStatusCode.OK && code != (int)HttpStatusCode.Forbidden &&
+            code != (int)HttpStatusCode.TooManyRequests) return null;
+        var responseText = await res.Content.ReadAsStringAsync(ct);
+        if (string.IsNullOrWhiteSpace(responseText)) return null;
         using var doc = JsonDocument.Parse(responseText);
         var root = doc.RootElement;
         JsonElement? breakdown = null;

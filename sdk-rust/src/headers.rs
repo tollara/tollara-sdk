@@ -10,3 +10,4 @@ pub const SUBSCRIPTION_ACTIVE: &str = "X-AgentVend-Subscription-Active";
 pub const BILLING_MODEL: &str = "X-AgentVend-Billing-Model";
 pub const MEASUREMENT_TYPE: &str = "X-AgentVend-Measurement-Type";
 pub const UNIT_LABEL: &str = "X-AgentVend-Unit-Label";
+pub const SIGNING_VERSION: &str = "X-AgentVend-Signing-Version";

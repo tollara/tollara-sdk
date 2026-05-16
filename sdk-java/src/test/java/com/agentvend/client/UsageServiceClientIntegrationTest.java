@@ -21,7 +21,7 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
  */
 class UsageServiceClientIntegrationTest {
 
-    private static final String AGENT_SECRET = "test-agent-secret";
+    private static final String SERVICE_SECRET = "test-service-secret";
 
     @RegisterExtension
     static WireMockExtension wireMock = newInstance()
@@ -35,7 +35,7 @@ class UsageServiceClientIntegrationTest {
     void setUp() {
         int port = wireMock.getPort();
         usageBaseUrl = "http://localhost:" + port;
-        client = new UsageServiceClient(usageBaseUrl, AGENT_SECRET, HttpClient.newHttpClient());
+        client = new UsageServiceClient(usageBaseUrl, SERVICE_SECRET, HttpClient.newHttpClient());
     }
 
     @Test
@@ -46,7 +46,7 @@ class UsageServiceClientIntegrationTest {
                         .withHeader("X-AgentVend-Signature", matching(".+"))
                         .withHeader("X-AgentVend-Timestamp", matching("\\d+"))
                         .withRequestBody(matchingJsonPath("$.userId", equalTo("user-1")))
-                        .withRequestBody(matchingJsonPath("$.agentId", equalTo("agent-1")))
+                        .withRequestBody(matchingJsonPath("$.serviceId", equalTo("svc-1")))
                         .withRequestBody(matchingJsonPath("$.unitsUsed"))
                         .willReturn(aResponse()
                                 .withStatus(200)
@@ -56,7 +56,7 @@ class UsageServiceClientIntegrationTest {
                                     """))
         );
 
-        UsageReportResponse response = client.reportUsage("user-1", "agent-1", BigDecimal.ONE);
+        UsageReportResponse response = client.reportUsage("user-1", "svc-1", BigDecimal.ONE);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo("ok");
@@ -73,7 +73,7 @@ class UsageServiceClientIntegrationTest {
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 AgentVendHttpException.class,
-                () -> client.reportUsage("user-1", "agent-1", BigDecimal.ONE)
+                () -> client.reportUsage("user-1", "svc-1", BigDecimal.ONE)
         );
     }
 

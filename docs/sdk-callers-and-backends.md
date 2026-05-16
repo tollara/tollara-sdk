@@ -35,13 +35,13 @@ flowchart LR
     AG[Your agent HTTP server]
   end
 
-  C -->|"Bearer agent key, invoke"| GW
+  C -->|"Bearer service key, invoke"| GW
   GW -->|"HMAC + X-AgentVend-* headers"| AG
   C -.->|"optional: validate key"| CORE
   AG -->|"signed report / progress / complete"| USAGE
 ```
 
-- **Caller** — Sits **outside** the agent’s server. For **proxied** agents it uses an **agent API key** against the **gateway** invoke URL (and may optionally call **core** to validate a key). For **non-proxied** agents it typically sends **`Authorization: Bearer <agentKey>`** directly to the agent’s public URL. Callers never see gateway HMAC headers.
+- **Caller** — Sits **outside** the agent’s server. For **proxied** agents it uses a **service API key** against the **gateway** invoke URL (and may optionally call **core** to validate a key). For **non-proxied** agents it typically sends **`Authorization: Bearer <serviceKey>`** directly to the agent’s public URL. Callers never see gateway HMAC headers.
 - **Agent backend** — The HTTP server that implements the agent. **Proxied** backends receive **gateway-signed** requests (`X-AgentVend-Signature`, user context headers). **Non-proxied** backends receive **Bearer** keys and must **validate** them with **core**. Both modes typically call the **usage** service to report consumption and (for async jobs) progress and completion.
 
 ### Proxied vs non-proxied (backends)
@@ -49,9 +49,9 @@ flowchart LR
 | | **Proxied** | **Non-proxied** |
 |---|-------------|-----------------|
 | **Caller’s entry URL** | Gateway invoke URL | Agent owner’s own HTTP base URL |
-| **Who validates the agent key first** | Gateway | Your backend (via core `validate`) |
-| **Inbound cryptographic check on your server** | Verify **gateway HMAC** with **agent secret** | **None** from gateway; use **`validateAgentKey`** + response HMAC to core |
-| **Usage / progress / completion** | Signed POSTs to **usage** (agent secret) | Same |
+| **Who validates the service key first** | Gateway | Your backend (via core `validate`) |
+| **Inbound cryptographic check on your server** | Verify **gateway HMAC** with **service secret** | **None** from gateway; use **`validateServiceKey`** + response HMAC to core |
+| **Usage / progress / completion** | Signed POSTs to **usage** (service secret) | Same |
 
 The published SDK exposes one logical surface; **which calls you use depends on role (caller vs backend) and proxied vs non-proxied**.
 
@@ -59,11 +59,11 @@ The published SDK exposes one logical surface; **which calls you use depends on 
 
 ## 2. Callers: what they do and why use the SDK
 
-A caller’s job is to **invoke** an agent (sync or async): for **proxied** agents that means the **gateway** invoke URL; for **non-proxied** agents it means the **agent’s own** URL. Callers may optionally **validate** an agent key via **core** first. For **proxied** async flows they may **poll** job status or result on the gateway.
+A caller’s job is to **invoke** an agent (sync or async): for **proxied** agents that means the **gateway** invoke URL; for **non-proxied** agents it means the **agent’s own** URL. Callers may optionally **validate** a service key via **core** first. For **proxied** async flows they may **poll** job status or result on the gateway.
 
 ### 2.1 Sync invoke (proxied path via gateway)
 
-For synchronous **proxied** invoke, the caller sends **`Authorization: Bearer <agentKey>`** to the gateway. No HMAC is required on the caller’s side for this request.
+For synchronous **proxied** invoke, the caller sends **`Authorization: Bearer <serviceKey>`** to the gateway. No HMAC is required on the caller’s side for this request.
 
 ```mermaid
 sequenceDiagram
@@ -71,7 +71,7 @@ sequenceDiagram
   participant GW as Gateway
   participant Agent as Agent backend
 
-  Caller->>GW: HTTP invoke (Bearer agent key, body/query)
+  Caller->>GW: HTTP invoke (Bearer service key, body/query)
   GW->>GW: Validate key, quota, routing
   GW->>Agent: Forward request + HMAC + X-AgentVend-* headers
   Agent-->>GW: Response
@@ -84,9 +84,9 @@ sequenceDiagram
 - Correct URL shape and path prefixes (local vs ECS-style bases) — see [sdk-api-spec.md](./sdk-api-spec.md) §1.
 - Typed helpers and shared conventions (e.g. parsing async body into object - requestId, progressUrlm callbackUrl); invoke alone can also be done with any HTTP client.
 
-### 2.2 Optional: validate agent key and get quota info
+### 2.2 Optional: validate service key and get quota info
 
-Callers that need **plan, quota, or validity** before invoking (or without going through the gateway) call **core** `POST .../agent-keys/validate`. The response is **HMAC-signed**; clients that care about tampering **must** verify the signature using the **agent secret** (same rules as in [sdk-api-spec.md](./sdk-api-spec.md) §2).
+Callers that need **plan, quota, or validity** before invoking (or without going through the gateway) call **core** `POST .../agent-keys/validate`. The response is **HMAC-signed**; clients that care about tampering **must** verify the signature using the **service secret** (same rules as in [sdk-api-spec.md](./sdk-api-spec.md) §2).
 
 **SDK value:** Implements **response HMAC verification** (canonical string, constant-time compare), which is easy to get wrong when hand-rolled.
 
@@ -95,7 +95,7 @@ sequenceDiagram
   participant Caller as Caller app
   participant CORE as Core service
 
-  Caller->>CORE: POST /agent-keys/validate (agentKey, agentId, agentSecret in body as required)
+  Caller->>CORE: POST /agent-keys/validate (serviceKey, serviceId, serviceSecret in body as required)
   CORE-->>Caller: JSON body + X-AgentVend-Signature + X-AgentVend-Timestamp
   Note over Caller: SDK verifies HMAC before trusting body
 ```
@@ -111,12 +111,12 @@ sequenceDiagram
   participant Agent as Agent backend
   participant USAGE as Usage service
 
-  Caller->>GW: .../invoke/async (Bearer agent key)
+  Caller->>GW: .../invoke/async (Bearer service key)
   GW-->>Caller: 202 + requestId + progressUrl + callbackUrl (+ optional poll URLs)
 
   GW->>Agent: Forward async job (body may include request_id, progress_url, callback_url)
   loop While job runs
-    Agent->>USAGE: POST progress (signed with agent secret)
+    Agent->>USAGE: POST progress (signed with service secret)
   end
   Agent->>USAGE: POST completion to callback URL (signed)
 
@@ -142,7 +142,7 @@ Backends are either **proxied** (behind the gateway) or **non-proxied** (clients
 
 ### 3.1 Inbound: proxied agents (gateway-signed requests)
 
-The gateway validates the caller’s agent key, then forwards to your URL with **HMAC** and **`X-AgentVend-*`** headers. You **must** verify that signature with the **agent secret** before trusting the body or headers ([sdk-api-spec.md](./sdk-api-spec.md) §4).
+The gateway validates the caller’s service key, then forwards to your URL with **HMAC** and **`X-AgentVend-*`** headers. You **must** verify that signature with the **service secret** before trusting the body or headers ([sdk-api-spec.md](./sdk-api-spec.md) §4).
 
 ```mermaid
 sequenceDiagram
@@ -155,11 +155,11 @@ sequenceDiagram
   Agent-->>GW: Business response
 ```
 
-**SDK value:** **`verifySignature`** / **`getUserContext`** implement the canonical string and header rules. You typically **do not** need **`validateAgentKey`** on every request here because the gateway already validated the key.
+**SDK value:** **`verifySignature`** / **`getUserContext`** implement the canonical string and header rules. You typically **do not** need **`validateServiceKey`** on every request here because the gateway already validated the key.
 
 ### 3.2 Inbound: non-proxied agents (direct Bearer key)
 
-Callers send **`Authorization: Bearer <agentKey>`** to **your** server. There is **no** gateway HMAC. To obtain **user id, plan, quota, subscription** and to reject bad keys, the backend calls **core** **`POST .../agent-keys/validate`** and **must verify** the response HMAC with the **agent secret** ([sdk-api-spec.md](./sdk-api-spec.md) §2). A reference pattern lives under `agents/non-proxied-agent` in this repo.
+Callers send **`Authorization: Bearer <serviceKey>`** to **your** server. There is **no** gateway HMAC. To obtain **user id, plan, quota, subscription** and to reject bad keys, the backend calls **core** **`POST .../agent-keys/validate`** and **must verify** the response HMAC with the **service secret** ([sdk-api-spec.md](./sdk-api-spec.md) §2). A reference pattern lives under `agents/non-proxied-agent` in this repo.
 
 ```mermaid
 sequenceDiagram
@@ -167,24 +167,24 @@ sequenceDiagram
   participant Agent as Agent backend
   participant CORE as Core service
 
-  Caller->>Agent: Request + Bearer agent key
-  Agent->>CORE: validateAgentKey (agentKey, agentId, agentSecret)
+  Caller->>Agent: Request + Bearer service key
+  Agent->>CORE: validateServiceKey (serviceKey, serviceId, serviceSecret)
   CORE-->>Agent: JSON + X-AgentVend-Signature + X-AgentVend-Timestamp
   Note over Agent: SDK verifies response HMAC, then trusts body
   Agent-->>Caller: Business response
 ```
 
-**SDK value:** **`validateAgentKey`** (with response HMAC verification) is the **primary** inbound trust mechanism for non-proxied agents. **`verifySignature`** for gateway HMAC does **not** apply.
+**SDK value:** **`validateServiceKey`** (with response HMAC verification) is the **primary** inbound trust mechanism for non-proxied agents. **`verifySignature`** for gateway HMAC does **not** apply.
 
 ### 3.3 Outbound: usage, progress, and completion (both modes)
 
-After the request is authenticated (**proxied:** verified gateway HMAC; **non-proxied:** validated key via core), backends report **usage** and, for async work, **progress** and **completion** to the **usage** service. All use **HMAC** over `body + timestamp` with the **agent secret** ([sdk-api-spec.md](./sdk-api-spec.md) §3 and §6).
+After the request is authenticated (**proxied:** verified gateway HMAC; **non-proxied:** validated key via core), backends report **usage** and, for async work, **progress** and **completion** to the **usage** service. All use **HMAC** over `body + timestamp` with the **service secret** ([sdk-api-spec.md](./sdk-api-spec.md) §3 and §6).
 
 ```mermaid
 flowchart TB
   subgraph Auth["Request authenticated"]
     P[Proxied: verified gateway HMAC]
-    N[Non-proxied: validateAgentKey + response HMAC]
+    N[Non-proxied: validateServiceKey + response HMAC]
   end
 
   subgraph Outbound["Outbound to usage"]
@@ -208,14 +208,14 @@ flowchart TB
 | SDK capability | Proxied agent (gateway in front) | Non-proxied agent (direct to your URL) |
 |----------------|----------------------------------|----------------------------------------|
 | **verifySignature** / **getUserContext** (gateway HMAC) | **Yes** — required for inbound trust | **No** — gateway does not sign these requests |
-| **validateAgentKey** (+ verify core response HMAC) | **Optional** — e.g. double-check, tooling, or custom flows; not required for normal gateway-forwarded traffic | **Yes** — typical for every request (or validated session/cache you define) |
+| **validateServiceKey** (+ verify core response HMAC) | **Optional** — e.g. double-check, tooling, or custom flows; not required for normal gateway-forwarded traffic | **Yes** — typical for every request (or validated session/cache you define) |
 | **reportUsage** / **reportProgress** / **reportCompletion** | **Yes** — when your integration reports to usage | **Yes** — same |
 
 ---
 
 ## 4. Side-by-side: which services each role talks to
 
-Only **gateway**, **core**, and **usage** are in scope for the public SDK ([sdk-repo-project-context.md](./sdk-repo-project-context.md)). Security-service user JWT flows are **not** part of this SDK surface for agent key / HMAC integration.
+Only **gateway**, **core**, and **usage** are in scope for the public SDK ([sdk-repo-project-context.md](./sdk-repo-project-context.md)). Security-service user JWT flows are **not** part of this SDK surface for service key / HMAC integration.
 
 ```mermaid
 flowchart TB
@@ -230,7 +230,7 @@ flowchart TB
   end
 
   subgraph NonProxied["Non-proxied backend"]
-    N_IN[Inbound: validateAgentKey to core]
+    N_IN[Inbound: validateServiceKey to core]
     N_US[Usage: report, progress, complete]
   end
 
@@ -240,17 +240,17 @@ flowchart TB
 | Service | Caller | Proxied backend | Non-proxied backend |
 |---------|--------|-----------------|---------------------|
 | **Gateway** | Primary (invoke; optional status/result) | Inbound only (gateway calls your URL) | Not used for invoke |
-| **Core** | Optional (validate key + HMAC verify response) | Optional `validate` (not required for normal gateway traffic) | **Required** for `validateAgentKey` inbound trust |
-| **Usage** | Caller does not sign to usage | Report / progress / completion (agent secret) | Same |
+| **Core** | Optional (validate key + HMAC verify response) | Optional `validate` (not required for normal gateway traffic) | **Required** for `validateServiceKey` inbound trust |
+| **Usage** | Caller does not sign to usage | Report / progress / completion (service secret) | Same |
 
 ---
 
 ## 5. Mental model: secrets and keys
 
-- **Agent API key** — For **proxied** agents, the caller sends it as `Authorization: Bearer ...` to the **gateway**. For **non-proxied** agents, the caller typically sends the same header to **your** backend; your backend then validates it with **core**.
-- **Agent secret** — Held by the **agent backend** (and optionally by trusted **caller** code that calls **validate** and must verify response HMAC). Used to **verify** gateway HMAC (**proxied**), to **verify** core validate responses (**non-proxied** and any validate caller), and to **sign** outbound usage/progress/completion requests to **usage**.
+- **Service API key** — For **proxied** agents, the caller sends it as `Authorization: Bearer ...` to the **gateway**. For **non-proxied** agents, the caller typically sends the same header to **your** backend; your backend then validates it with **core**.
+- **Service secret** — Held by the **agent backend** (and optionally by trusted **caller** code that calls **validate** and must verify response HMAC). Used to **verify** gateway HMAC (**proxied**), to **verify** core validate responses (**non-proxied** and any validate caller), and to **sign** outbound usage/progress/completion requests to **usage**.
 
-Never expose the agent secret in browser-only or untrusted caller code; for pure public clients, use invoke-only flows and keep secrets on servers you control.
+Never expose the service secret in browser-only or untrusted caller code; for pure public clients, use invoke-only flows and keep secrets on servers you control.
 
 ---
 

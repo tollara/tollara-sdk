@@ -3,12 +3,14 @@ Integration tests for the usage client against a mocked Usage API.
 Uses the 'responses' library to mock HTTP; see docs/sdk-api-spec.md §3.
 """
 import json
+from datetime import datetime, timezone
 
 import pytest
 import responses
 
-from agentvend_sdk.completion_status import CompletionStatus
-from agentvend_sdk.usage_client import (
+from agentvend_service_sdk.completion_status import CompletionStatus
+from agentvend_service_sdk.hmac_utils import calculate_hmac_with_timestamp
+from agentvend_service_sdk.usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
     report_completion_with_result,
@@ -20,7 +22,7 @@ from agentvend_sdk.usage_client import (
 )
 
 USAGE_BASE = "http://usage.test"
-AGENT_SECRET = "test-agent-secret"
+SERVICE_SECRET = "test-agent-secret"
 
 
 def test_usage_report_url_default_and_custom():
@@ -44,7 +46,7 @@ def test_report_usage_sends_signed_request_and_returns_response():
     )
 
     result = report_usage_at(
-        USAGE_BASE, "user-1", "agent-1", 1.0, AGENT_SECRET, timestamp=1700000000.0
+        USAGE_BASE, "user-1", "service-1", 1.0, SERVICE_SECRET, timestamp=1700000000.0
     )
 
     assert isinstance(result, UsageReportResponse)
@@ -59,8 +61,15 @@ def test_report_usage_sends_signed_request_and_returns_response():
     assert "X-AgentVend-Timestamp" in req.headers
     body = json.loads(req.body)
     assert body["userId"] == "user-1"
-    assert body["agentId"] == "agent-1"
+    assert body["serviceId"] == "service-1"
     assert body["unitsUsed"] == 1.0
+    iso = datetime.fromtimestamp(1700000000, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    assert body["timestamp"] == iso
+    assert req.headers.get("X-AgentVend-Timestamp") == "1700000000"
+    body_str = json.dumps(body, separators=(",", ":"))
+    assert req.headers.get("X-AgentVend-Signature") == calculate_hmac_with_timestamp(
+        body_str, "1700000000", SERVICE_SECRET
+    )
 
 
 @responses.activate
@@ -79,9 +88,9 @@ def test_report_usage_custom_usage_path_prefix():
     result = report_usage_at(
         USAGE_BASE,
         "user-1",
-        "agent-1",
+        "service-1",
         1.0,
-        AGENT_SECRET,
+        SERVICE_SECRET,
         timestamp=1700000000.0,
         usage_path_prefix="/usage/api/v1",
     )
@@ -101,7 +110,7 @@ def test_report_usage_raises_on_5xx():
     )
 
     with pytest.raises(Exception):
-        report_usage(USAGE_BASE, "user-1", "agent-1", 1.0, AGENT_SECRET)
+        report_usage(USAGE_BASE, "user-1", "service-1", 1.0, SERVICE_SECRET)
 
 
 @responses.activate
@@ -118,7 +127,7 @@ def test_report_progress_posts_to_progress_url_with_signature():
     )
 
     ok = report_progress(
-        progress_url, "req-123", "processing", 50, AGENT_SECRET
+        progress_url, "req-123", "processing", 50, SERVICE_SECRET
     )
 
     assert ok is True
@@ -148,7 +157,7 @@ def test_report_completion_posts_to_callback_url_with_signature():
         callback_url,
         "req-456",
         CompletionStatus.COMPLETED,
-        AGENT_SECRET,
+        SERVICE_SECRET,
         "done",
         units=1.0,
     )
@@ -167,7 +176,7 @@ def test_report_completion_posts_to_callback_url_with_signature():
 def test_report_progress_returns_false_when_url_missing_timestamp():
     """report_progress returns False when the URL has no timestamp query param."""
     progress_url = f"{USAGE_BASE}/api/usage/progress/req-1"
-    ok = report_progress(progress_url, "req-1", "stage", 0, AGENT_SECRET)
+    ok = report_progress(progress_url, "req-1", "stage", 0, SERVICE_SECRET)
     assert ok is False
 
 
@@ -175,6 +184,6 @@ def test_report_completion_returns_false_when_url_missing_timestamp():
     """report_completion returns False when the URL has no timestamp query param."""
     callback_url = f"{USAGE_BASE}/api/usage/complete/req-1"
     ok = report_completion(
-        callback_url, "req-1", CompletionStatus.FAILED, AGENT_SECRET
+        callback_url, "req-1", CompletionStatus.FAILED, SERVICE_SECRET
     )
     assert ok is False

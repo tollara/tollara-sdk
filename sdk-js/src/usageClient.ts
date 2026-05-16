@@ -4,6 +4,21 @@ import { DEFAULT_API_URL, DEFAULT_USAGE_PATH_PREFIX } from './constants';
 import { calculateHmacWithTimestamp } from './hmac';
 import { resolveBaseUrl } from './urls';
 
+function usageReportInstantAndEpochSeconds(timestamp?: number | Date | null): { iso: string; epochSec: string } {
+  let ms: number;
+  if (timestamp == null) {
+    ms = Date.now();
+  } else if (timestamp instanceof Date) {
+    ms = timestamp.getTime();
+  } else if (typeof timestamp === 'number') {
+    ms = timestamp < 1e11 ? Math.round(timestamp * 1000) : timestamp;
+  } else {
+    ms = Date.now();
+  }
+  const sec = Math.floor(ms / 1000);
+  return { iso: new Date(ms).toISOString(), epochSec: String(sec) };
+}
+
 export { DEFAULT_USAGE_PATH_PREFIX } from './constants';
 
 /** Builds `{baseUrl}/api/usage/report` using the default usage path. */
@@ -36,7 +51,7 @@ export type ReportProgressParams = {
   percentageComplete: number;
   /** Omit or leave unset when there is no error (avoids passing null). */
   errorMessage?: string | null;
-  agentSecret: string;
+  serviceSecret: string;
   fetch?: typeof globalThis.fetch;
 };
 
@@ -44,7 +59,7 @@ export type ReportProgressParams = {
  * POST to progressUrl with signed body (optional errorMessage).
  */
 export async function reportProgress(params: ReportProgressParams): Promise<boolean> {
-  const { progressUrl, requestId, stage, percentageComplete, errorMessage, agentSecret, fetch: fetchFn = fetch } = params;
+  const { progressUrl, requestId, stage, percentageComplete, errorMessage, serviceSecret, fetch: fetchFn = fetch } = params;
   const { baseUrl, timestamp } = parseUrlParams(progressUrl);
   if (!timestamp) return false;
 
@@ -56,7 +71,7 @@ export async function reportProgress(params: ReportProgressParams): Promise<bool
   if (errorMessage != null) body.errorMessage = errorMessage;
 
   const bodyString = JSON.stringify(body);
-  const signature = calculateHmacWithTimestamp(bodyString, timestamp, agentSecret);
+  const signature = calculateHmacWithTimestamp(bodyString, timestamp, serviceSecret);
 
   try {
     const res = await fetchFn(baseUrl, {
@@ -82,7 +97,7 @@ export type ReportCompletionParams = {
   resultUrl?: string | null;
   contentType?: string | null;
   units?: number | null;
-  agentSecret: string;
+  serviceSecret: string;
   fetch?: typeof globalThis.fetch;
 };
 
@@ -90,7 +105,7 @@ export type ReportCompletionParams = {
  * POST completion with status and optional units (defaults to 0).
  */
 export async function reportCompletion(
-  params: Pick<ReportCompletionParams, 'callbackUrl' | 'requestId' | 'status' | 'agentSecret' | 'fetch'> & {
+  params: Pick<ReportCompletionParams, 'callbackUrl' | 'requestId' | 'status' | 'serviceSecret' | 'fetch'> & {
     units?: number | null;
   }
 ): Promise<boolean> {
@@ -101,7 +116,7 @@ export async function reportCompletion(
  * POST completion with inline result text.
  */
 export async function reportCompletionWithResult(
-  params: Pick<ReportCompletionParams, 'callbackUrl' | 'requestId' | 'status' | 'result' | 'units' | 'agentSecret' | 'fetch'>
+  params: Pick<ReportCompletionParams, 'callbackUrl' | 'requestId' | 'status' | 'result' | 'units' | 'serviceSecret' | 'fetch'>
 ): Promise<boolean> {
   return reportCompletionFull({ ...params, units: params.units ?? 0 });
 }
@@ -110,7 +125,7 @@ export async function reportCompletionWithResult(
  * POST to callbackUrl with signed body (all optional fields).
  */
 export async function reportCompletionFull(params: ReportCompletionParams): Promise<boolean> {
-  const { callbackUrl, status, result, resultUrl, contentType, units, agentSecret, fetch: fetchFn = fetch } = params;
+  const { callbackUrl, status, result, resultUrl, contentType, units, serviceSecret, fetch: fetchFn = fetch } = params;
   const { baseUrl, timestamp } = parseUrlParams(callbackUrl);
   if (!timestamp) return false;
 
@@ -124,7 +139,7 @@ export async function reportCompletionFull(params: ReportCompletionParams): Prom
   if (contentType != null) body.contentType = contentType;
 
   const bodyString = JSON.stringify(body);
-  const signature = calculateHmacWithTimestamp(bodyString, timestamp, agentSecret);
+  const signature = calculateHmacWithTimestamp(bodyString, timestamp, serviceSecret);
 
   try {
     const res = await fetchFn(baseUrl, {
@@ -160,30 +175,27 @@ export async function reportUsage(
     /** API origin; defaults to `https://api.agentvend.api`. */
     baseUrl?: string | null;
     userId: string;
-    agentId: string;
+    serviceId: string;
     unitsUsed: number;
     timestamp?: number | Date | null;
-    agentSecret: string;
+    serviceSecret: string;
     fetch?: typeof globalThis.fetch;
   }
 ): Promise<UsageReportResponse> {
   const {
     baseUrl,
     userId,
-    agentId,
+    serviceId,
     unitsUsed,
     timestamp,
-    agentSecret,
+    serviceSecret,
     fetch: fetchFn = fetch,
   } = params;
-  const ts = timestamp != null
-    ? (timestamp instanceof Date ? timestamp.getTime() : timestamp)
-    : Date.now();
+  const { iso, epochSec } = usageReportInstantAndEpochSeconds(timestamp ?? null);
 
-  const body = { userId, agentId, unitsUsed, timestamp: ts };
+  const body = { userId, serviceId, unitsUsed, timestamp: iso };
   const bodyString = JSON.stringify(body);
-  const timestampStr = String(ts);
-  const signature = calculateHmacWithTimestamp(bodyString, timestampStr, agentSecret);
+  const signature = calculateHmacWithTimestamp(bodyString, epochSec, serviceSecret);
 
   const url = buildUsageReportUrl(baseUrl ?? DEFAULT_API_URL);
 
@@ -192,7 +204,7 @@ export async function reportUsage(
     headers: {
       'Content-Type': 'application/json',
       [AgentVendHeaders.SIGNATURE]: signature,
-      [AgentVendHeaders.TIMESTAMP]: timestampStr,
+      [AgentVendHeaders.TIMESTAMP]: epochSec,
     },
     body: bodyString,
   });

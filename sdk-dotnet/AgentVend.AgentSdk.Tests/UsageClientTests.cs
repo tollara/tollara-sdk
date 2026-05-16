@@ -2,7 +2,7 @@ using System.Net;
 using System.Text;
 using Xunit;
 
-namespace AgentVend.AgentSdk.Tests;
+namespace AgentVend.ServiceSdk.Tests;
 
 public class UsageClientTests
 {

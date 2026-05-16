@@ -117,7 +117,7 @@ export function buildGatewayUserContextStringV2(
  * Verifies HMAC on an inbound gateway request.
  * Canonical string: payload + timestamp + userContextString (see docs/hmac-spec.md).
  */
-export function verifySignature(agentSecret: string, input: VerifySignatureInput): boolean {
+export function verifySignature(serviceSecret: string, input: VerifySignatureInput): boolean {
   const {
     signature,
     timestamp,
@@ -132,7 +132,7 @@ export function verifySignature(agentSecret: string, input: VerifySignatureInput
     unitLabel,
     signingVersion,
   } = input;
-  if (!signature || !timestamp || !agentSecret) return false;
+  if (!signature || !timestamp || !serviceSecret) return false;
   try {
     const payloadString =
       payload == null ? '' : typeof payload === 'string' ? payload : JSON.stringify(payload);
@@ -158,7 +158,7 @@ export function verifySignature(agentSecret: string, input: VerifySignatureInput
             unitLabel ?? null
           );
     const dataToSign = payloadString + timestamp + userContextString;
-    const expectedSignature = calculateHmac(dataToSign, agentSecret);
+    const expectedSignature = calculateHmac(dataToSign, serviceSecret);
     return constantTimeEquals(expectedSignature, signature);
   } catch {
     return false;
@@ -168,9 +168,9 @@ export function verifySignature(agentSecret: string, input: VerifySignatureInput
 /**
  * Verifies inbound HMAC using {@link InboundHmacRequest} (preferred typed entry point).
  */
-export function verifyInboundHmac(agentSecret: string, request: InboundHmacRequest): boolean {
+export function verifyInboundHmac(serviceSecret: string, request: InboundHmacRequest): boolean {
   const s = request.signedUserContext;
-  return verifySignature(agentSecret, {
+  return verifySignature(serviceSecret, {
     signature: request.signature,
     timestamp: request.timestamp,
     payload: request.payload,
@@ -190,7 +190,7 @@ export function verifyInboundHmac(agentSecret: string, request: InboundHmacReque
  * Verifies inbound HMAC from a case-insensitive header bag and payload.
  */
 export function verifySignatureFromHeaders(
-  agentSecret: string,
+  serviceSecret: string,
   headers: HeaderBag,
   payload: string | object | null
 ): boolean {
@@ -222,7 +222,7 @@ export function verifySignatureFromHeaders(
     unitLabel: unit && unit !== '' ? unit : null,
   };
   const signingVersion = headerGet(headers, AgentVendHeaders.SIGNING_VERSION);
-  return verifyInboundHmac(agentSecret, {
+  return verifyInboundHmac(serviceSecret, {
     signature,
     timestamp,
     payload,
@@ -236,11 +236,11 @@ export function verifySignatureFromHeaders(
  * Parses `X-AgentVend-*` headers into {@link UserContext} (case-insensitive header names).
  */
 export function verifySignatureFromHeadersAndGetUserContext(
-  agentSecret: string,
+  serviceSecret: string,
   headers: HeaderBag,
   payload: string | object | null
 ): UserContext | null {
-  if (!verifySignatureFromHeaders(agentSecret, headers, payload)) return null;
+  if (!verifySignatureFromHeaders(serviceSecret, headers, payload)) return null;
   return getUserContext(headers);
 }
 

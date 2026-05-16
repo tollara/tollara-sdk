@@ -42,6 +42,23 @@ final class Verifier
             . $billingModelType . $measurementType . $unitLabel;
     }
 
+    /**
+     * @param list<string> $roles
+     */
+    public static function buildGatewayUserContextStringV2(
+        string $userId,
+        string $plan,
+        array $roles,
+        bool $subscriptionActive,
+        string $billingModelType,
+        string $measurementType,
+        string $unitLabel
+    ): string {
+        return '2' . $userId . $plan . implode(',', $roles)
+            . ($subscriptionActive ? 'true' : 'false')
+            . $billingModelType . $measurementType . $unitLabel;
+    }
+
     private static function headerGetCi(array $headers, string $canonical): string
     {
         foreach ($headers as $k => $v) {
@@ -119,7 +136,21 @@ final class Verifier
             $mt,
             $ul
         );
-        return self::verifyInboundHmac($agentSecret, $req);
+        return self::verifySignature(
+            $agentSecret,
+            $req->signature,
+            $req->timestamp,
+            $req->payload,
+            $req->userId,
+            $req->plan,
+            $req->roles,
+            $req->quotaRemaining,
+            $req->subscriptionActive,
+            $req->billingModelType,
+            $req->measurementType,
+            $req->unitLabel,
+            self::headerGetCi($headers, AgentVendHeaders::SIGNING_VERSION)
+        );
     }
 
     /**
@@ -148,21 +179,33 @@ final class Verifier
         bool $subscriptionActive,
         string $billingModelType = '',
         string $measurementType = '',
-        string $unitLabel = ''
+        string $unitLabel = '',
+        ?string $signingVersion = null
     ): bool {
         if ($signature === '' || $timestamp === '' || $agentSecret === '') {
             return false;
         }
-        $userContextString = self::buildGatewayUserContextString(
-            $userId,
-            $plan,
-            $roles,
-            $quotaRemaining,
-            $subscriptionActive,
-            $billingModelType,
-            $measurementType,
-            $unitLabel
-        );
+        $isV2 = trim((string) $signingVersion) === '2';
+        $userContextString = $isV2
+            ? self::buildGatewayUserContextStringV2(
+                $userId,
+                $plan,
+                $roles,
+                $subscriptionActive,
+                $billingModelType,
+                $measurementType,
+                $unitLabel
+            )
+            : self::buildGatewayUserContextString(
+                $userId,
+                $plan,
+                $roles,
+                $quotaRemaining,
+                $subscriptionActive,
+                $billingModelType,
+                $measurementType,
+                $unitLabel
+            );
         $dataToSign = $payload . $timestamp . $userContextString;
         $expected = Hmac::calculateHmac($dataToSign, $agentSecret);
         return Hmac::constantTimeEquals($expected, $signature);

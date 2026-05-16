@@ -2,7 +2,7 @@
   "id": "agentvend",
   "name": "AgentVend",
   "version": "1.0.0",
-  "description": "Invoke agents on AgentVend (caller) or act as backend with HMAC verification and usage reporting",
+  "description": "Invoke services on AgentVend (caller) or act as backend with HMAC verification and usage reporting",
   "configSchema": {
     "type": "object",
     "properties": {
@@ -10,23 +10,23 @@
         "type": "string",
         "enum": ["caller", "backend"],
         "default": "caller",
-        "description": "caller = invoke agents; backend = receive gateway requests, verify HMAC, report usage"
+        "description": "caller = invoke services; backend = receive gateway requests, verify HMAC, report usage"
       },
       "gatewayUrl": {
         "type": "string",
         "description": "Gateway base URL (caller mode)"
       },
-      "agentKey": {
+      "serviceKey": {
         "type": "string",
-        "description": "Agent key for invoke (caller mode)"
+        "description": "Service key for invoke (caller mode)"
       },
       "apiUrl": {
         "type": "string",
         "description": "AgentVend API origin (optional; defaults to https://api.agentvend.api). Used when reporting usage in backend mode."
       },
-      "agentSecret": {
+      "serviceSecret": {
         "type": "string",
-        "description": "Agent secret for HMAC (backend mode)"
+        "description": "Service secret for HMAC (backend mode)"
       }
     }
   },

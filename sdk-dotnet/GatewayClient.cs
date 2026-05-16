@@ -8,9 +8,9 @@ public static class GatewayClient
 {
     /// <summary>Poll status using the SDK default API origin and gateway path prefix (same as <see cref="AgentVendClient"/>).</summary>
     public static Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(HttpClient http, string requestId,
-        string agentKey, CancellationToken ct = default) =>
+        string serviceKey, CancellationToken ct = default) =>
         GetRequestStatusAsync(http, AgentVendClient.DefaultApiUrl, AgentVendClient.DefaultGatewayPathPrefix, requestId,
-            agentKey, ct);
+            serviceKey, ct);
 
     /// <summary>Poll status against explicit gateway base and path prefix (for custom or local stacks).</summary>
     public static async Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(
@@ -18,18 +18,18 @@ public static class GatewayClient
         string gatewayBaseUrl,
         string gatewayPathPrefix,
         string requestId,
-        string agentKey,
+        string serviceKey,
         CancellationToken ct = default)
     {
         var url = BuildUrl(gatewayBaseUrl, gatewayPathPrefix, $"/requests/{requestId}/status");
-        return await GetAsync(http, url, agentKey, ct);
+        return await GetAsync(http, url, serviceKey, ct);
     }
 
     /// <summary>Fetch result using the SDK default API origin and gateway path prefix (same as <see cref="AgentVendClient"/>).</summary>
     public static Task<(bool Ok, int StatusCode, string Body)> GetRequestResultAsync(HttpClient http, string requestId,
-        string agentKey, CancellationToken ct = default) =>
+        string serviceKey, CancellationToken ct = default) =>
         GetRequestResultAsync(http, AgentVendClient.DefaultApiUrl, AgentVendClient.DefaultGatewayPathPrefix, requestId,
-            agentKey, ct);
+            serviceKey, ct);
 
     /// <summary>Fetch result against explicit gateway base and path prefix (for custom or local stacks).</summary>
     public static async Task<(bool Ok, int StatusCode, string Body)> GetRequestResultAsync(
@@ -37,18 +37,18 @@ public static class GatewayClient
         string gatewayBaseUrl,
         string gatewayPathPrefix,
         string requestId,
-        string agentKey,
+        string serviceKey,
         CancellationToken ct = default)
     {
         var url = BuildUrl(gatewayBaseUrl, gatewayPathPrefix, $"/requests/{requestId}/result");
-        return await GetAsync(http, url, agentKey, ct);
+        return await GetAsync(http, url, serviceKey, ct);
     }
 
     private static async Task<(bool Ok, int StatusCode, string Body)> GetAsync(
-        HttpClient http, string url, string agentKey, CancellationToken ct)
+        HttpClient http, string url, string serviceKey, CancellationToken ct)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", agentKey);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", serviceKey);
         var res = await http.SendAsync(req, ct);
         var body = await res.Content.ReadAsStringAsync(ct);
         return (res.IsSuccessStatusCode, (int)res.StatusCode, body);

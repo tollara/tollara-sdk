@@ -1,5 +1,5 @@
 import type { ITriggerFunctions, IHookFunctions, INodeType, INodeTypeDescription, IWebhookResponseData, IDataObject } from 'n8n-workflow';
-import { verifySignatureFromHeaders, getUserContext } from '@agentvend/agent-sdk';
+import { verifySignatureFromHeaders, getUserContext } from '@agentvend/service-sdk';
 
 export class AgentvendTrigger implements INodeType {
   description: INodeTypeDescription = {
@@ -42,13 +42,13 @@ export class AgentvendTrigger implements INodeType {
   // @ts-expect-error - trigger context provides emit for webhook response
   async webhook(this: ITriggerFunctions): Promise<IWebhookResponseData> {
     const credentials = await this.getCredentials('agentvendApi');
-    const agentSecret = (credentials as { agentSecret?: string }).agentSecret as string;
+    const serviceSecret = (credentials as { serviceSecret?: string }).serviceSecret as string;
     const req = (this as unknown as { getRequestObject?: () => { body: unknown; headers: Record<string, string> } }).getRequestObject?.();
     if (!req) return {};
     const body = req.body;
     const headers = req.headers || {};
     const payload = typeof body === 'object' ? JSON.stringify(body) : (body as string) ?? '';
-    const valid = verifySignatureFromHeaders(agentSecret, headers as Record<string, string>, payload);
+    const valid = verifySignatureFromHeaders(serviceSecret, headers as Record<string, string>, payload);
 
     if (!valid) {
       throw new Error('Invalid HMAC signature');

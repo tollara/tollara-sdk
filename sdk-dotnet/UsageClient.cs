@@ -4,7 +4,14 @@ using System.Text.Json;
 
 namespace AgentVend;
 
-public record UsageReportResponse(string? Status, bool IsOverLimit, long RemainingRequestsPerPeriod);
+public record UsageReportResponse(
+    string? Status,
+    string? Warning,
+    bool IsOverLimit,
+    long RemainingRequestsPerPeriod,
+    decimal? RemainingTimeUnitsPerPeriod,
+    decimal? RemainingSpendingCap,
+    decimal? OverageRate);
 
 public static class UsageClient
 {
@@ -20,18 +27,18 @@ public static class UsageClient
     }
 
     public static Task<bool> ReportProgressAsync(HttpClient http, string progressUrl, string requestId,
-        string stage, int percentageComplete, string agentSecret, CancellationToken ct = default) =>
-        ReportProgressAsync(http, progressUrl, requestId, stage, percentageComplete, null, agentSecret, ct);
+        string stage, int percentageComplete, string serviceSecret, CancellationToken ct = default) =>
+        ReportProgressAsync(http, progressUrl, requestId, stage, percentageComplete, null, serviceSecret, ct);
 
     public static async Task<bool> ReportProgressAsync(HttpClient http, string progressUrl, string requestId,
-        string stage, int percentageComplete, string? errorMessage, string agentSecret, CancellationToken ct = default)
+        string stage, int percentageComplete, string? errorMessage, string serviceSecret, CancellationToken ct = default)
     {
         var (baseUrl, timestamp) = ParseUrlParams(progressUrl);
         if (timestamp == null) return false;
         var body = new Dictionary<string, object> { ["stage"] = stage, ["percentageComplete"] = percentageComplete, ["timestamp"] = DateTime.UtcNow.ToString("o") };
         if (errorMessage != null) body["errorMessage"] = errorMessage;
         var bodyStr = JsonSerializer.Serialize(body);
-        var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, agentSecret);
+        var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, serviceSecret);
         var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
         req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
         req.Headers.TryAddWithoutValidation(AgentVendHeaders.Timestamp, timestamp);
@@ -41,15 +48,15 @@ public static class UsageClient
     }
 
     public static Task<bool> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
-        CompletionStatus status, string agentSecret, CancellationToken ct = default) =>
-        ReportCompletionAsync(http, callbackUrl, requestId, status, null, null, null, 0, agentSecret, ct);
+        CompletionStatus status, string serviceSecret, CancellationToken ct = default) =>
+        ReportCompletionAsync(http, callbackUrl, requestId, status, null, null, null, 0, serviceSecret, ct);
 
     public static Task<bool> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
-        CompletionStatus status, string result, decimal units, string agentSecret, CancellationToken ct = default) =>
-        ReportCompletionAsync(http, callbackUrl, requestId, status, result, null, null, units, agentSecret, ct);
+        CompletionStatus status, string result, decimal units, string serviceSecret, CancellationToken ct = default) =>
+        ReportCompletionAsync(http, callbackUrl, requestId, status, result, null, null, units, serviceSecret, ct);
 
     public static async Task<bool> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
-        CompletionStatus status, string? result, string? resultUrl, string? contentType, decimal units, string agentSecret, CancellationToken ct = default)
+        CompletionStatus status, string? result, string? resultUrl, string? contentType, decimal units, string serviceSecret, CancellationToken ct = default)
     {
         var (baseUrl, timestamp) = ParseUrlParams(callbackUrl);
         if (timestamp == null) return false;
@@ -58,7 +65,7 @@ public static class UsageClient
         if (resultUrl != null) body["resultUrl"] = resultUrl;
         if (contentType != null) body["contentType"] = contentType;
         var bodyStr = JsonSerializer.Serialize(body);
-        var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, agentSecret);
+        var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, serviceSecret);
         var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
         req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
         req.Headers.TryAddWithoutValidation(AgentVendHeaders.Timestamp, timestamp);
@@ -68,28 +75,28 @@ public static class UsageClient
     }
 
     /// <summary>Report usage using the SDK default API origin and usage path prefix (same as <see cref="AgentVendClient"/>).</summary>
-    public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string userId, string agentId, decimal unitsUsed,
-        string agentSecret, CancellationToken ct = default) =>
-        ReportUsageAsync(http, AgentVendClient.DefaultApiUrl, userId, agentId, unitsUsed, agentSecret, null, null, ct);
+    public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string userId, string serviceId, decimal unitsUsed,
+        string serviceSecret, CancellationToken ct = default) =>
+        ReportUsageAsync(http, AgentVendClient.DefaultApiUrl, userId, serviceId, unitsUsed, serviceSecret, null, null, ct);
 
     /// <summary>Report usage against an explicit usage service origin (for custom or local stacks).</summary>
     public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
-        string userId, string agentId, decimal unitsUsed, string agentSecret, CancellationToken ct = default) =>
-        ReportUsageAsync(http, usageServiceUrl, userId, agentId, unitsUsed, agentSecret, null, null, ct);
+        string userId, string serviceId, decimal unitsUsed, string serviceSecret, CancellationToken ct = default) =>
+        ReportUsageAsync(http, usageServiceUrl, userId, serviceId, unitsUsed, serviceSecret, null, null, ct);
 
     public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
-        string userId, string agentId, decimal unitsUsed, string agentSecret, DateTime? timestamp, CancellationToken ct = default) =>
-        ReportUsageAsync(http, usageServiceUrl, userId, agentId, unitsUsed, agentSecret, timestamp, null, ct);
+        string userId, string serviceId, decimal unitsUsed, string serviceSecret, DateTime? timestamp, CancellationToken ct = default) =>
+        ReportUsageAsync(http, usageServiceUrl, userId, serviceId, unitsUsed, serviceSecret, timestamp, null, ct);
 
     public static async Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
-        string userId, string agentId, decimal unitsUsed, string agentSecret, DateTime? timestamp, string? usagePathPrefix, CancellationToken ct = default)
+        string userId, string serviceId, decimal unitsUsed, string serviceSecret, DateTime? timestamp, string? usagePathPrefix, CancellationToken ct = default)
     {
-        var ts = timestamp ?? DateTime.UtcNow;
-        var tsMs = (long)(ts - DateTime.UnixEpoch).TotalMilliseconds;
-        var body = new { userId, agentId, unitsUsed, timestamp = tsMs };
-        var bodyStr = JsonSerializer.Serialize(body);
-        var tsStr = tsMs.ToString();
-        var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, tsStr, agentSecret);
+        var ts = (timestamp ?? DateTime.UtcNow).ToUniversalTime();
+        var epochSec = new DateTimeOffset(ts).ToUnixTimeSeconds();
+        var iso = ts.ToString("o");
+        var bodyStr = JsonSerializer.Serialize(new { userId, serviceId, unitsUsed, timestamp = iso });
+        var tsStr = epochSec.ToString();
+        var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, tsStr, serviceSecret);
         var reportUrl = BuildUsageReportUrl(usageServiceUrl, usagePathPrefix);
         var req = new HttpRequestMessage(HttpMethod.Post, reportUrl);
         req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
@@ -102,9 +109,20 @@ public static class UsageClient
         var root = doc.RootElement;
         return new UsageReportResponse(
             root.TryGetProperty("status", out var s) ? s.GetString() : null,
+            root.TryGetProperty("warning", out var w) && w.ValueKind == JsonValueKind.String ? w.GetString() : null,
             root.TryGetProperty("isOverLimit", out var o) && o.GetBoolean(),
-            root.TryGetProperty("remainingRequestsPerPeriod", out var r) ? r.GetInt64() : 0
+            root.TryGetProperty("remainingRequestsPerPeriod", out var r) ? r.GetInt64() : 0,
+            ReadDecimal(root, "remainingTimeUnitsPerPeriod"),
+            ReadDecimal(root, "remainingSpendingCap"),
+            ReadDecimal(root, "overageRate")
         );
+    }
+
+    private static decimal? ReadDecimal(JsonElement root, string name)
+    {
+        if (!root.TryGetProperty(name, out var p)) return null;
+        if (p.ValueKind == JsonValueKind.Null) return null;
+        return p.ValueKind == JsonValueKind.Number && p.TryGetDecimal(out var d) ? d : null;
     }
 
     private static (string baseUrl, string? timestamp) ParseUrlParams(string url)

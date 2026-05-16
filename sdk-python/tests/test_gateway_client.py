@@ -2,7 +2,7 @@
 
 import responses
 
-from agentvend_sdk import get_request_result, get_request_status
+from agentvend_service_sdk import get_request_result, get_request_status
 
 
 @responses.activate

@@ -1,5 +1,5 @@
 Gem::Specification.new do |s|
-  s.name        = "agentvend_sdk"
+  s.name        = "agentvend_service_sdk"
   s.version     = "1.0.0"
   s.summary     = "AgentVend SDK - verify HMAC, validate keys, report usage"
   s.authors     = ["AgentVend"]

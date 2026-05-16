@@ -83,17 +83,17 @@ pub async fn report_usage(
     client: &reqwest::Client,
     usage_base_url: &str,
     user_id: &str,
-    agent_id: &str,
+    service_id: &str,
     units_used: f64,
-    agent_secret: &str,
+    service_secret: &str,
 ) -> Result<UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
     report_usage_at(
         client,
         usage_base_url,
         user_id,
-        agent_id,
+        service_id,
         units_used,
-        agent_secret,
+        service_secret,
         None,
         None,
     )
@@ -105,30 +105,33 @@ pub async fn report_usage_at(
     client: &reqwest::Client,
     usage_base_url: &str,
     user_id: &str,
-    agent_id: &str,
+    service_id: &str,
     units_used: f64,
-    agent_secret: &str,
+    service_secret: &str,
     timestamp_secs: Option<f64>,
     usage_path_prefix: Option<&str>,
 ) -> Result<UsageReportResponse, Box<dyn std::error::Error + Send + Sync>> {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let ts_ms = timestamp_secs
-        .map(|t| (t * 1000.0) as i64)
+    let ts_sec = timestamp_secs
+        .map(|t| t as i64)
         .unwrap_or_else(|| {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_millis() as i64
+                .as_secs() as i64
         });
+    let iso_ts = chrono::DateTime::<chrono::Utc>::from_timestamp(ts_sec, 0)
+        .unwrap_or_else(chrono::Utc::now)
+        .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let body = serde_json::json!({
         "userId": user_id,
-        "agentId": agent_id,
+        "serviceId": service_id,
         "unitsUsed": units_used,
-        "timestamp": ts_ms
+        "timestamp": iso_ts
     });
     let body_str = body.to_string();
-    let ts_str = ts_ms.to_string();
-    let signature = calculate_hmac_with_timestamp(&body_str, &ts_str, agent_secret);
+    let ts_str = ts_sec.to_string();
+    let signature = calculate_hmac_with_timestamp(&body_str, &ts_str, service_secret);
     let url = build_usage_report_url(usage_base_url, usage_path_prefix);
     let resp = client
         .post(&url)
@@ -153,7 +156,7 @@ pub async fn report_progress_simple(
     request_id: &str,
     stage: &str,
     percentage_complete: i32,
-    agent_secret: &str,
+    service_secret: &str,
 ) -> bool {
     report_progress(
         client,
@@ -161,7 +164,7 @@ pub async fn report_progress_simple(
         request_id,
         stage,
         percentage_complete,
-        agent_secret,
+        service_secret,
         None,
     )
     .await
@@ -174,7 +177,7 @@ pub async fn report_progress(
     _request_id: &str,
     stage: &str,
     percentage_complete: i32,
-    agent_secret: &str,
+    service_secret: &str,
     error_message: Option<&str>,
 ) -> bool {
     let (base_url, timestamp) = parse_timestamp_from_url(progress_url);
@@ -182,20 +185,17 @@ pub async fn report_progress(
         Some(t) => t,
         None => return false,
     };
-    let ts_secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now_iso = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let mut body = serde_json::json!({
         "stage": stage,
         "percentageComplete": percentage_complete,
-        "timestamp": ts_secs,
+        "timestamp": now_iso,
     });
     if let Some(msg) = error_message {
         body["errorMessage"] = serde_json::Value::String(msg.to_string());
     }
     let body_str = body.to_string();
-    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, agent_secret);
+    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, service_secret);
     let resp = client
         .post(&base_url)
         .json(&body)
@@ -215,7 +215,7 @@ pub async fn report_completion(
     callback_url: &str,
     request_id: &str,
     status: CompletionStatus,
-    agent_secret: &str,
+    service_secret: &str,
     units: f64,
 ) -> bool {
     report_completion_full(
@@ -223,7 +223,7 @@ pub async fn report_completion(
         callback_url,
         request_id,
         status,
-        agent_secret,
+        service_secret,
         None,
         None,
         None,
@@ -238,7 +238,7 @@ pub async fn report_completion_with_result(
     callback_url: &str,
     request_id: &str,
     status: CompletionStatus,
-    agent_secret: &str,
+    service_secret: &str,
     result: &str,
     units: f64,
 ) -> bool {
@@ -247,7 +247,7 @@ pub async fn report_completion_with_result(
         callback_url,
         request_id,
         status,
-        agent_secret,
+        service_secret,
         Some(result),
         None,
         None,
@@ -262,7 +262,7 @@ pub async fn report_completion_full(
     callback_url: &str,
     _request_id: &str,
     status: CompletionStatus,
-    agent_secret: &str,
+    service_secret: &str,
     result: Option<&str>,
     result_url: Option<&str>,
     content_type: Option<&str>,
@@ -273,13 +273,10 @@ pub async fn report_completion_full(
         Some(t) => t,
         None => return false,
     };
-    let ts_secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now_iso = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let mut body = serde_json::json!({
         "status": status.as_str(),
-        "timestamp": ts_secs,
+        "timestamp": now_iso,
         "units": units,
     });
     if let Some(r) = result {
@@ -292,7 +289,7 @@ pub async fn report_completion_full(
         body["contentType"] = serde_json::Value::String(c.to_string());
     }
     let body_str = body.to_string();
-    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, agent_secret);
+    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, service_secret);
     let resp = client
         .post(&base_url)
         .json(&body)

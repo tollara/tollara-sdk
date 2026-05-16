@@ -1,15 +1,16 @@
-//! Client for validating agent keys via the Core API (see docs/sdk-api-spec.md §2).
+//! Client for validating service keys via the Core API (see docs/sdk-api-spec.md §2).
 
 use crate::headers;
 use crate::hmac::validate_hmac_signature;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashMap;
 
-/// Result of a successful agent key validation.
+/// Result of a successful service key validation.
 #[derive(Debug, Clone)]
-pub struct AgentKeyValidationResult {
+pub struct ServiceKeyValidationResult {
     pub user_id: Option<String>,
-    pub agent_id: Option<String>,
+    pub service_id: Option<String>,
     pub plan: Option<String>,
     pub roles: Vec<String>,
     pub quota_remaining: Option<f64>,
@@ -19,13 +20,51 @@ pub struct AgentKeyValidationResult {
     pub unit_label: Option<String>,
 }
 
+/// Result of a usage estimate call.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageEstimateResult {
+    pub sufficient_credits: bool,
+    pub would_exceed_cap: bool,
+    pub would_allow: bool,
+    pub estimated_cost: Option<f64>,
+    pub remaining_credits: Option<f64>,
+    pub remaining_spending_cap: Option<f64>,
+    pub billing_model_type: Option<String>,
+    pub measurement_type: Option<String>,
+    pub unit_label: Option<String>,
+    pub breakdown: Option<HashMap<String, serde_json::Value>>,
+    pub estimate_schema_version: Option<i64>,
+    pub timestamp: Option<i64>,
+    #[serde(skip)]
+    pub http_status: i32,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ValidateRequest<'a> {
-    agent_key: &'a str,
+    service_key: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    agent_id: Option<&'a str>,
-    agent_secret: &'a str,
+    service_id: Option<&'a str>,
+    service_secret: &'a str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EstimateRequest<'a> {
+    service_key: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    service_id: Option<&'a str>,
+    service_secret: &'a str,
+    estimated_units: f64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct JwtEstimateRequest<'a> {
+    user_id: &'a str,
+    service_id: &'a str,
+    estimated_units: f64,
 }
 
 #[derive(Deserialize)]
@@ -33,7 +72,7 @@ struct ValidateRequest<'a> {
 struct ValidationResponse {
     valid: bool,
     user_id: Option<String>,
-    agent_id: Option<String>,
+    service_id: Option<String>,
     plan: Option<String>,
     roles: Option<Vec<String>>,
     quota_remaining: Option<f64>,
@@ -46,23 +85,23 @@ struct ValidationResponse {
     error: Option<String>,
 }
 
-/// Validates an agent key via the Core service. Returns `None` on 4xx/5xx, missing HMAC headers,
+/// Validates a service key via the Core service. Returns `None` on 4xx/5xx, missing HMAC headers,
 /// invalid signature, or when the response has `valid: false`.
-pub async fn validate_agent_key(
+pub async fn validate_service_key(
     client: &reqwest::Client,
     core_base_url: &str,
-    agent_key: &str,
-    agent_secret: &str,
-    agent_id: Option<&str>,
-) -> Option<AgentKeyValidationResult> {
+    service_key: &str,
+    service_secret: &str,
+    service_id: Option<&str>,
+) -> Option<ServiceKeyValidationResult> {
     let url = format!(
-        "{}/agent-keys/validate",
+        "{}/service-keys/validate",
         core_base_url.trim_end_matches('/')
     );
     let body = ValidateRequest {
-        agent_key,
-        agent_id,
-        agent_secret,
+        service_key,
+        service_id,
+        service_secret,
     };
     let resp = client
         .post(&url)
@@ -73,7 +112,6 @@ pub async fn validate_agent_key(
     if !resp.status().is_success() {
         return None;
     }
-    let response_text = resp.text().await.ok()?;
     let signature = resp
         .headers()
         .get(headers::SIGNATURE)
@@ -82,7 +120,8 @@ pub async fn validate_agent_key(
         .headers()
         .get(headers::TIMESTAMP)
         .and_then(|v| v.to_str().ok())?;
-    if !validate_hmac_signature(signature, &format!("{}{}", response_text, timestamp), agent_secret)
+    let response_text = resp.text().await.ok()?;
+    if !validate_hmac_signature(signature, &format!("{}{}", response_text, timestamp), service_secret)
     {
         return None;
     }
@@ -91,9 +130,9 @@ pub async fn validate_agent_key(
         return None;
     }
     let roles = data.roles.unwrap_or_default();
-    Some(AgentKeyValidationResult {
+    Some(ServiceKeyValidationResult {
         user_id: data.user_id,
-        agent_id: data.agent_id.or(agent_id.map(String::from)),
+        service_id: data.service_id.or(service_id.map(String::from)),
         plan: data.plan,
         roles,
         quota_remaining: data.quota_remaining,
@@ -102,4 +141,97 @@ pub async fn validate_agent_key(
         measurement_type: data.measurement_type,
         unit_label: data.unit_label,
     })
+}
+
+/// Estimates usage via Core service-key endpoint (`.../service-keys/estimate-usage`).
+pub async fn estimate_usage(
+    client: &reqwest::Client,
+    core_base_url: &str,
+    service_key: &str,
+    service_secret: &str,
+    estimated_units: f64,
+    service_id: Option<&str>,
+) -> Option<UsageEstimateResult> {
+    if estimated_units <= 0.0 || service_key.trim().is_empty() {
+        return None;
+    }
+    let url = format!(
+        "{}/service-keys/estimate-usage",
+        core_base_url.trim_end_matches('/')
+    );
+    let body = EstimateRequest {
+        service_key,
+        service_id,
+        service_secret,
+        estimated_units,
+    };
+    let resp = client.post(&url).json(&body).send().await.ok()?;
+    let code = resp.status().as_u16();
+    if code != 200 && code != 403 && code != 429 {
+        return None;
+    }
+    let signature = resp
+        .headers()
+        .get(headers::SIGNATURE)
+        .and_then(|v| v.to_str().ok())?;
+    let timestamp = resp
+        .headers()
+        .get(headers::TIMESTAMP)
+        .and_then(|v| v.to_str().ok())?;
+    let response_text = resp.text().await.ok()?;
+    if response_text.trim().is_empty() {
+        return None;
+    }
+    if !validate_hmac_signature(signature, &format!("{}{}", response_text, timestamp), service_secret)
+    {
+        return None;
+    }
+    let mut parsed: UsageEstimateResult = serde_json::from_str(&response_text).ok()?;
+    parsed.http_status = i32::from(code);
+    Some(parsed)
+}
+
+/// Estimates usage via Core JWT endpoint (`.../billing/usage/estimate`). Response is unsigned.
+pub async fn estimate_usage_with_jwt(
+    client: &reqwest::Client,
+    core_base_url: &str,
+    bearer_token: &str,
+    user_id: &str,
+    service_id: &str,
+    estimated_units: f64,
+) -> Option<UsageEstimateResult> {
+    if estimated_units <= 0.0
+        || bearer_token.trim().is_empty()
+        || user_id.trim().is_empty()
+        || service_id.trim().is_empty()
+    {
+        return None;
+    }
+    let url = format!(
+        "{}/billing/usage/estimate",
+        core_base_url.trim_end_matches('/')
+    );
+    let body = JwtEstimateRequest {
+        user_id,
+        service_id,
+        estimated_units,
+    };
+    let resp = client
+        .post(&url)
+        .bearer_auth(bearer_token.trim())
+        .json(&body)
+        .send()
+        .await
+        .ok()?;
+    let code = resp.status().as_u16();
+    if code != 200 && code != 403 && code != 429 {
+        return None;
+    }
+    let response_text = resp.text().await.ok()?;
+    if response_text.trim().is_empty() {
+        return None;
+    }
+    let mut parsed: UsageEstimateResult = serde_json::from_str(&response_text).ok()?;
+    parsed.http_status = i32::from(code);
+    Some(parsed)
 }

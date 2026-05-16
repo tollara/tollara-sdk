@@ -15,10 +15,11 @@ export {
   type HeaderBag,
 } from './verifier';
 export {
-  validateAgentKey,
+  validateServiceKey,
   estimateUsage,
+  estimateUsageWithJwt,
   createValidationCache,
-  type AgentKeyValidationResult,
+  type ServiceKeyValidationResult,
   type UsageEstimateResult,
 } from './validationClient';
 export { CompletionStatus } from './completionStatus';
@@ -36,10 +37,18 @@ export {
 } from './usageClient';
 export { getRequestStatus, getRequestResult, type GatewayPollResult } from './gatewayClient';
 export {
+  invokeService,
+  type GatewayHttpMethod,
+  type GatewayInvokeAsyncEnvelope,
+  type GatewayInvokeResult,
+} from './gatewayInvoke';
+export {
   AgentVendClient,
   DEFAULT_API_URL,
   DEFAULT_CORE_PATH_PREFIX,
   DEFAULT_GATEWAY_PATH_PREFIX,
+  ENV_SERVICE_ID,
+  ENV_SERVICE_SECRET,
   ENV_AGENT_ID,
   ENV_AGENT_SECRET,
   ENV_API_URL,

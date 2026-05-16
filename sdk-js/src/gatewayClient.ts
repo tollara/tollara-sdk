@@ -23,21 +23,21 @@ export interface GatewayPollResult {
 }
 
 /**
- * GET .../requests/{requestId}/status with Bearer agent key.
+ * GET .../requests/{requestId}/status with Bearer service key.
  */
 export async function getRequestStatus(params: {
   /** API origin; defaults to `https://api.agentvend.api`. */
   baseUrl?: string | null;
   requestId: string;
-  agentKey: string;
+  serviceKey: string;
   fetch?: typeof globalThis.fetch;
 }): Promise<GatewayPollResult> {
-  const { baseUrl, requestId, agentKey, fetch: fetchFn = fetch } = params;
+  const { baseUrl, requestId, serviceKey, fetch: fetchFn = fetch } = params;
   const url = buildUrl(baseUrl ?? DEFAULT_API_URL, DEFAULT_GATEWAY_PATH_PREFIX, `/requests/${requestId}/status`);
   try {
     const res = await fetchFn(url, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${agentKey}` },
+      headers: { Authorization: `Bearer ${serviceKey}` },
     });
     const body = await res.text();
     return { ok: res.ok, status: res.status, body };
@@ -47,21 +47,21 @@ export async function getRequestStatus(params: {
 }
 
 /**
- * GET .../requests/{requestId}/result with Bearer agent key.
+ * GET .../requests/{requestId}/result with Bearer service key.
  */
 export async function getRequestResult(params: {
   /** API origin; defaults to `https://api.agentvend.api`. */
   baseUrl?: string | null;
   requestId: string;
-  agentKey: string;
+  serviceKey: string;
   fetch?: typeof globalThis.fetch;
 }): Promise<GatewayPollResult> {
-  const { baseUrl, requestId, agentKey, fetch: fetchFn = fetch } = params;
+  const { baseUrl, requestId, serviceKey, fetch: fetchFn = fetch } = params;
   const url = buildUrl(baseUrl ?? DEFAULT_API_URL, DEFAULT_GATEWAY_PATH_PREFIX, `/requests/${requestId}/result`);
   try {
     const res = await fetchFn(url, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${agentKey}` },
+      headers: { Authorization: `Bearer ${serviceKey}` },
     });
     const body = await res.text();
     return { ok: res.ok, status: res.status, body };

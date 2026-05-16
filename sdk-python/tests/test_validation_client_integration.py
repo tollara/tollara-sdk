@@ -3,45 +3,49 @@ Integration tests for the validation client against a mocked Core API.
 Uses the 'responses' library to mock HTTP; see docs/sdk-api-spec.md §2.
 """
 import json
+from uuid import UUID
 
 import pytest
 import responses
 
-from agentvend_sdk.validation_client import (
-    validate_agent_key,
+from agentvend_service_sdk.validation_client import (
+    validate_service_key,
     estimate_usage,
-    AgentKeyValidationResult,
+    ServiceKeyValidationResult,
     UsageEstimateResult,
 )
-from agentvend_sdk.hmac_utils import calculate_hmac
+from agentvend_service_sdk.hmac_utils import calculate_hmac
 
 CORE_BASE = "http://core.test"
-AGENT_SECRET = "test-agent-secret"
-AGENT_ID = "550e8400-e29b-41d4-a716-446655440000"
+SERVICE_SECRET = "test-agent-secret"
+SERVICE_ID = "550e8400-e29b-41d4-a716-446655440000"
+SERVICE_KEY_ID = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
 
 
 @responses.activate
-def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac():
+def test_validate_service_key_returns_result_when_core_returns_200_with_valid_hmac():
     """Core returns 200 with valid HMAC headers; SDK returns parsed result."""
     response_body = {
         "valid": True,
+        "serviceKeyId": SERVICE_KEY_ID,
         "userId": "user-123",
-        "agentId": AGENT_ID,
+        "serviceId": SERVICE_ID,
         "plan": "basic",
         "roles": ["user"],
         "quotaRemaining": 100,
         "subscriptionActive": True,
         "timestamp": 1700000000,
         "error": None,
+        "validationSchemaVersion": 1,
     }
     body_str = json.dumps(response_body, separators=(",", ":"))
     timestamp = "1700000000"
     canonical = body_str + timestamp
-    signature = calculate_hmac(canonical, AGENT_SECRET)
+    signature = calculate_hmac(canonical, SERVICE_SECRET)
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/service-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -51,12 +55,13 @@ def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
         },
     )
 
-    result = validate_agent_key(CORE_BASE, "bearer-token-xyz", AGENT_SECRET, agent_id=AGENT_ID)
+    result = validate_service_key(CORE_BASE, "bearer-token-xyz", SERVICE_SECRET, service_id=SERVICE_ID)
 
     assert result is not None
-    assert isinstance(result, AgentKeyValidationResult)
+    assert isinstance(result, ServiceKeyValidationResult)
     assert result.user_id == "user-123"
-    assert result.agent_id == AGENT_ID
+    assert result.service_id == SERVICE_ID
+    assert result.service_key_id == UUID(SERVICE_KEY_ID)
     assert result.plan == "basic"
     assert result.roles == ["user"]
     assert result.quota_remaining == 100
@@ -67,28 +72,28 @@ def test_validate_agent_key_returns_result_when_core_returns_200_with_valid_hmac
 
 
 @responses.activate
-def test_validate_agent_key_returns_none_when_core_returns_401():
+def test_validate_service_key_returns_none_when_core_returns_401():
     """Core returns 401; SDK returns None."""
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/service-keys/validate",
         json={"valid": False, "error": "Invalid key"},
         status=401,
         headers={"Content-Type": "application/json"},
     )
 
-    result = validate_agent_key(CORE_BASE, "bad-key", AGENT_SECRET, agent_id=AGENT_ID)
+    result = validate_service_key(CORE_BASE, "bad-key", SERVICE_SECRET, service_id=SERVICE_ID)
 
     assert result is None
 
 
 @responses.activate
-def test_validate_agent_key_returns_none_when_hmac_invalid():
+def test_validate_service_key_returns_none_when_hmac_invalid():
     """Core returns 200 but signature does not match; SDK returns None."""
     response_body = {
         "valid": True,
         "userId": "user-123",
-        "agentId": AGENT_ID,
+        "serviceId": SERVICE_ID,
         "plan": "basic",
         "roles": [],
         "quotaRemaining": 100,
@@ -100,7 +105,7 @@ def test_validate_agent_key_returns_none_when_hmac_invalid():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/service-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -110,18 +115,18 @@ def test_validate_agent_key_returns_none_when_hmac_invalid():
         },
     )
 
-    result = validate_agent_key(CORE_BASE, "bearer-token", AGENT_SECRET, agent_id=AGENT_ID)
+    result = validate_service_key(CORE_BASE, "bearer-token", SERVICE_SECRET, service_id=SERVICE_ID)
 
     assert result is None
 
 
 @responses.activate
-def test_validate_agent_key_returns_none_when_valid_false_in_body():
+def test_validate_service_key_returns_none_when_valid_false_in_body():
     """Core returns 200 with valid HMAC but valid: false; SDK returns None."""
     response_body = {
         "valid": False,
         "userId": None,
-        "agentId": AGENT_ID,
+        "serviceId": SERVICE_ID,
         "plan": None,
         "roles": [],
         "quotaRemaining": 0,
@@ -131,11 +136,11 @@ def test_validate_agent_key_returns_none_when_valid_false_in_body():
     }
     body_str = json.dumps(response_body, separators=(",", ":"))
     timestamp = "1700000000"
-    signature = calculate_hmac(body_str + timestamp, AGENT_SECRET)
+    signature = calculate_hmac(body_str + timestamp, SERVICE_SECRET)
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/service-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -145,18 +150,18 @@ def test_validate_agent_key_returns_none_when_valid_false_in_body():
         },
     )
 
-    result = validate_agent_key(CORE_BASE, "expired-key", AGENT_SECRET, agent_id=AGENT_ID)
+    result = validate_service_key(CORE_BASE, "expired-key", SERVICE_SECRET, service_id=SERVICE_ID)
 
     assert result is None
 
 
 @responses.activate
-def test_validate_agent_key_sends_agent_key_and_agent_id_in_body():
-    """Client sends correct JSON body with agentKey and agentId."""
+def test_validate_service_key_sends_service_key_and_service_id_in_body():
+    """Client sends correct JSON body with serviceKey and serviceId."""
     response_body = {
         "valid": True,
         "userId": "u",
-        "agentId": AGENT_ID,
+        "serviceId": SERVICE_ID,
         "plan": "basic",
         "roles": [],
         "quotaRemaining": 1,
@@ -165,11 +170,11 @@ def test_validate_agent_key_sends_agent_key_and_agent_id_in_body():
         "error": None,
     }
     body_str = json.dumps(response_body, separators=(",", ":"))
-    signature = calculate_hmac(body_str + "1700000000", AGENT_SECRET)
+    signature = calculate_hmac(body_str + "1700000000", SERVICE_SECRET)
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/service-keys/validate",
         body=body_str,
         status=200,
         headers={
@@ -179,21 +184,21 @@ def test_validate_agent_key_sends_agent_key_and_agent_id_in_body():
         },
     )
 
-    validate_agent_key(CORE_BASE, "the-agent-key", AGENT_SECRET, agent_id=AGENT_ID)
+    validate_service_key(CORE_BASE, "the-service-key", SERVICE_SECRET, service_id=SERVICE_ID)
 
     assert len(responses.calls) == 1
     req = responses.calls[0].request
     sent_body = json.loads(req.body)
-    assert sent_body["agentKey"] == "the-agent-key"
-    assert sent_body["agentId"] == AGENT_ID
-    assert sent_body["agentSecret"] == AGENT_SECRET
+    assert sent_body["serviceKey"] == "the-service-key"
+    assert sent_body["serviceId"] == SERVICE_ID
+    assert sent_body["serviceSecret"] == SERVICE_SECRET
 
 
 @responses.activate
-def test_validate_agent_key_custom_core_path_prefix():
+def test_validate_service_key_custom_core_path_prefix():
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/api/v1/agent-keys/validate",
+        f"{CORE_BASE}/api/v1/service-keys/validate",
         json={"valid": False},
         status=200,
         headers={
@@ -202,14 +207,14 @@ def test_validate_agent_key_custom_core_path_prefix():
             "X-AgentVend-Timestamp": "1",
         },
     )
-    validate_agent_key(
+    validate_service_key(
         CORE_BASE,
-        "the-agent-key",
-        AGENT_SECRET,
-        agent_id=AGENT_ID,
+        "the-service-key",
+        SERVICE_SECRET,
+        service_id=SERVICE_ID,
         core_path_prefix="/api/v1",
     )
-    assert responses.calls[0].request.url == f"{CORE_BASE}/api/v1/agent-keys/validate"
+    assert responses.calls[0].request.url == f"{CORE_BASE}/api/v1/service-keys/validate"
 
 
 @responses.activate
@@ -230,11 +235,11 @@ def test_estimate_usage_returns_result_when_core_returns_200_with_valid_hmac():
     }
     body_str = json.dumps(response_body, separators=(",", ":"))
     timestamp = "1700000000"
-    signature = calculate_hmac(body_str + timestamp, AGENT_SECRET)
+    signature = calculate_hmac(body_str + timestamp, SERVICE_SECRET)
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/estimate-usage",
+        f"{CORE_BASE}/api/v1/service-keys/estimate-usage",
         body=body_str,
         status=200,
         headers={
@@ -245,7 +250,7 @@ def test_estimate_usage_returns_result_when_core_returns_200_with_valid_hmac():
     )
 
     result = estimate_usage(
-        CORE_BASE, "key-1", AGENT_SECRET, 1.5, agent_id=AGENT_ID
+        CORE_BASE, "key-1", SERVICE_SECRET, 1.5, service_id=SERVICE_ID
     )
 
     assert result is not None
@@ -271,7 +276,7 @@ def test_estimate_usage_returns_none_when_hmac_invalid():
 
     responses.add(
         responses.POST,
-        f"{CORE_BASE}/core/api/v1/agent-keys/estimate-usage",
+        f"{CORE_BASE}/api/v1/service-keys/estimate-usage",
         body=body_str,
         status=200,
         headers={
@@ -281,9 +286,9 @@ def test_estimate_usage_returns_none_when_hmac_invalid():
         },
     )
 
-    assert estimate_usage(CORE_BASE, "k", AGENT_SECRET, 1.0, agent_id=AGENT_ID) is None
+    assert estimate_usage(CORE_BASE, "k", SERVICE_SECRET, 1.0, service_id=SERVICE_ID) is None
 
 
 def test_estimate_usage_returns_none_when_units_not_positive():
-    assert estimate_usage(CORE_BASE, "k", AGENT_SECRET, 0, agent_id=AGENT_ID) is None
-    assert estimate_usage(CORE_BASE, "k", AGENT_SECRET, -1, agent_id=AGENT_ID) is None
+    assert estimate_usage(CORE_BASE, "k", SERVICE_SECRET, 0, service_id=SERVICE_ID) is None
+    assert estimate_usage(CORE_BASE, "k", SERVICE_SECRET, -1, service_id=SERVICE_ID) is None

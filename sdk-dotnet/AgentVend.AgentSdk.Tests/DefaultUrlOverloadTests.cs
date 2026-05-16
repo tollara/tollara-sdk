@@ -2,7 +2,7 @@ using System.Net;
 using System.Text;
 using Xunit;
 
-namespace AgentVend.AgentSdk.Tests;
+namespace AgentVend.ServiceSdk.Tests;
 
 /// <summary>Low-level client overloads without explicit base URLs must match <see cref="AgentVendClient"/> defaults.</summary>
 public class DefaultUrlOverloadTests
@@ -23,8 +23,8 @@ public class DefaultUrlOverloadTests
     {
         var handler = new CaptureUriHandler();
         using var http = new HttpClient(handler);
-        await ValidationClient.ValidateAgentKeyAsync(http, "key", null, "secret", CancellationToken.None);
-        Assert.Equal("https://api.agentvend.api/api/v1/agent-keys/validate", handler.LastUri);
+        await ValidationClient.ValidateServiceKeyAsync(http, "key", null, "secret", CancellationToken.None);
+        Assert.Equal("https://api.agentvend.api/api/v1/service-keys/validate", handler.LastUri);
     }
 
     private sealed class OkUsageHandler : HttpMessageHandler
@@ -56,7 +56,7 @@ public class DefaultUrlOverloadTests
     {
         var handler = new CaptureUriHandler();
         using var http = new HttpClient(handler);
-        await GatewayClient.GetRequestStatusAsync(http, "job-1", "agent-key", CancellationToken.None);
+        await GatewayClient.GetRequestStatusAsync(http, "job-1", "service-key", CancellationToken.None);
         Assert.Equal("https://api.agentvend.api/api/requests/job-1/status", handler.LastUri);
     }
 }
