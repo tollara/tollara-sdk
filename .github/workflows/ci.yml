@@ -64,7 +64,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: cd sdk-dotnet && dotnet test AgentVend.AgentSdk.Tests/AgentVend.AgentSdk.Tests.csproj
+      - run: cd sdk-dotnet && dotnet test Tollara.ServiceSdk.Tests/Tollara.ServiceSdk.Tests.csproj
     continue-on-error: true
 
   sdk-python:

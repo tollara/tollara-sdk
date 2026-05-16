@@ -18,7 +18,7 @@ const (
 	DefaultUsagePathPrefix   = "/api/usage"
 )
 
-type AgentVendClient struct {
+type TollaraClient struct {
 	HTTPClient        *http.Client
 	APIURL            string
 	CoreBaseURL       string
@@ -31,7 +31,7 @@ type AgentVendClient struct {
 	ServiceSecret     string
 }
 
-type AgentVendClientOptions struct {
+type TollaraClientOptions struct {
 	HTTPClient        *http.Client
 	APIURL            string
 	CoreBaseURL       string
@@ -96,7 +96,7 @@ type GatewayInvokeResult struct {
 	Async      *GatewayInvokeAsyncEnvelope
 }
 
-func NewAgentVendClient(opts AgentVendClientOptions) (*AgentVendClient, error) {
+func NewTollaraClient(opts TollaraClientOptions) (*TollaraClient, error) {
 	apiURL := firstNonBlank(opts.APIURL, os.Getenv(EnvAPIURL), DefaultAPIURL)
 	serviceID := firstNonBlank(opts.ServiceID, os.Getenv(EnvServiceID), os.Getenv(EnvAgentID))
 	serviceSecret := firstNonBlank(opts.ServiceSecret, os.Getenv(EnvServiceSecret), os.Getenv(EnvAgentSecret))
@@ -110,7 +110,7 @@ func NewAgentVendClient(opts AgentVendClientOptions) (*AgentVendClient, error) {
 	corePrefix := firstNonBlank(opts.CorePathPrefix, DefaultCorePathPrefix)
 	gatewayPrefix := firstNonBlank(opts.GatewayPathPrefix, DefaultGatewayPathPrefix)
 	usagePrefix := firstNonBlank(opts.UsagePathPrefix, DefaultUsagePathPrefix)
-	return &AgentVendClient{
+	return &TollaraClient{
 		HTTPClient:        httpClient,
 		APIURL:            trimTrailingSlash(apiURL),
 		CoreBaseURL:       trimTrailingSlash(firstNonBlank(opts.CoreBaseURL, apiURL)),
@@ -124,7 +124,7 @@ func NewAgentVendClient(opts AgentVendClientOptions) (*AgentVendClient, error) {
 	}, nil
 }
 
-func (c *AgentVendClient) ValidateServiceKey(serviceKey string) (*ServiceKeyValidationResult, error) {
+func (c *TollaraClient) ValidateServiceKey(serviceKey string) (*ServiceKeyValidationResult, error) {
 	body := map[string]interface{}{"serviceKey": serviceKey, "serviceSecret": c.ServiceSecret}
 	if c.ServiceID != "" {
 		body["serviceId"] = c.ServiceID
@@ -149,7 +149,7 @@ func (c *AgentVendClient) ValidateServiceKey(serviceKey string) (*ServiceKeyVali
 	return &raw.ServiceKeyValidationResult, nil
 }
 
-func (c *AgentVendClient) EstimateUsage(serviceKey string, estimatedUnits float64) (*UsageEstimateResult, error) {
+func (c *TollaraClient) EstimateUsage(serviceKey string, estimatedUnits float64) (*UsageEstimateResult, error) {
 	body := map[string]interface{}{"serviceKey": serviceKey, "serviceSecret": c.ServiceSecret, "estimatedUnits": estimatedUnits}
 	if c.ServiceID != "" {
 		body["serviceId"] = c.ServiceID
@@ -172,7 +172,7 @@ func (c *AgentVendClient) EstimateUsage(serviceKey string, estimatedUnits float6
 	return &out, nil
 }
 
-func (c *AgentVendClient) EstimateUsageWithJWT(bearerToken, userID, serviceID string, estimatedUnits float64) (*UsageEstimateResult, error) {
+func (c *TollaraClient) EstimateUsageWithJWT(bearerToken, userID, serviceID string, estimatedUnits float64) (*UsageEstimateResult, error) {
 	url := c.CoreBaseURL + c.CorePathPrefix + "/billing/usage/estimate"
 	body := map[string]interface{}{"userId": userID, "serviceId": serviceID, "estimatedUnits": estimatedUnits}
 	respBody, _, status, err := c.doJSON("POST", url, body, map[string]string{
@@ -190,7 +190,7 @@ func (c *AgentVendClient) EstimateUsageWithJWT(bearerToken, userID, serviceID st
 	return &out, nil
 }
 
-func (c *AgentVendClient) InvokeService(method, serviceID, endpointID, serviceKey, body string, async bool) (*GatewayInvokeResult, error) {
+func (c *TollaraClient) InvokeService(method, serviceID, endpointID, serviceKey, body string, async bool) (*GatewayInvokeResult, error) {
 	path := fmt.Sprintf("%s/service/%s/endpoint/%s/invoke", c.GatewayPathPrefix, serviceID, endpointID)
 	if async {
 		path += "/async"
@@ -214,11 +214,11 @@ func (c *AgentVendClient) InvokeService(method, serviceID, endpointID, serviceKe
 	return out, nil
 }
 
-func (c *AgentVendClient) ReportUsage(userID, serviceID string, unitsUsed float64) (*UsageReportResponse, error) {
+func (c *TollaraClient) ReportUsage(userID, serviceID string, unitsUsed float64) (*UsageReportResponse, error) {
 	return c.ReportUsageAt(userID, serviceID, unitsUsed, nil)
 }
 
-func (c *AgentVendClient) ReportUsageAt(userID, serviceID string, unitsUsed float64, ts *time.Time) (*UsageReportResponse, error) {
+func (c *TollaraClient) ReportUsageAt(userID, serviceID string, unitsUsed float64, ts *time.Time) (*UsageReportResponse, error) {
 	t := time.Now().UTC()
 	if ts != nil {
 		t = ts.UTC()
@@ -245,7 +245,7 @@ func (c *AgentVendClient) ReportUsageAt(userID, serviceID string, unitsUsed floa
 	return &out, nil
 }
 
-func (c *AgentVendClient) SendProgressUpdate(progressURL, requestID, stage string, percentageComplete int, errorMessage *string) (bool, error) {
+func (c *TollaraClient) SendProgressUpdate(progressURL, requestID, stage string, percentageComplete int, errorMessage *string) (bool, error) {
 	base, ts := splitURLTimestamp(progressURL)
 	if ts == "" {
 		return false, nil
@@ -266,7 +266,7 @@ func (c *AgentVendClient) SendProgressUpdate(progressURL, requestID, stage strin
 	return err == nil && status >= 200 && status < 300, err
 }
 
-func (c *AgentVendClient) SendCompletion(callbackURL, requestID, status string, units float64, result, resultURL, contentType *string) (bool, error) {
+func (c *TollaraClient) SendCompletion(callbackURL, requestID, status string, units float64, result, resultURL, contentType *string) (bool, error) {
 	base, ts := splitURLTimestamp(callbackURL)
 	if ts == "" {
 		return false, nil
@@ -287,24 +287,24 @@ func (c *AgentVendClient) SendCompletion(callbackURL, requestID, status string, 
 	return err == nil && code >= 200 && code < 300, err
 }
 
-func (c *AgentVendClient) GetRequestStatus(requestID, serviceKey string) (bool, int, string, error) {
+func (c *TollaraClient) GetRequestStatus(requestID, serviceKey string) (bool, int, string, error) {
 	url := fmt.Sprintf("%s%s/requests/%s/status", c.GatewayBaseURL, c.GatewayPathPrefix, requestID)
 	body, _, status, err := c.doRaw("GET", url, "", map[string]string{"Authorization": "Bearer " + serviceKey})
 	return err == nil && status >= 200 && status < 300, status, body, err
 }
 
-func (c *AgentVendClient) GetRequestResult(requestID, serviceKey string) (bool, int, string, error) {
+func (c *TollaraClient) GetRequestResult(requestID, serviceKey string) (bool, int, string, error) {
 	url := fmt.Sprintf("%s%s/requests/%s/result", c.GatewayBaseURL, c.GatewayPathPrefix, requestID)
 	body, _, status, err := c.doRaw("GET", url, "", map[string]string{"Authorization": "Bearer " + serviceKey})
 	return err == nil && status >= 200 && status < 300, status, body, err
 }
 
-func (c *AgentVendClient) doJSON(method, url string, body interface{}, headers map[string]string) (string, http.Header, int, error) {
+func (c *TollaraClient) doJSON(method, url string, body interface{}, headers map[string]string) (string, http.Header, int, error) {
 	b, _ := json.Marshal(body)
 	return c.doRaw(method, url, string(b), headers)
 }
 
-func (c *AgentVendClient) doRaw(method, url, body string, headers map[string]string) (string, http.Header, int, error) {
+func (c *TollaraClient) doRaw(method, url, body string, headers map[string]string) (string, http.Header, int, error) {
 	var rdr io.Reader
 	if body != "" {
 		rdr = bytes.NewBufferString(body)

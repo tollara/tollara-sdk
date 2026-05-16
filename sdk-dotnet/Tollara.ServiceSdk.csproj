@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>Tollara.ServiceSdk</PackageId>
+    <AssemblyName>Tollara.ServiceSdk</AssemblyName>
+    <RootNamespace>Tollara</RootNamespace>
+    <Version>2.0.0</Version>
+    <Title>Tollara Service SDK</Title>
+    <Authors>Tollara</Authors>
+    <Copyright>Copyright © Tollara 2026</Copyright>
+    <Description>Tollara SDK - verify HMAC, validate keys, usage estimate, report usage, progress, completion</Description>
+    <PackageTags>tollara;sdk;hmac</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/tollara/tollara-sdk/tree/master/sdk-dotnet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/tollara/tollara-sdk.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Public API is covered by README; omitting per-member XML avoids noisy pack/build warnings. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Symbol package (.snupkg) for debugging on NuGet.org -->
+    <DebugType>portable</DebugType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tollara.ServiceSdk.Tests" />
+  </ItemGroup>
+  <!-- Nested test project lives under this folder; SDK default globs would compile its *.cs here. -->
+  <ItemGroup>
+    <Compile Remove="Tollara.ServiceSdk.Tests/**/*.cs" />
+    <Compile Remove="Tollara.ServiceSdk.Tests/**/*.cs" />
+  </ItemGroup>
+</Project>

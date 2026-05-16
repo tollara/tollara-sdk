@@ -33,13 +33,13 @@ func TestVerifyInboundHMACFromHeaders(t *testing.T) {
 	userCtx := BuildGatewayUserContextString("user1", "plan1", []string{"role1", "role2"}, "10", false, "", "", "")
 	sig := CalculateHmac(payload+ts+userCtx, secret)
 	h := http.Header{}
-	h.Set("x-agentvend-signature", sig)
-	h.Set("x-agentvend-timestamp", ts)
-	h.Set("x-agentvend-user-id", "user1")
-	h.Set("x-agentvend-plan", "plan1")
-	h.Set("x-agentvend-roles", "role1,role2")
-	h.Set("x-agentvend-quota-remaining", "10")
-	h.Set("x-agentvend-subscription-active", "false")
+	h.Set("x-tollara-signature", sig)
+	h.Set("x-tollara-timestamp", ts)
+	h.Set("x-tollara-user-id", "user1")
+	h.Set("x-tollara-plan", "plan1")
+	h.Set("x-tollara-roles", "role1,role2")
+	h.Set("x-tollara-quota-remaining", "10")
+	h.Set("x-tollara-subscription-active", "false")
 	if !VerifyInboundHMACFromHeaders(secret, h, payload) {
 		t.Fatal("expected valid HMAC from headers")
 	}
@@ -52,13 +52,13 @@ func TestVerifyInboundHMACFromHeadersAndGetUserContext_ok(t *testing.T) {
 	userCtx := BuildGatewayUserContextString("user1", "plan1", []string{"role1", "role2"}, "10", false, "", "", "")
 	sig := CalculateHmac(payload+ts+userCtx, secret)
 	h := http.Header{}
-	h.Set("x-agentvend-signature", sig)
-	h.Set("x-agentvend-timestamp", ts)
-	h.Set("x-agentvend-user-id", "user1")
-	h.Set("x-agentvend-plan", "plan1")
-	h.Set("x-agentvend-roles", "role1,role2")
-	h.Set("x-agentvend-quota-remaining", "10")
-	h.Set("x-agentvend-subscription-active", "false")
+	h.Set("x-tollara-signature", sig)
+	h.Set("x-tollara-timestamp", ts)
+	h.Set("x-tollara-user-id", "user1")
+	h.Set("x-tollara-plan", "plan1")
+	h.Set("x-tollara-roles", "role1,role2")
+	h.Set("x-tollara-quota-remaining", "10")
+	h.Set("x-tollara-subscription-active", "false")
 	ctx, ok := VerifyInboundHMACFromHeadersAndGetUserContext(secret, h, payload)
 	if !ok {
 		t.Fatal("expected ok")
@@ -70,9 +70,9 @@ func TestVerifyInboundHMACFromHeadersAndGetUserContext_ok(t *testing.T) {
 
 func TestVerifyInboundHMACFromHeadersAndGetUserContext_invalid(t *testing.T) {
 	h := http.Header{}
-	h.Set("x-agentvend-signature", "bad")
-	h.Set("x-agentvend-timestamp", "1700000000")
-	h.Set("x-agentvend-user-id", "user1")
+	h.Set("x-tollara-signature", "bad")
+	h.Set("x-tollara-timestamp", "1700000000")
+	h.Set("x-tollara-user-id", "user1")
 	_, ok := VerifyInboundHMACFromHeadersAndGetUserContext("my-agent-secret", h, "")
 	if ok {
 		t.Fatal("expected not ok")

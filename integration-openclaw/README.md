@@ -1,16 +1,16 @@
-# OpenClaw – AgentVend Plugin
+# OpenClaw – Tollara Plugin
 
-OpenClaw plugin for AgentVend with two modes:
+OpenClaw plugin for Tollara with two modes:
 
-- **Mode A (caller):** Invoke services on AgentVend via the gateway. Use the `callAgent` tool and the skill in `skills/agentvend/SKILL.md`.
+- **Mode A (caller):** Invoke services on Tollara via the gateway. Use the `callAgent` tool and the skill in `skills/tollara/SKILL.md`.
 - **Mode B (backend):** Act as the agent backend: verify HMAC on incoming gateway requests and report usage. Use `verifyRequest` and `reportUsageIfNeeded` with your HTTP server.
 
-**Package:** `openclaw-agentvend`
+**Package:** `openclaw-tollara`
 
 ## Install
 
 ```bash
-openclaw plugins install openclaw-agentvend
+openclaw plugins install openclaw-tollara
 ```
 
 Or from local path after building:
@@ -24,15 +24,15 @@ openclaw plugins install ./integration-openclaw
 
 - **mode:** `caller` | `backend`
 - **Caller:** `gatewayUrl`, `serviceKey`
-- **Backend:** `serviceSecret`; optional `apiUrl` (AgentVend API origin, default production) for usage reporting
+- **Backend:** `serviceSecret`; optional `apiUrl` (Tollara API origin, default production) for usage reporting
 
 ## Mode A – Caller
 
 ```ts
-import { callAgent } from 'openclaw-agentvend';
+import { callAgent } from 'openclaw-tollara';
 
 const result = await callAgent(
-  { gatewayUrl: 'https://api.agentvend.api', serviceKey: '...' },
+  { gatewayUrl: 'https://api.tollara.ai', serviceKey: '...' },
   { serviceId: 'my-service', endpointId: 'run', body: { input: '...' } }
 );
 ```
@@ -40,7 +40,7 @@ const result = await callAgent(
 ## Mode B – Backend
 
 ```ts
-import { verifyRequest, reportUsageIfNeeded } from 'openclaw-agentvend';
+import { verifyRequest, reportUsageIfNeeded } from 'openclaw-tollara';
 
 // In your HTTP handler:
 const { verified, userContext, error } = verifyRequest(
@@ -59,4 +59,4 @@ await reportUsageIfNeeded(
 
 ## Skill
 
-The skill at `skills/agentvend/SKILL.md` teaches the OpenClaw agent when and how to use the `agentvend_call_agent` tool (Mode A).
+The skill at `skills/tollara/SKILL.md` teaches the OpenClaw agent when and how to use the `tollara_call_agent` tool (Mode A).

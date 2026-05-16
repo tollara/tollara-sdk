@@ -1,11 +1,11 @@
 {
-  "name": "agentvend/service-sdk",
-  "description": "AgentVend SDK - verify HMAC, validate keys, report usage",
+  "name": "tollara/service-sdk",
+  "description": "Tollara SDK - verify HMAC, validate keys, report usage",
   "type": "library",
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "AgentVend\\AgentSdk\\": "src/"
+      "Tollara\\ServiceSdk\\": "src/"
     }
   },
   "require": {

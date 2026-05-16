@@ -1,6 +1,6 @@
-# AgentVend SDK (JavaScript/TypeScript)
+# Tollara SDK (JavaScript/TypeScript)
 
-**Package:** `@agentvend/service-sdk` (version **0.0.7** in this repo)
+**Package:** `@tollara/service-sdk` (version **2.0.0** in this repo)
 
 Verify inbound HMAC, validate **service keys**, run usage pre-flight (service-key **and** JWT paths), **gateway invoke** (sync/async), report usage, progress, completion, and poll async job status.
 
@@ -8,18 +8,18 @@ This README covers the public SDK contract and usage examples.
 
 ## API origin
 
-By default, the SDK uses the production AgentVend API origin. Override when needed (non-production or private deployments):
+By default, the SDK uses the production Tollara API origin. Override when needed (non-production or private deployments):
 
-- **`AgentVendClient`:** pass `apiUrl`, or set **`AGENTVEND_API_URL`**
+- **`TollaraClient`:** pass `apiUrl`, or set **`TOLLARA_API_URL`**
 
-## AgentVend client (recommended)
+## Tollara client (recommended)
 
-`AgentVendClient` uses optional **`AGENTVEND_SERVICE_ID`** (service UUID), required **`AGENTVEND_SERVICE_SECRET`** (unless passed as `serviceSecret`), and optional **`AGENTVEND_API_URL`**.
+`TollaraClient` uses optional **`TOLLARA_SERVICE_ID`** (service UUID), required **`TOLLARA_SERVICE_SECRET`** (unless passed as `serviceSecret`), and optional **`TOLLARA_API_URL`**.
 
 ```ts
-import { AgentVendClient } from '@agentvend/service-sdk';
+import { TollaraClient } from '@tollara/service-sdk';
 
-const client = new AgentVendClient({
+const client = new TollaraClient({
   serviceId: 'service-uuid',
   serviceSecret: 'secret',
 });
@@ -41,10 +41,10 @@ if (estimate) {
 
 ### Verify signature and user context together
 
-Verification defaults to signing version **v2** (newer user-context suffix, no quota segment in the signed material). `verifySignatureFromHeaders` also reads `X-AgentVend-Signing-Version` when present.
+Verification defaults to signing version **v2** (newer user-context suffix, no quota segment in the signed material). `verifySignatureFromHeaders` also reads `X-Tollara-Signing-Version` when present.
 
 ```ts
-import { verifySignatureFromHeadersAndGetUserContext } from '@agentvend/service-sdk';
+import { verifySignatureFromHeadersAndGetUserContext } from '@tollara/service-sdk';
 
 const ctx = verifySignatureFromHeadersAndGetUserContext(serviceSecret, headers, rawBody);
 if (ctx) { /* trusted */ }
@@ -53,20 +53,20 @@ if (ctx) { /* trusted */ }
 ## Install
 
 ```bash
-npm install @agentvend/service-sdk
+npm install @tollara/service-sdk
 ```
 
 ## API highlights
 
-- `AgentVendHeaders` — canonical `X-AgentVend-*` names (including signing-version for gateway HMAC v2)
+- `TollaraHeaders` — canonical `X-Tollara-*` names (including signing-version for gateway HMAC v2)
 - `buildGatewayUserContextString` / `buildGatewayUserContextStringV2` — inbound suffix helpers
 - `verifyInboundHmac` / `verifySignatureFromHeaders` — inbound gateway HMAC
 - `getUserContext` — parses headers (case-insensitive keys)
-- `AgentVendClient` — validate key, estimates, invoke, usage reporting, gateway polling
+- `TollaraClient` — validate key, estimates, invoke, usage reporting, gateway polling
 - `validateServiceKey` / `estimateUsage` — Core **service-key** paths; response HMAC verified when headers present
 - `estimateUsageWithJwt` — Core `POST …/billing/usage/estimate` with Bearer JWT (unsigned response)
 - `invokeService` — gateway `…/service/{serviceId}/endpoint/…/invoke` and `…/invoke/async`
-- `reportUsage`, `reportProgress`, `reportCompletion` — usage service (**report** body uses ISO `timestamp`; `X-AgentVend-Timestamp` = epoch **seconds** for HMAC)
+- `reportUsage`, `reportProgress`, `reportCompletion` — usage service (**report** body uses ISO `timestamp`; `X-Tollara-Timestamp` = epoch **seconds** for HMAC)
 - `getRequestStatus`, `getRequestResult` — async job polling
 
 ## Examples
@@ -74,7 +74,7 @@ npm install @agentvend/service-sdk
 ### Verify HMAC (backend)
 
 ```ts
-import { verifySignatureFromHeaders, getUserContext } from '@agentvend/service-sdk';
+import { verifySignatureFromHeaders, getUserContext } from '@tollara/service-sdk';
 
 const serviceSecret = 'your-service-shared-secret';
 const valid = verifySignatureFromHeaders(serviceSecret, req.headers, rawBodyString);
@@ -86,7 +86,7 @@ if (valid) {
 ### Validate service key (caller)
 
 ```ts
-import { validateServiceKey } from '@agentvend/service-sdk';
+import { validateServiceKey } from '@tollara/service-sdk';
 
 const result = await validateServiceKey({
   serviceKey: 'bearer-token',
@@ -102,7 +102,7 @@ Optional `baseUrl` when not using the default production origin. Successful vali
 Same trust model as validate: JSON body with the service key (no separate bearer on Core). Response HMAC is verified for success and typical denial statuses when signature headers are present.
 
 ```ts
-import { estimateUsage } from '@agentvend/service-sdk';
+import { estimateUsage } from '@tollara/service-sdk';
 
 const est = await estimateUsage({
   serviceKey: 'bearer-token',
@@ -115,7 +115,7 @@ const est = await estimateUsage({
 ### Report usage
 
 ```ts
-import { reportUsage } from '@agentvend/service-sdk';
+import { reportUsage } from '@tollara/service-sdk';
 
 await reportUsage({
   userId: 'u1',
@@ -130,7 +130,7 @@ await reportUsage({
 URLs come from the platform (`progress_url`, `callback_url`).
 
 ```ts
-import { CompletionStatus, reportProgress, reportCompletionWithResult } from '@agentvend/service-sdk';
+import { CompletionStatus, reportProgress, reportCompletionWithResult } from '@tollara/service-sdk';
 
 await reportProgress({
   progressUrl,
@@ -152,7 +152,7 @@ await reportCompletionWithResult({
 ### Job status / result (caller)
 
 ```ts
-import { getRequestStatus, getRequestResult } from '@agentvend/service-sdk';
+import { getRequestStatus, getRequestResult } from '@tollara/service-sdk';
 
 const st = await getRequestStatus({ requestId, serviceKey });
 const res = await getRequestResult({ requestId, serviceKey });
@@ -170,7 +170,7 @@ npm test
 
 ## Release (npm)
 
-Package name: **`@agentvend/service-sdk`** ([npm scoped packages](https://docs.npmjs.com/about-scopes-and-packages)).
+Package name: **`@tollara/service-sdk`** ([npm scoped packages](https://docs.npmjs.com/about-scopes-and-packages)).
 
 1. **Version** — Bump `"version"` in [`package.json`](package.json) (SemVer). npm will not let you publish the same version twice.
 2. **Verify** — `npm ci`, `npm test`, and `npm run build` (or rely on `prepublishOnly`, which runs `build` on `npm publish`).

@@ -4,7 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
-namespace AgentVend;
+namespace Tollara;
 
 /// <summary>Gateway service invoke (sync/async). See platform spec §1.1–1.2.</summary>
 public record GatewayInvokeAsyncEnvelope(string RequestId, string CallbackUrl, string ProgressUrl);

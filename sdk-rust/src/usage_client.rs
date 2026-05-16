@@ -38,7 +38,7 @@ struct UsageReportResponseJson {
     remaining_requests_per_period: Option<i64>,
 }
 
-/// Default path segment before `/report` (matches Java `AgentVendUrls.DEFAULT_USAGE_PATH_PREFIX`).
+/// Default path segment before `/report` (matches Java `TollaraUrls.DEFAULT_USAGE_PATH_PREFIX`).
 pub const DEFAULT_USAGE_PATH_PREFIX: &str = "/api/usage";
 
 /// Builds `{base}{prefix}/report` with normalized slashes.

@@ -1,8 +1,8 @@
 {
-  "id": "agentvend",
-  "name": "AgentVend",
+  "id": "tollara",
+  "name": "Tollara",
   "version": "1.0.0",
-  "description": "Invoke services on AgentVend (caller) or act as backend with HMAC verification and usage reporting",
+  "description": "Invoke services on Tollara (caller) or act as backend with HMAC verification and usage reporting",
   "configSchema": {
     "type": "object",
     "properties": {
@@ -22,7 +22,7 @@
       },
       "apiUrl": {
         "type": "string",
-        "description": "AgentVend API origin (optional; defaults to https://api.agentvend.api). Used when reporting usage in backend mode."
+        "description": "Tollara API origin (optional; defaults to https://api.tollara.ai). Used when reporting usage in backend mode."
       },
       "serviceSecret": {
         "type": "string",
@@ -30,5 +30,5 @@
       }
     }
   },
-  "skillPaths": ["skills/agentvend"]
+  "skillPaths": ["skills/tollara"]
 }

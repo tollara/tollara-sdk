@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AgentVend\AgentSdk;
+namespace Tollara\AgentSdk;
 
 final class InboundHmacRequest
 {
@@ -111,24 +111,24 @@ final class Verifier
      */
     public static function verifySignatureFromHeaders(string $agentSecret, array $headers, string $payload): bool
     {
-        $sig = self::headerGetCi($headers, AgentVendHeaders::SIGNATURE);
-        $ts = self::headerGetCi($headers, AgentVendHeaders::TIMESTAMP);
+        $sig = self::headerGetCi($headers, TollaraHeaders::SIGNATURE);
+        $ts = self::headerGetCi($headers, TollaraHeaders::TIMESTAMP);
         if ($sig === '' || $ts === '') {
             return false;
         }
-        $rolesCsv = self::headerGetCi($headers, AgentVendHeaders::ROLES);
+        $rolesCsv = self::headerGetCi($headers, TollaraHeaders::ROLES);
         $roles = $rolesCsv === '' ? [] : array_values(array_filter(array_map('trim', explode(',', $rolesCsv))));
-        $quotaRaw = self::headerGetCi($headers, AgentVendHeaders::QUOTA_REMAINING);
-        $subRaw = self::headerGetCi($headers, AgentVendHeaders::SUBSCRIPTION_ACTIVE);
-        $bm = self::headerGetCi($headers, AgentVendHeaders::BILLING_MODEL);
-        $mt = self::headerGetCi($headers, AgentVendHeaders::MEASUREMENT_TYPE);
-        $ul = self::headerGetCi($headers, AgentVendHeaders::UNIT_LABEL);
+        $quotaRaw = self::headerGetCi($headers, TollaraHeaders::QUOTA_REMAINING);
+        $subRaw = self::headerGetCi($headers, TollaraHeaders::SUBSCRIPTION_ACTIVE);
+        $bm = self::headerGetCi($headers, TollaraHeaders::BILLING_MODEL);
+        $mt = self::headerGetCi($headers, TollaraHeaders::MEASUREMENT_TYPE);
+        $ul = self::headerGetCi($headers, TollaraHeaders::UNIT_LABEL);
         $req = new InboundHmacRequest(
             $sig,
             $ts,
             $payload,
-            self::headerGetCi($headers, AgentVendHeaders::USER_ID),
-            self::headerGetCi($headers, AgentVendHeaders::PLAN),
+            self::headerGetCi($headers, TollaraHeaders::USER_ID),
+            self::headerGetCi($headers, TollaraHeaders::PLAN),
             $roles,
             self::formatQuota($quotaRaw),
             self::parseSubscriptionActive($subRaw),
@@ -149,7 +149,7 @@ final class Verifier
             $req->billingModelType,
             $req->measurementType,
             $req->unitLabel,
-            self::headerGetCi($headers, AgentVendHeaders::SIGNING_VERSION)
+            self::headerGetCi($headers, TollaraHeaders::SIGNING_VERSION)
         );
     }
 
@@ -216,18 +216,18 @@ final class Verifier
      */
     public static function parseUserContext(array $headers): UserContext
     {
-        $rolesCsv = self::headerGetCi($headers, AgentVendHeaders::ROLES);
+        $rolesCsv = self::headerGetCi($headers, TollaraHeaders::ROLES);
         $roles = $rolesCsv === '' ? [] : array_values(array_filter(array_map('trim', explode(',', $rolesCsv))));
-        $qRaw = self::headerGetCi($headers, AgentVendHeaders::QUOTA_REMAINING);
+        $qRaw = self::headerGetCi($headers, TollaraHeaders::QUOTA_REMAINING);
         $quota = $qRaw !== '' && is_numeric($qRaw) ? (float) $qRaw : null;
-        $sub = self::headerGetCi($headers, AgentVendHeaders::SUBSCRIPTION_ACTIVE);
+        $sub = self::headerGetCi($headers, TollaraHeaders::SUBSCRIPTION_ACTIVE);
         $subActive = self::parseSubscriptionActive($sub);
-        $bm = self::headerGetCi($headers, AgentVendHeaders::BILLING_MODEL);
-        $mt = self::headerGetCi($headers, AgentVendHeaders::MEASUREMENT_TYPE);
-        $ul = self::headerGetCi($headers, AgentVendHeaders::UNIT_LABEL);
+        $bm = self::headerGetCi($headers, TollaraHeaders::BILLING_MODEL);
+        $mt = self::headerGetCi($headers, TollaraHeaders::MEASUREMENT_TYPE);
+        $ul = self::headerGetCi($headers, TollaraHeaders::UNIT_LABEL);
         return new UserContext(
-            self::headerGetCi($headers, AgentVendHeaders::USER_ID),
-            self::headerGetCi($headers, AgentVendHeaders::PLAN),
+            self::headerGetCi($headers, TollaraHeaders::USER_ID),
+            self::headerGetCi($headers, TollaraHeaders::PLAN),
             $roles,
             $quota,
             $subActive,

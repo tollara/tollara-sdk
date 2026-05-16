@@ -1,4 +1,4 @@
-import { AgentVendHeaders } from './agentVendHeaders';
+import { TollaraHeaders } from './tollaraHeaders';
 import { calculateHmac, constantTimeEquals } from './hmac';
 
 export interface UserContext {
@@ -20,12 +20,12 @@ export interface VerifySignatureInput {
   plan: string | null;
   roles: string[];
   quotaRemaining: number | string | null;
-  /** Must match X-AgentVend-Subscription-Active for verification. */
+  /** Must match X-Tollara-Subscription-Active for verification. */
   subscriptionActive: boolean;
   billingModelType?: string | null;
   measurementType?: string | null;
   unitLabel?: string | null;
-  /** When `2`, uses HMAC user-context v2 (see AgentVendHeaders.SIGNING_VERSION). */
+  /** When `2`, uses HMAC user-context v2 (see TollaraHeaders.SIGNING_VERSION). */
   signingVersion?: string | null;
 }
 
@@ -194,26 +194,26 @@ export function verifySignatureFromHeaders(
   headers: HeaderBag,
   payload: string | object | null
 ): boolean {
-  const signature = headerGet(headers, AgentVendHeaders.SIGNATURE);
-  const timestamp = headerGet(headers, AgentVendHeaders.TIMESTAMP);
+  const signature = headerGet(headers, TollaraHeaders.SIGNATURE);
+  const timestamp = headerGet(headers, TollaraHeaders.TIMESTAMP);
   if (!signature || !timestamp) return false;
-  const rolesHeader = headerGet(headers, AgentVendHeaders.ROLES);
+  const rolesHeader = headerGet(headers, TollaraHeaders.ROLES);
   const roles = rolesHeader ? rolesHeader.split(',').map((x) => x.trim()).filter(Boolean) : [];
-  let quotaRemaining: number | string | null = headerGet(headers, AgentVendHeaders.QUOTA_REMAINING);
+  let quotaRemaining: number | string | null = headerGet(headers, TollaraHeaders.QUOTA_REMAINING);
   if (quotaRemaining != null && quotaRemaining !== '') {
     const n = Number(quotaRemaining);
     if (!Number.isNaN(n)) quotaRemaining = n;
   } else {
     quotaRemaining = null;
   }
-  const subRaw = headerGet(headers, AgentVendHeaders.SUBSCRIPTION_ACTIVE);
+  const subRaw = headerGet(headers, TollaraHeaders.SUBSCRIPTION_ACTIVE);
   const subscriptionActive = parseSubscriptionActive(subRaw);
-  const billing = headerGet(headers, AgentVendHeaders.BILLING_MODEL);
-  const measurement = headerGet(headers, AgentVendHeaders.MEASUREMENT_TYPE);
-  const unit = headerGet(headers, AgentVendHeaders.UNIT_LABEL);
+  const billing = headerGet(headers, TollaraHeaders.BILLING_MODEL);
+  const measurement = headerGet(headers, TollaraHeaders.MEASUREMENT_TYPE);
+  const unit = headerGet(headers, TollaraHeaders.UNIT_LABEL);
   const signedUserContext: SignedUserContext = {
-    userId: headerGet(headers, AgentVendHeaders.USER_ID),
-    plan: headerGet(headers, AgentVendHeaders.PLAN),
+    userId: headerGet(headers, TollaraHeaders.USER_ID),
+    plan: headerGet(headers, TollaraHeaders.PLAN),
     roles,
     quotaRemaining,
     subscriptionActive,
@@ -221,7 +221,7 @@ export function verifySignatureFromHeaders(
     measurementType: measurement && measurement !== '' ? measurement : null,
     unitLabel: unit && unit !== '' ? unit : null,
   };
-  const signingVersion = headerGet(headers, AgentVendHeaders.SIGNING_VERSION);
+  const signingVersion = headerGet(headers, TollaraHeaders.SIGNING_VERSION);
   return verifyInboundHmac(serviceSecret, {
     signature,
     timestamp,
@@ -233,7 +233,7 @@ export function verifySignatureFromHeaders(
 
 /**
  * Verifies inbound HMAC; if valid returns user context, else `null` (do not trust headers).
- * Parses `X-AgentVend-*` headers into {@link UserContext} (case-insensitive header names).
+ * Parses `X-Tollara-*` headers into {@link UserContext} (case-insensitive header names).
  */
 export function verifySignatureFromHeadersAndGetUserContext(
   serviceSecret: string,
@@ -245,22 +245,22 @@ export function verifySignatureFromHeadersAndGetUserContext(
 }
 
 export function getUserContext(headers: HeaderBag): UserContext {
-  const rolesHeader = headerGet(headers, AgentVendHeaders.ROLES);
+  const rolesHeader = headerGet(headers, TollaraHeaders.ROLES);
   const roles = rolesHeader ? rolesHeader.split(',').map((s) => s.trim()).filter(Boolean) : [];
   let quotaRemaining: number | null = null;
-  const q = headerGet(headers, AgentVendHeaders.QUOTA_REMAINING);
+  const q = headerGet(headers, TollaraHeaders.QUOTA_REMAINING);
   if (q != null && q !== '') {
     const n = Number(q);
     if (!Number.isNaN(n)) quotaRemaining = n;
   }
-  const sub = headerGet(headers, AgentVendHeaders.SUBSCRIPTION_ACTIVE);
+  const sub = headerGet(headers, TollaraHeaders.SUBSCRIPTION_ACTIVE);
   const subscriptionActive = parseSubscriptionActive(sub);
-  const bm = headerGet(headers, AgentVendHeaders.BILLING_MODEL);
-  const mt = headerGet(headers, AgentVendHeaders.MEASUREMENT_TYPE);
-  const ul = headerGet(headers, AgentVendHeaders.UNIT_LABEL);
+  const bm = headerGet(headers, TollaraHeaders.BILLING_MODEL);
+  const mt = headerGet(headers, TollaraHeaders.MEASUREMENT_TYPE);
+  const ul = headerGet(headers, TollaraHeaders.UNIT_LABEL);
   return {
-    userId: headerGet(headers, AgentVendHeaders.USER_ID),
-    plan: headerGet(headers, AgentVendHeaders.PLAN),
+    userId: headerGet(headers, TollaraHeaders.USER_ID),
+    plan: headerGet(headers, TollaraHeaders.PLAN),
     roles,
     quotaRemaining,
     subscriptionActive,

@@ -12,7 +12,7 @@ export async function callAgent(
   const gatewayUrl = (config.gatewayUrl || '').replace(/\/$/, '');
   const serviceKey = config.serviceKey;
   if (!gatewayUrl || !serviceKey) {
-    throw new Error('AgentVend plugin: gatewayUrl and serviceKey required for caller mode');
+    throw new Error('Tollara plugin: gatewayUrl and serviceKey required for caller mode');
   }
   const path = useAsync ? 'invoke/async' : 'invoke';
   const url = `${gatewayUrl}/api/service/${serviceId}/endpoint/${endpointId}/${path}`;

@@ -1,10 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace AgentVend;
+namespace Tollara;
 
 /// <summary>
-/// HMAC-SHA256 helpers aligned with <c>docs/hmac-spec.md</c> and other AgentVend SDKs (Java, JS, Python).
+/// HMAC-SHA256 helpers aligned with <c>docs/hmac-spec.md</c> and other Tollara SDKs (Java, JS, Python).
 /// Key and message are UTF-8; signature is Base64.
 /// </summary>
 public static class Hmac
