@@ -10,7 +10,7 @@ Use this document as the single copy-paste brief when updating the **tollara-sdk
 
 **URL:**
 
-- `POST {agentVendBaseUrl}/core/api/v1/agent-keys/estimate-usage`
+- `POST {tollaraBaseUrl}/core/api/v1/agent-keys/estimate-usage`
 
 **Auth:** **None** (no Bearer). Trust is **agentKey** + **agentSecret** in the JSON body, identical rules to `POST .../agent-keys/validate` (optional `agentId` when key alone resolves the agent; if `agentSecret` is sent non-empty it must match the agent).
 

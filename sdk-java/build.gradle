@@ -11,8 +11,14 @@ plugins {
     id 'signing'
 }
 
+if (System.getProperty('os.name')?.toLowerCase(Locale.ROOT)?.contains('windows')
+        && !System.getProperty('javax.net.ssl.trustStore')
+        && !System.getProperty('javax.net.ssl.trustStoreType')) {
+    System.setProperty('javax.net.ssl.trustStoreType', 'Windows-ROOT')
+}
+
 group = 'com.tollara'
-version = '2.0.0'
+version = '0.0.1'
 
 repositories {
     mavenCentral()

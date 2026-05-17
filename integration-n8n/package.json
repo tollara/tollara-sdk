@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-tollara",
-  "version": "2.0.0",
+  "version": "0.0.1",
   "description": "n8n community nodes for Tollara: Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Service Key",
   "keywords": [
     "n8n-community-node-package",

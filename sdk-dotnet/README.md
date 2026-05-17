@@ -1,6 +1,6 @@
 # Tollara SDK (.NET)
 
-**Package:** `Tollara.ServiceSdk` (NuGet), **version** `2.0.0`.
+**Package:** `Tollara.ServiceSdk` (NuGet), **version** `0.0.1`.
 
 Verify HMAC, validate service keys, run usage pre-flight (service-key **and** JWT), **gateway invoke**, report usage, progress, completion, and poll job status on the gateway.
 
