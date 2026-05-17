@@ -4,7 +4,7 @@
     <PackageId>Tollara.ServiceSdk</PackageId>
     <AssemblyName>Tollara.ServiceSdk</AssemblyName>
     <RootNamespace>Tollara</RootNamespace>
-    <Version>2.0.0</Version>
+    <Version>0.0.1</Version>
     <Title>Tollara Service SDK</Title>
     <Authors>Tollara</Authors>
     <Copyright>Copyright © Tollara 2026</Copyright>

@@ -1,7 +1,7 @@
 {
   "id": "tollara",
   "name": "Tollara",
-  "version": "2.0.0",
+  "version": "0.0.1",
   "description": "Invoke services on Tollara (caller) or act as backend with HMAC verification and usage reporting",
   "configSchema": {
     "type": "object",
