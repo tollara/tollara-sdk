@@ -1,18 +1,18 @@
 {
-  "name": "n8n-nodes-agentvend",
-  "version": "1.0.0",
-  "description": "n8n community nodes for AgentVend: Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Service Key",
+  "name": "n8n-nodes-tollara",
+  "version": "0.0.1",
+  "description": "n8n community nodes for Tollara: Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Service Key",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
-    "agentvend"
+    "tollara"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/agentvend/agentvend-sdk",
+  "homepage": "https://github.com/tollara/tollara-sdk",
   "author": {},
   "repository": {
     "type": "git",
-    "url": "https://github.com/agentvend/agentvend-sdk.git"
+    "url": "https://github.com/tollara/tollara-sdk.git"
   },
   "main": "index.js",
   "scripts": {
@@ -25,16 +25,16 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
-      "dist/credentials/AgentvendApi.credentials.js"
+      "dist/credentials/TollaraApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/AgentvendTrigger/AgentvendTrigger.node.js",
-      "dist/nodes/AgentvendInvoke/AgentvendInvoke.node.js",
-      "dist/nodes/AgentvendProgress/AgentvendProgress.node.js",
-      "dist/nodes/AgentvendComplete/AgentvendComplete.node.js",
-      "dist/nodes/AgentvendValidateKey/AgentvendValidateKey.node.js"
+      "dist/nodes/TollaraTrigger/TollaraTrigger.node.js",
+      "dist/nodes/TollaraInvoke/TollaraInvoke.node.js",
+      "dist/nodes/TollaraProgress/TollaraProgress.node.js",
+      "dist/nodes/TollaraComplete/TollaraComplete.node.js",
+      "dist/nodes/TollaraValidateKey/TollaraValidateKey.node.js"
     ],
-    "packageId": "n8n-nodes-agentvend"
+    "packageId": "n8n-nodes-tollara"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -42,7 +42,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@agentvend/service-sdk": "file:../sdk-js"
+    "@tollara/service-sdk": "file:../sdk-js"
   },
   "peerDependencies": {
     "n8n-workflow": "*"

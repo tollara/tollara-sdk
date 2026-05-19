@@ -4,11 +4,11 @@
 
 #![cfg(feature = "http")]
 
-use agentvend_service_sdk::agent_vend_client::{AgentVendClient, AgentVendClientConfig};
-use agentvend_service_sdk::gateway_client;
-use agentvend_service_sdk::usage_client::{self, CompletionStatus};
-use agentvend_service_sdk::validation_client;
-use agentvend_service_sdk::calculate_hmac;
+use tollara_service_sdk::tollara_client::{TollaraClient, TollaraClientConfig};
+use tollara_service_sdk::gateway_client;
+use tollara_service_sdk::usage_client::{self, CompletionStatus};
+use tollara_service_sdk::validation_client;
+use tollara_service_sdk::calculate_hmac;
 use reqwest::Client;
 
 const AGENT_SECRET: &str = "test-agent-secret";
@@ -32,8 +32,8 @@ async fn validate_service_key_returns_result_when_core_returns_200_with_valid_hm
         .mock("POST", "/api/v1/service-keys/validate")
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_header("X-AgentVend-Signature", &signature)
-        .with_header("X-AgentVend-Timestamp", timestamp)
+        .with_header("X-Tollara-Signature", &signature)
+        .with_header("X-Tollara-Timestamp", timestamp)
         .with_body(&body_str)
         .create();
 
@@ -93,8 +93,8 @@ async fn validate_service_key_returns_none_when_hmac_invalid() {
         .mock("POST", "/api/v1/service-keys/validate")
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_header("X-AgentVend-Signature", "invalid-signature")
-        .with_header("X-AgentVend-Timestamp", "1700000000")
+        .with_header("X-Tollara-Signature", "invalid-signature")
+        .with_header("X-Tollara-Timestamp", "1700000000")
         .with_body(body_str)
         .create();
 
@@ -178,7 +178,7 @@ async fn report_usage_respects_custom_usage_path_prefix() {
 }
 
 #[tokio::test]
-async fn agent_vend_client_get_request_status_uses_default_gateway_prefix() {
+async fn tollara_client_get_request_status_uses_default_gateway_prefix() {
     let mut server = mockito::Server::new();
     let base = server.url();
 
@@ -189,7 +189,7 @@ async fn agent_vend_client_get_request_status_uses_default_gateway_prefix() {
         .create();
 
     let http = Client::new();
-    let av = AgentVendClient::try_new(AgentVendClientConfig {
+    let av = TollaraClient::try_new(TollaraClientConfig {
         api_url: Some(base),
         service_id: Some(AGENT_ID.to_string()),
         service_secret: Some(AGENT_SECRET.to_string()),
@@ -205,7 +205,7 @@ async fn agent_vend_client_get_request_status_uses_default_gateway_prefix() {
 }
 
 #[tokio::test]
-async fn agent_vend_client_invoke_service_uses_service_path() {
+async fn tollara_client_invoke_service_uses_service_path() {
     let mut server = mockito::Server::new();
     let base = server.url();
 
@@ -218,7 +218,7 @@ async fn agent_vend_client_invoke_service_uses_service_path() {
         .create();
 
     let http = Client::new();
-    let av = AgentVendClient::try_new(AgentVendClientConfig {
+    let av = TollaraClient::try_new(TollaraClientConfig {
         api_url: Some(base),
         service_id: Some(AGENT_ID.to_string()),
         service_secret: Some(AGENT_SECRET.to_string()),
@@ -243,7 +243,7 @@ async fn agent_vend_client_invoke_service_uses_service_path() {
 }
 
 #[tokio::test]
-async fn agent_vend_client_report_usage_uses_default_usage_prefix() {
+async fn tollara_client_report_usage_uses_default_usage_prefix() {
     let mut server = mockito::Server::new();
     let base = server.url();
 
@@ -257,7 +257,7 @@ async fn agent_vend_client_report_usage_uses_default_usage_prefix() {
         .create();
 
     let http = Client::new();
-    let av = AgentVendClient::try_new(AgentVendClientConfig {
+    let av = TollaraClient::try_new(TollaraClientConfig {
         api_url: Some(base),
         service_id: Some(AGENT_ID.to_string()),
         service_secret: Some(AGENT_SECRET.to_string()),
@@ -271,7 +271,7 @@ async fn agent_vend_client_report_usage_uses_default_usage_prefix() {
 }
 
 #[tokio::test]
-async fn agent_vend_client_custom_usage_path_prefix() {
+async fn tollara_client_custom_usage_path_prefix() {
     let mut server = mockito::Server::new();
     let base = server.url();
 
@@ -285,7 +285,7 @@ async fn agent_vend_client_custom_usage_path_prefix() {
         .create();
 
     let http = Client::new();
-    let av = AgentVendClient::try_new(AgentVendClientConfig {
+    let av = TollaraClient::try_new(TollaraClientConfig {
         api_url: Some(base),
         service_id: Some(AGENT_ID.to_string()),
         service_secret: Some(AGENT_SECRET.to_string()),

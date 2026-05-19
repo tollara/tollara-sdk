@@ -1,8 +1,8 @@
 [package]
-name = "agentvend-service-sdk"
-version = "1.0.0"
+name = "tollara-service-sdk"
+version = "0.0.1"
 edition = "2021"
-description = "AgentVend SDK - verify HMAC, validate keys, report usage"
+description = "Tollara SDK - verify HMAC, validate keys, report usage"
 
 [dependencies]
 base64 = "0.21"

@@ -1,1 +1,1 @@
-# Tests for agentvend_service_sdk
+# Tests for tollara_service_sdk

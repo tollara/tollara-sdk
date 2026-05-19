@@ -1,17 +1,17 @@
 {
-  "name": "openclaw-agentvend",
-  "version": "1.0.0",
-  "description": "OpenClaw plugin for AgentVend: Mode A = invoke services, Mode B = backend (verify HMAC, report usage)",
+  "name": "openclaw-tollara",
+  "version": "0.0.1",
+  "description": "OpenClaw plugin for Tollara: Mode A = invoke services, Mode B = backend (verify HMAC, report usage)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["openclaw", "agentvend"],
+  "keywords": ["openclaw", "tollara"],
   "license": "MIT",
   "dependencies": {
-    "@agentvend/service-sdk": "file:../sdk-js"
+    "@tollara/service-sdk": "file:../sdk-js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

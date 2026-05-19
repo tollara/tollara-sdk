@@ -1,4 +1,4 @@
-namespace AgentVend;
+namespace Tollara;
 
 /// <summary>
 /// Completion status for usage async completion (sdk-api-spec §3.3).

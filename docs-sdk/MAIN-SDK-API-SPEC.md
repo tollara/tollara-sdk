@@ -1,14 +1,14 @@
-# AgentVend SDK – API specification
+# Tollara SDK – API specification
 
 ## How this document is maintained
 
-- **Canonical copy** lives in the AgentVend **agent-hub** repo at `docs-sdk/MAIN-SDK-API-SPEC.md`.
-- The **AgentVend SDK** (separate **agentvend-sdk** repo) should receive an updated copy of this file whenever the HTTP contract changes so SDK implementations and release notes stay aligned.
+- **Canonical copy** lives in the Tollara **agent-hub** repo at `docs-sdk/MAIN-SDK-API-SPEC.md`.
+- The **Tollara SDK** (separate **tollara-sdk** repo) should receive an updated copy of this file whenever the HTTP contract changes so SDK implementations and release notes stay aligned.
 - **Whenever you change** any SDK-facing path, method, header, status code, or JSON field described here (or add a new field to a documented response), you **must** update this document in the same change (or immediately after) and **append an entry to the changelog at the bottom of this file** (date, summary, sections touched). Do not skip the changelog.
 
-**Finding SDK-facing endpoints in agent-hub source:** Platform controllers and services that implement the HTTP contract in this document are tagged in Javadoc with **`AGENTVEND-SDK-ENDPOINT`** (literal string). Search the **agent-hub** repo for that token (e.g. `rg AGENTVEND-SDK-ENDPOINT`) to list classes and methods tied to the **agentvend-sdk** surface. Tags usually cite the relevant section of this file (e.g. §2.1, §4).
+**Finding SDK-facing endpoints in platform source:** Platform controllers and services that implement the HTTP contract in this document are tagged in Javadoc with **`TOLLARA-SDK-ENDPOINT`** (literal string). Search the platform repo for that token (e.g. `rg TOLLARA-SDK-ENDPOINT`) to list classes and methods tied to the **tollara-sdk** surface. Tags usually cite the relevant section of this file (e.g. §2.1, §4).
 
-This document specifies the exact HTTP APIs that the AgentVend SDK calls. Base URLs for each service are configurable; path prefixes depend on deployment (default vs ECS vs Docker).
+This document specifies the exact HTTP APIs that the Tollara SDK calls. Base URLs for each service are configurable; path prefixes depend on deployment (default vs ECS vs Docker).
 
 **Services and path prefixes:**
 
@@ -78,7 +78,7 @@ The SDK uses these when acting as a **caller** (invoking a service).
 
 **Note for caller (202 body):** Fields are **camelCase** (`requestId`, `callbackUrl`, `progressUrl`) as returned by the gateway.
 
-**Note for service backend (forwarded JSON body):** Separate from the 202 response: the gateway may send **snake_case** `request_id`, `payload`, `progress_url`, and `callback_url`. The `progress_url` / `callback_url` values point at the **usage** service and may include `signature` and `timestamp` **query parameters** from the gateway’s **inbound** HMAC (see §4). **Usage service** progress and completion still require **`X-AgentVend-Signature` and `X-AgentVend-Timestamp` headers** per §3 (body + timestamp signed with the **service secret**); services must not assume the query string replaces §3 signing. If the service does not receive URLs, it may build paths as `{usageBaseUrl}{usagePathPrefix}/progress/{requestId}` and `{usageBaseUrl}{usagePathPrefix}/complete/{requestId}` and sign requests per §3.
+**Note for service backend (forwarded JSON body):** Separate from the 202 response: the gateway may send **snake_case** `request_id`, `payload`, `progress_url`, and `callback_url`. The `progress_url` / `callback_url` values point at the **usage** service and may include `signature` and `timestamp` **query parameters** from the gateway’s **inbound** HMAC (see §4). **Usage service** progress and completion still require **`X-Tollara-Signature` and `X-Tollara-Timestamp` headers** per §3 (body + timestamp signed with the **service secret**); services must not assume the query string replaces §3 signing. If the service does not receive URLs, it may build paths as `{usageBaseUrl}{usagePathPrefix}/progress/{requestId}` and `{usageBaseUrl}{usagePathPrefix}/complete/{requestId}` and sign requests per §3.
 
 ### 1.3 Optional: Job status (caller polling)
 
@@ -153,8 +153,8 @@ Used by both callers and backends to validate a service key and get user/plan/en
 
 - **Status:** `200 OK`
 - **Headers:**
-  - `X-AgentVend-Signature`: HMAC-SHA256 (Base64) of `responseBody + timestamp` (timestamp as string, no separator), key = `serviceSecret`.
-  - `X-AgentVend-Timestamp`: Numeric string (Unix epoch seconds).
+  - `X-Tollara-Signature`: HMAC-SHA256 (Base64) of `responseBody + timestamp` (timestamp as string, no separator), key = `serviceSecret`.
+  - `X-Tollara-Timestamp`: Numeric string (Unix epoch seconds).
 - **Body (JSON):**
 
 | Field | Type | Description |
@@ -179,9 +179,9 @@ Used by both callers and backends to validate a service key and get user/plan/en
 
 **SDK must:**
 
-1. Compute `canonical = responseBodyJsonString + X-AgentVend-Timestamp` (string concatenation, no separator).
+1. Compute `canonical = responseBodyJsonString + X-Tollara-Timestamp` (string concatenation, no separator).
 2. Compute `expectedSignature = Base64(HMAC-SHA256(canonical, serviceSecret))`.
-3. Compare `expectedSignature` with `X-AgentVend-Signature` using **constant-time** comparison.
+3. Compare `expectedSignature` with `X-Tollara-Signature` using **constant-time** comparison.
 4. If they differ, treat the response as invalid and do not trust the body.
 
 ### 2.2 Usage estimate (JWT)
@@ -203,7 +203,7 @@ Used by both callers and backends to validate a service key and get user/plan/en
 
 **Response body (JSON)** — same field set as the service-key estimate body **excluding** `estimateSchemaVersion` and top-level `timestamp` (§2.3). **`@JsonInclude(NON_NULL)`** omits null-valued properties on this path.
 
-**Integrity:** JWT responses are **not** HMAC-signed (no `X-AgentVend-Signature` / `X-AgentVend-Timestamp` from core). Only **§2.3** service-key responses are signed.
+**Integrity:** JWT responses are **not** HMAC-signed (no `X-Tollara-Signature` / `X-Tollara-Timestamp` from core). Only **§2.3** service-key responses are signed.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -254,7 +254,7 @@ Same business fields as §2.2 (`wouldAllow`, `breakdown`, etc.), plus:
 | `estimateSchemaVersion` | number | Starts at **1**; bump if JSON shape changes. |
 | `timestamp` | number | Unix epoch seconds (aligned with signing). |
 
-**Headers on success:** `X-AgentVend-Signature`, `X-AgentVend-Timestamp` — verify **`HMAC-SHA256(responseBodyJson + timestamp, serviceSecret)`** (same concatenation rule as validate response).
+**Headers on success:** `X-Tollara-Signature`, `X-Tollara-Timestamp` — verify **`HMAC-SHA256(responseBodyJson + timestamp, serviceSecret)`** (same concatenation rule as validate response).
 
 **Status codes:** **200** allowed; **403** insufficient credits; **429** cap; **400** billing rule failure; **401** bad key/secret/service. **401** / some **400** / **500** responses may be **unsigned** and have an **empty** body (match validate error behavior). When status is **200**, **403** (credits), or **429**, the JSON body is signed if signature headers are present — verify HMAC on the **raw** body string + timestamp.
 
@@ -267,8 +267,8 @@ All three endpoints require request body + timestamp signed with **service secre
 **Common headers for all three:**
 
 - `Content-Type: application/json`
-- `X-AgentVend-Signature`: signature as above
-- `X-AgentVend-Timestamp`: numeric string (Unix epoch seconds)
+- `X-Tollara-Signature`: signature as above
+- `X-Tollara-Timestamp`: numeric string (Unix epoch seconds)
 
 ### 3.1 Report usage (non-proxied services)
 
@@ -358,18 +358,18 @@ When the SDK is used in an **service backend** to verify incoming requests from 
 
 | Header | Description |
 |--------|-------------|
-| `X-AgentVend-Signature` | HMAC of `payload + timestamp + userContextString` (see below). |
-| `X-AgentVend-Timestamp` | Numeric string (Unix epoch seconds). |
-| `X-AgentVend-User-ID` | User ID. |
-| `X-AgentVend-Plan` | Plan name. |
-| `X-AgentVend-Roles` | Comma-separated roles. |
-| `X-AgentVend-Signing-Version` | **`2`** when gateway uses HMAC user-context v2. |
-| `X-AgentVend-Subscription-Active` | `"true"` / `"false"` (always sent). |
-| `X-AgentVend-Billing-Model` | Optional. e.g. `SUBSCRIPTION`, `PREPAID`, `USAGE_INSTANT`, `USAGE_POSTPAID` (omitted for owner path). |
-| `X-AgentVend-Measurement-Type` | Optional. e.g. `PER_REQUEST`, `PER_TOKEN`. |
-| `X-AgentVend-Unit-Label` | Optional. e.g. `request`, `token`. |
+| `X-Tollara-Signature` | HMAC of `payload + timestamp + userContextString` (see below). |
+| `X-Tollara-Timestamp` | Numeric string (Unix epoch seconds). |
+| `X-Tollara-User-ID` | User ID. |
+| `X-Tollara-Plan` | Plan name. |
+| `X-Tollara-Roles` | Comma-separated roles. |
+| `X-Tollara-Signing-Version` | **`2`** when gateway uses HMAC user-context v2. |
+| `X-Tollara-Subscription-Active` | `"true"` / `"false"` (always sent). |
+| `X-Tollara-Billing-Model` | Optional. e.g. `SUBSCRIPTION`, `PREPAID`, `USAGE_INSTANT`, `USAGE_POSTPAID` (omitted for owner path). |
+| `X-Tollara-Measurement-Type` | Optional. e.g. `PER_REQUEST`, `PER_TOKEN`. |
+| `X-Tollara-Unit-Label` | Optional. e.g. `request`, `token`. |
 
-**Verification (v2):** Let `payloadString` be the raw request body as a string (empty string if absent). Let `timestamp` be the long parsed from `X-AgentVend-Timestamp`. Build `userContextString` = **`"2"`** + concatenation in this **exact** order (use `""` for null/absent strings; `subscriptionActive` is always `"true"` or `"false"`):
+**Verification (v2):** Let `payloadString` be the raw request body as a string (empty string if absent). Let `timestamp` be the long parsed from `X-Tollara-Timestamp`. Build `userContextString` = **`"2"`** + concatenation in this **exact** order (use `""` for null/absent strings; `subscriptionActive` is always `"true"` or `"false"`):
 
 1. `userId` (or `""`)
 2. `plan` (or `""`)
@@ -379,9 +379,9 @@ When the SDK is used in an **service backend** to verify incoming requests from 
 6. `measurementType` or `""`
 7. `unitLabel` or `""`
 
-Then `canonical = payloadString + timestamp + userContextString` (timestamp as decimal digits, no separator). `signature = Base64(HMAC-SHA256(canonical, serviceSecret))`. Compare with constant-time equality to `X-AgentVend-Signature`.
+Then `canonical = payloadString + timestamp + userContextString` (timestamp as decimal digits, no separator). `signature = Base64(HMAC-SHA256(canonical, serviceSecret))`. Compare with constant-time equality to `X-Tollara-Signature`.
 
-Reference implementation: `com.agentvend.common.util.GatewayHmacUserContext` in **common-utils** (shared with gateway-service).
+Reference implementation: `com.tollara.common.util.GatewayHmacUserContext` in **common-utils** (shared with gateway-service).
 
 For **async** invokes, the gateway signs the JSON serialization of the async body **before** `progress_url` / `callback_url` query params are added (same as before).
 
@@ -407,11 +407,11 @@ For **async** invokes, the gateway signs the JSON serialization of the async bod
 ## 6. HMAC summary (outbound from SDK)
 
 - **Algorithm:** HMAC-SHA256; key = service secret (UTF-8); output = Base64.
-- **Validate response (core → SDK):** Verify `X-AgentVend-Signature` = Base64(HMAC-SHA256(responseBody + X-AgentVend-Timestamp, serviceSecret)). Constant-time compare. Success bodies include `validationSchemaVersion: 2` (no `quotaRemaining`); success bodies may include **`serviceKeyId`** (see §2.1).
-- **JWT usage estimate (§2.2):** Response is **not** HMAC-signed; do not expect `X-AgentVend-*` signature headers.
+- **Validate response (core → SDK):** Verify `X-Tollara-Signature` = Base64(HMAC-SHA256(responseBody + X-Tollara-Timestamp, serviceSecret)). Constant-time compare. Success bodies include `validationSchemaVersion: 2` (no `quotaRemaining`); success bodies may include **`serviceKeyId`** (see §2.1).
+- **JWT usage estimate (§2.2):** Response is **not** HMAC-signed; do not expect `X-Tollara-*` signature headers.
 - **Service-key estimate response (core → SDK):** Same verification pattern as validate: `responseBody + timestamp` with `serviceSecret`. Use the **raw** response body string; new fields (`wouldAllow`, `breakdown`, etc.) are included in the signed JSON automatically.
 - **Gateway → service (inbound):** `payload + timestamp + GatewayHmacUserContext` v2 (leading `"2"`, no quota).
-- **Report / progress / completion (SDK → usage):** Send `X-AgentVend-Signature` = Base64(HMAC-SHA256(bodyJsonString + timestamp, serviceSecret)) and `X-AgentVend-Timestamp` = timestamp (numeric string).
+- **Report / progress / completion (SDK → usage):** Send `X-Tollara-Signature` = Base64(HMAC-SHA256(bodyJsonString + timestamp, serviceSecret)) and `X-Tollara-Timestamp` = timestamp (numeric string).
 
 ---
 
@@ -439,12 +439,12 @@ Public marketplace and workspace list/detail responses that serialize **`Service
 
 | Date | Summary |
 |------|---------|
-| 2026-05-05 | **Discovery + accuracy:** Documented **`AGENTVEND-SDK-ENDPOINT`** Javadoc tag for finding agent-hub implementations of this spec. **§2.1** `serviceKeyId` description now references DB table **`service_keys`** (replaces stale `agent_keys`). |
-| 2026-05-04 | **Rename plan (agent-hub / platform):** SDK HTTP surface uses paths under **`/services`**, **`/developers`**, **`/service-keys`**, **`/service/{serviceId}/endpoint/{endpointId}/invoke`** (and related gateway/usage paths in §1–§5). Request/response JSON uses **`serviceKey`**, **`serviceId`**, **`serviceSecret`**, **`serviceKeyId`**, **`serviceProductId`**, and developer-oriented IDs/metadata aligned with DB migrations (e.g. **`developers`**, **`service_keys`**, **`service_products`**). Validate success bodies use **`validationSchemaVersion: 2`** (no `quotaRemaining`). Brand **`AgentVend`**, **`X-AgentVend-*`** headers, **`AGENTVEND_*`** env vars, and SDK type names such as **`AgentVendClient`** / **`AgentVendRequestVerifier`** are unchanged. Marketplace publisher Cognito role is **`DEVELOPER`**; end-user role **`USER`**. Coordinate standalone **agentvend-sdk** releases with this file when contract fields or paths change. |
+| 2026-05-05 | **Discovery + accuracy:** Documented **`TOLLARA-SDK-ENDPOINT`** Javadoc tag for finding platform implementations of this spec. **§2.1** `serviceKeyId` description now references DB table **`service_keys`** (replaces stale `agent_keys`). |
+| 2026-05-04 | **Rename plan (agent-hub / platform):** SDK HTTP surface uses paths under **`/services`**, **`/developers`**, **`/service-keys`**, **`/service/{serviceId}/endpoint/{endpointId}/invoke`** (and related gateway/usage paths in §1–§5). Request/response JSON uses **`serviceKey`**, **`serviceId`**, **`serviceSecret`**, **`serviceKeyId`**, **`serviceProductId`**, and developer-oriented IDs/metadata aligned with DB migrations (e.g. **`developers`**, **`service_keys`**, **`service_products`**). Validate success bodies use **`validationSchemaVersion: 2`** (no `quotaRemaining`). Brand **`Tollara`**, **`X-Tollara-*`** headers, **`TOLLARA_*`** env vars, and SDK type names such as **`TollaraClient`** / **`TollaraRequestVerifier`** are unchanged. Marketplace publisher Cognito role is **`DEVELOPER`**; end-user role **`USER`**. Coordinate standalone **tollara-sdk** releases with this file when contract fields or paths change. |
 | 2026-05-03 | **§7** Marketplace card: **`cardMarketing`**, **`cardLogoAssetId` / `cardCoverAssetId`**, resolved **`logoUrl` / `coverImageUrl`** from **`media_assets`**; owner **`marketplaceBranding`** + **`brandingLogoAssetId` / `brandingCoverAssetId`**; **`PUT …/card-media`** and **`PUT …/card-marketing`**. |
 | 2026-05-03 | **`serviceKeyId`** (§2.1, §6); async **202** vs service URLs + **§3** signing (§1.2); **`GET …/result`** HTTP matrix (§1.4); maintenance + repo link renames to this path. **Spec review:** §1.1 default **`ResultResponse`** / event-driven raw body / SSE + **`ErrorResponse`** failures; §1.3 **404** + **`StatusResponse`**; §1.4 **404** + **`ResultResponse`** branches + **ERROR**; §2.1 **500**; §2.2 JWT **unsigned** + **`NON_NULL`**; §3 **ISO-8601** timestamps; §3.3 **`JobStatus`** strings; §6 JWT note. |
 
 ---
 
-*Source: AgentVend platform (agent-hub repo). For use in AgentVend SDK; copy into agentvend-sdk when the contract changes. Path prefixes and base URLs are configurable per environment. Pair with `docs/sdk-repo-implementation-prompt.md` for a paste-ready SDK work brief.*
+*Source: Tollara platform (agent-hub repo). For use in Tollara SDK; copy into tollara-sdk when the contract changes. Path prefixes and base URLs are configurable per environment. Pair with `docs/sdk-repo-implementation-prompt.md` for a paste-ready SDK work brief.*
 

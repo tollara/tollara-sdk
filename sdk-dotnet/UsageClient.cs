@@ -2,7 +2,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 
-namespace AgentVend;
+namespace Tollara;
 
 public record UsageReportResponse(
     string? Status,
@@ -40,8 +40,8 @@ public static class UsageClient
         var bodyStr = JsonSerializer.Serialize(body);
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, serviceSecret);
         var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
-        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
-        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Timestamp, timestamp);
+        req.Headers.TryAddWithoutValidation(TollaraHeaders.Signature, signature);
+        req.Headers.TryAddWithoutValidation(TollaraHeaders.Timestamp, timestamp);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
         var res = await http.SendAsync(req, ct);
         return res.IsSuccessStatusCode;
@@ -67,17 +67,17 @@ public static class UsageClient
         var bodyStr = JsonSerializer.Serialize(body);
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, serviceSecret);
         var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
-        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
-        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Timestamp, timestamp);
+        req.Headers.TryAddWithoutValidation(TollaraHeaders.Signature, signature);
+        req.Headers.TryAddWithoutValidation(TollaraHeaders.Timestamp, timestamp);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
         var res = await http.SendAsync(req, ct);
         return res.IsSuccessStatusCode;
     }
 
-    /// <summary>Report usage using the SDK default API origin and usage path prefix (same as <see cref="AgentVendClient"/>).</summary>
+    /// <summary>Report usage using the SDK default API origin and usage path prefix (same as <see cref="TollaraClient"/>).</summary>
     public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string userId, string serviceId, decimal unitsUsed,
         string serviceSecret, CancellationToken ct = default) =>
-        ReportUsageAsync(http, AgentVendClient.DefaultApiUrl, userId, serviceId, unitsUsed, serviceSecret, null, null, ct);
+        ReportUsageAsync(http, TollaraClient.DefaultApiUrl, userId, serviceId, unitsUsed, serviceSecret, null, null, ct);
 
     /// <summary>Report usage against an explicit usage service origin (for custom or local stacks).</summary>
     public static Task<UsageReportResponse> ReportUsageAsync(HttpClient http, string usageServiceUrl,
@@ -99,8 +99,8 @@ public static class UsageClient
         var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, tsStr, serviceSecret);
         var reportUrl = BuildUsageReportUrl(usageServiceUrl, usagePathPrefix);
         var req = new HttpRequestMessage(HttpMethod.Post, reportUrl);
-        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Signature, signature);
-        req.Headers.TryAddWithoutValidation(AgentVendHeaders.Timestamp, tsStr);
+        req.Headers.TryAddWithoutValidation(TollaraHeaders.Signature, signature);
+        req.Headers.TryAddWithoutValidation(TollaraHeaders.Timestamp, tsStr);
         req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
         var res = await http.SendAsync(req, ct);
         res.EnsureSuccessStatusCode();

@@ -1,6 +1,6 @@
-# AgentVend SDK Monorepo
+# Tollara SDK Monorepo
 
-Client SDKs and integrations for **AgentVend** — a platform for marketing, monetizing, and managing AI Agents and MCP Servers.
+Client SDKs and integrations for **Tollara** — a platform for marketing, monetizing, and managing AI Agents and MCP Servers.
 
 This monorepo provides:
 
@@ -13,16 +13,16 @@ For API and HMAC details, see [docs/](docs/).
 
 | Language / integration | Install | Description |
 |------------------------|--------|-------------|
-| **Java** | `sdk-java/` — see [sdk-java/README.md](sdk-java/README.md) | Maven: `com.agentvend:agent-sdk` |
-| **JavaScript/TypeScript** | `npm install @agentvend/agent-sdk` | [sdk-js/README.md](sdk-js/README.md) |
-| **C#** | `dotnet add package AgentVend.AgentSdk` | [sdk-dotnet/README.md](sdk-dotnet/README.md) |
-| **Python** | `pip install agentvend-sdk` | [sdk-python/README.md](sdk-python/README.md) |
-| **Go** | `go get github.com/agentvend/agent-sdk-go` | [sdk-go/README.md](sdk-go/README.md) |
-| **Rust** | `cargo add agentvend-agent-sdk` | [sdk-rust/README.md](sdk-rust/README.md) |
-| **Ruby** | `gem install agentvend_sdk` | [sdk-ruby/README.md](sdk-ruby/README.md) |
-| **PHP** | `composer require agentvend/agent-sdk` | [sdk-php/README.md](sdk-php/README.md) |
+| **Java** | `sdk-java/` — see [sdk-java/README.md](sdk-java/README.md) | Maven: `com.tollara:service-sdk` |
+| **JavaScript/TypeScript** | `npm install @tollara/service-sdk` | [sdk-js/README.md](sdk-js/README.md) |
+| **C#** | `dotnet add package Tollara.ServiceSdk` | [sdk-dotnet/README.md](sdk-dotnet/README.md) |
+| **Python** | `pip install tollara-service-sdk` | [sdk-python/README.md](sdk-python/README.md) |
+| **Go** | `go get github.com/tollara/service-sdk-go` | [sdk-go/README.md](sdk-go/README.md) |
+| **Rust** | `cargo add tollara-service-sdk` | [sdk-rust/README.md](sdk-rust/README.md) |
+| **Ruby** | `gem install tollara_service_sdk` | [sdk-ruby/README.md](sdk-ruby/README.md) |
+| **PHP** | `composer require tollara/service-sdk` | [sdk-php/README.md](sdk-php/README.md) |
 | **n8n** | Install community node from `integration-n8n/` | [integration-n8n/README.md](integration-n8n/README.md) |
-| **OpenClaw** | `openclaw plugins install openclaw-agentvend` | [integration-openclaw/README.md](integration-openclaw/README.md) |
+| **OpenClaw** | `openclaw plugins install openclaw-tollara` | [integration-openclaw/README.md](integration-openclaw/README.md) |
 
 ## Documentation
 
@@ -39,7 +39,7 @@ Each `sdk-*` and `integration-*` folder is self-contained. From repo root:
 
 - **sdk-java**: `cd sdk-java && ./gradlew build`
 - **sdk-js**: `cd sdk-js && npm ci && npm test`
-- **sdk-dotnet**: `cd sdk-dotnet && dotnet build` and `cd sdk-dotnet/AgentVend.AgentSdk.Tests && dotnet test` (when .NET SDK is installed)
+- **sdk-dotnet**: `cd sdk-dotnet && dotnet build` and `cd sdk-dotnet/Tollara.ServiceSdk.Tests && dotnet test` (when .NET SDK is installed)
 - **sdk-python**: `cd sdk-python && pip install -e . && pytest`
 - **sdk-go**: `cd sdk-go && go build ./...`
 - **sdk-rust**: `cd sdk-rust && cargo build`

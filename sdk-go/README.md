@@ -1,12 +1,12 @@
-# AgentVend SDK (Go)
+# Tollara SDK (Go)
 
-**Module:** `github.com/agentvend/service-sdk-go`
+**Module:** `github.com/tollara/service-sdk-go`
 
-HMAC helpers, inbound gateway verification, and an `AgentVendClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
+HMAC helpers, inbound gateway verification, and an `TollaraClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
 ## Configuration (base URLs)
 
-Use the AgentVend API origin **`https://api.agentvend.api`** by default. Set `AGENTVEND_API_URL` only when you need a non-production override.
+Use the Tollara API origin **`https://api.tollara.ai`** by default. Set `TOLLARA_API_URL` only when you need a non-production override.
 
 Use this README as the public usage reference.
 
@@ -16,11 +16,11 @@ Use these environment variable names in your app config:
 
 | Config key | Value |
 |----------|--------|
-| API URL | `AGENTVEND_API_URL` (optional override; default origin is `https://api.agentvend.api`) |
-| Service ID | `AGENTVEND_SERVICE_ID` (maps to your **service id**) |
-| Service secret | `AGENTVEND_SERVICE_SECRET` (maps to your **service secret**) |
+| API URL | `TOLLARA_API_URL` (optional override; default origin is `https://api.tollara.ai`) |
+| Service ID | `TOLLARA_SERVICE_ID` (maps to your **service id**) |
+| Service secret | `TOLLARA_SERVICE_SECRET` (maps to your **service secret**) |
 
-`AgentVendClient` uses `net/http` and supports advanced configuration options when needed.
+`TollaraClient` uses `net/http` and supports advanced configuration options when needed.
 
 ### Verify HMAC and trusted user context in one call
 
@@ -34,13 +34,13 @@ if ok {
 ## Install
 
 ```bash
-go get github.com/agentvend/service-sdk-go
+go get github.com/tollara/service-sdk-go
 ```
 
 ## Verify inbound HMAC
 
 ```go
-import "github.com/agentvend/service-sdk-go"
+import "github.com/tollara/service-sdk-go"
 
 // From net/http (package name is sdk):
 ok := sdk.VerifyInboundHMACFromHeaders(serviceSecret, r.Header, string(bodyBytes))
@@ -62,10 +62,10 @@ ctx := sdk.UserContextFromHeaders(r.Header)
 
 Constants live on `sdk` (e.g. `sdk.HeaderSignature`).
 
-## AgentVend client example
+## Tollara client example
 
 ```go
-client, err := sdk.NewAgentVendClient(sdk.AgentVendClientOptions{
+client, err := sdk.NewTollaraClient(sdk.TollaraClientOptions{
     ServiceID:     serviceID,
     ServiceSecret: serviceSecret,
 })

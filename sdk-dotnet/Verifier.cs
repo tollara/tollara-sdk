@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 
-namespace AgentVend;
+namespace Tollara;
 
 public record UserContext(
     string? UserId,
@@ -86,25 +86,25 @@ public static class Verifier
 
     public static bool VerifySignatureFromHeaders(string agentSecret, IReadOnlyDictionary<string, string?> headers, object? payload)
     {
-        var signature = GetHeaderIgnoreCase(headers, AgentVendHeaders.Signature);
-        var timestamp = GetHeaderIgnoreCase(headers, AgentVendHeaders.Timestamp);
+        var signature = GetHeaderIgnoreCase(headers, TollaraHeaders.Signature);
+        var timestamp = GetHeaderIgnoreCase(headers, TollaraHeaders.Timestamp);
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return false;
-        var rolesHeader = GetHeaderIgnoreCase(headers, AgentVendHeaders.Roles);
+        var rolesHeader = GetHeaderIgnoreCase(headers, TollaraHeaders.Roles);
         var roles = string.IsNullOrEmpty(rolesHeader)
             ? Array.Empty<string>()
             : rolesHeader.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
         decimal? quota = null;
-        var q = GetHeaderIgnoreCase(headers, AgentVendHeaders.QuotaRemaining);
+        var q = GetHeaderIgnoreCase(headers, TollaraHeaders.QuotaRemaining);
         if (!string.IsNullOrEmpty(q) && decimal.TryParse(q, NumberStyles.Any, CultureInfo.InvariantCulture, out var qv))
             quota = qv;
-        var subRaw = GetHeaderIgnoreCase(headers, AgentVendHeaders.SubscriptionActive);
+        var subRaw = GetHeaderIgnoreCase(headers, TollaraHeaders.SubscriptionActive);
         var subscriptionActive = subRaw == "true" || subRaw == "1";
-        var bm = GetHeaderIgnoreCase(headers, AgentVendHeaders.BillingModel);
-        var mt = GetHeaderIgnoreCase(headers, AgentVendHeaders.MeasurementType);
-        var ul = GetHeaderIgnoreCase(headers, AgentVendHeaders.UnitLabel);
+        var bm = GetHeaderIgnoreCase(headers, TollaraHeaders.BillingModel);
+        var mt = GetHeaderIgnoreCase(headers, TollaraHeaders.MeasurementType);
+        var ul = GetHeaderIgnoreCase(headers, TollaraHeaders.UnitLabel);
         var signed = new SignedUserContext(
-            GetHeaderIgnoreCase(headers, AgentVendHeaders.UserId),
-            GetHeaderIgnoreCase(headers, AgentVendHeaders.Plan),
+            GetHeaderIgnoreCase(headers, TollaraHeaders.UserId),
+            GetHeaderIgnoreCase(headers, TollaraHeaders.Plan),
             roles,
             quota,
             subscriptionActive,
@@ -112,7 +112,7 @@ public static class Verifier
             string.IsNullOrEmpty(mt) ? null : mt,
             string.IsNullOrEmpty(ul) ? null : ul
         );
-        var signingVersion = GetHeaderIgnoreCase(headers, AgentVendHeaders.SigningVersion);
+        var signingVersion = GetHeaderIgnoreCase(headers, TollaraHeaders.SigningVersion);
         return VerifyInboundHmac(agentSecret, new InboundHmacRequest(signature, timestamp, payload, signed,
             string.IsNullOrEmpty(signingVersion) ? null : signingVersion));
     }
@@ -149,22 +149,22 @@ public static class Verifier
 
     public static UserContext GetUserContext(IReadOnlyDictionary<string, string?> headers)
     {
-        var rolesHeader = GetHeaderIgnoreCase(headers, AgentVendHeaders.Roles);
+        var rolesHeader = GetHeaderIgnoreCase(headers, TollaraHeaders.Roles);
         var roles = string.IsNullOrEmpty(rolesHeader)
             ? Array.Empty<string>()
             : rolesHeader.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
         decimal? quotaRemaining = null;
-        var q = GetHeaderIgnoreCase(headers, AgentVendHeaders.QuotaRemaining);
+        var q = GetHeaderIgnoreCase(headers, TollaraHeaders.QuotaRemaining);
         if (!string.IsNullOrEmpty(q) && decimal.TryParse(q, NumberStyles.Any, CultureInfo.InvariantCulture, out var qv))
             quotaRemaining = qv;
-        var sub = GetHeaderIgnoreCase(headers, AgentVendHeaders.SubscriptionActive);
+        var sub = GetHeaderIgnoreCase(headers, TollaraHeaders.SubscriptionActive);
         var subscriptionActive = sub == "true" || sub == "1";
-        var bm = GetHeaderIgnoreCase(headers, AgentVendHeaders.BillingModel);
-        var mt = GetHeaderIgnoreCase(headers, AgentVendHeaders.MeasurementType);
-        var ul = GetHeaderIgnoreCase(headers, AgentVendHeaders.UnitLabel);
+        var bm = GetHeaderIgnoreCase(headers, TollaraHeaders.BillingModel);
+        var mt = GetHeaderIgnoreCase(headers, TollaraHeaders.MeasurementType);
+        var ul = GetHeaderIgnoreCase(headers, TollaraHeaders.UnitLabel);
         return new UserContext(
-            GetHeaderIgnoreCase(headers, AgentVendHeaders.UserId),
-            GetHeaderIgnoreCase(headers, AgentVendHeaders.Plan),
+            GetHeaderIgnoreCase(headers, TollaraHeaders.UserId),
+            GetHeaderIgnoreCase(headers, TollaraHeaders.Plan),
             roles,
             quotaRemaining,
             subscriptionActive,

@@ -1,12 +1,12 @@
-# AgentVend SDK (Ruby)
+# Tollara SDK (Ruby)
 
-**Gem:** `agentvend_service_sdk` (RubyGems). **Module:** `AgentVendSdk`.
+**Gem:** `tollara_service_sdk` (RubyGems). **Module:** `TollaraSdk`.
 
-HMAC helpers, inbound verification, and an `AgentVendClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
+HMAC helpers, inbound verification, and an `TollaraClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
 ## Configuration (base URLs)
 
-Use the AgentVend API origin **`https://api.agentvend.api`** by default; set `AGENTVEND_API_URL` only when you need a non-production origin.
+Use the Tollara API origin **`https://api.tollara.ai`** by default; set `TOLLARA_API_URL` only when you need a non-production origin.
 
 Use this README as the public usage reference.
 
@@ -14,33 +14,33 @@ Use this README as the public usage reference.
 
 Use these environment variable names in your deployment config:
 
-- `AGENTVEND_API_URL` (optional override; production default is `https://api.agentvend.api`)
-- `AGENTVEND_SERVICE_ID` (optional depending on Core; maps to your service id)
-- `AGENTVEND_SERVICE_SECRET` (maps to your service secret)
+- `TOLLARA_API_URL` (optional override; production default is `https://api.tollara.ai`)
+- `TOLLARA_SERVICE_ID` (optional depending on Core; maps to your service id)
+- `TOLLARA_SERVICE_SECRET` (maps to your service secret)
 
-`AgentVendClient` uses Net::HTTP and supports advanced configuration options when needed.
+`TollaraClient` uses Net::HTTP and supports advanced configuration options when needed.
 
 ### Verify HMAC and trusted user context in one call
 
 ```ruby
-ctx = AgentVendSdk.verify_signature_from_headers_and_user_context(service_secret, headers_hash, raw_body)
+ctx = TollaraSdk.verify_signature_from_headers_and_user_context(service_secret, headers_hash, raw_body)
 # ctx is nil if invalid; otherwise same shape as user_context_from_headers
 ```
 
 ## Install
 
 ```bash
-gem install agentvend_service_sdk
+gem install tollara_service_sdk
 ```
 
 ## Verify inbound HMAC
 
 ```ruby
-require "agentvend_service_sdk"
+require "tollara_service_sdk"
 
-AgentVendSdk.verify_signature_from_headers(service_secret, headers_hash, raw_body)
+TollaraSdk.verify_signature_from_headers(service_secret, headers_hash, raw_body)
 
-AgentVendSdk.verify_inbound_hmac(service_secret,
+TollaraSdk.verify_inbound_hmac(service_secret,
   signature: sig,
   timestamp: ts,
   payload: body,
@@ -50,22 +50,22 @@ AgentVendSdk.verify_inbound_hmac(service_secret,
   quota_remaining: 10
 )
 
-ctx = AgentVendSdk.user_context_from_headers(headers_hash)
+ctx = TollaraSdk.user_context_from_headers(headers_hash)
 ```
 
-Header name constants: `AgentVendSdk::HEADERS[:signature]`, etc.
+Header name constants: `TollaraSdk::HEADERS[:signature]`, etc.
 
 ## Outbound signing
 
 ```ruby
-AgentVendSdk.calculate_hmac(data, key)
-AgentVendSdk.calculate_hmac_with_timestamp(body_string, timestamp, key)
+TollaraSdk.calculate_hmac(data, key)
+TollaraSdk.calculate_hmac_with_timestamp(body_string, timestamp, key)
 ```
 
-## AgentVend client example
+## Tollara client example
 
 ```ruby
-client = AgentVendSdk::AgentVendClient.new(
+client = TollaraSdk::TollaraClient.new(
   service_id: service_id,
   service_secret: service_secret
 )

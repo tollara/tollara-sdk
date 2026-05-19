@@ -3,7 +3,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 
-namespace AgentVend;
+namespace Tollara;
 
 public record ServiceKeyValidationResult(
     string? UserId,
@@ -35,7 +35,7 @@ public record UsageEstimateResult(
 
 public static class ValidationClient
 {
-    /// <summary>Validate using the SDK default API origin and Core path prefix (same as <see cref="AgentVendClient"/>).</summary>
+    /// <summary>Validate using the SDK default API origin and Core path prefix (same as <see cref="TollaraClient"/>).</summary>
     public static Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string serviceKey, string? serviceId,
         string serviceSecret, CancellationToken ct = default) =>
         ValidateServiceKeyAsync(http, DefaultCoreServiceRoot(), serviceKey, serviceId, serviceSecret, ct);
@@ -51,8 +51,8 @@ public static class ValidationClient
         var res = await http.SendAsync(req, ct);
         if (!res.IsSuccessStatusCode) return null;
         var responseText = await res.Content.ReadAsStringAsync(ct);
-        var signature = res.Headers.TryGetValues(AgentVendHeaders.Signature, out var sig) ? string.Join("", sig) : null;
-        var timestamp = res.Headers.TryGetValues(AgentVendHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
+        var signature = res.Headers.TryGetValues(TollaraHeaders.Signature, out var sig) ? string.Join("", sig) : null;
+        var timestamp = res.Headers.TryGetValues(TollaraHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
         if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret)) return null;
         var doc = JsonDocument.Parse(responseText);
@@ -77,7 +77,7 @@ public static class ValidationClient
         );
     }
 
-    /// <summary>Estimate usage using the SDK default Core root (same as <see cref="AgentVendClient"/>).</summary>
+    /// <summary>Estimate usage using the SDK default Core root (same as <see cref="TollaraClient"/>).</summary>
     public static Task<UsageEstimateResult?> EstimateUsageAsync(HttpClient http, string serviceKey, decimal estimatedUnits,
         string? serviceId, string serviceSecret, CancellationToken ct = default) =>
         EstimateUsageAsync(http, DefaultCoreServiceRoot(), serviceKey, estimatedUnits, serviceId, serviceSecret, ct);
@@ -98,8 +98,8 @@ public static class ValidationClient
             code != (int)HttpStatusCode.TooManyRequests) return null;
         var responseText = await res.Content.ReadAsStringAsync(ct);
         if (string.IsNullOrWhiteSpace(responseText)) return null;
-        var signature = res.Headers.TryGetValues(AgentVendHeaders.Signature, out var sig) ? string.Join("", sig) : null;
-        var timestamp = res.Headers.TryGetValues(AgentVendHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
+        var signature = res.Headers.TryGetValues(TollaraHeaders.Signature, out var sig) ? string.Join("", sig) : null;
+        var timestamp = res.Headers.TryGetValues(TollaraHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
         if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret)) return null;
         using var doc = JsonDocument.Parse(responseText);
@@ -184,7 +184,7 @@ public static class ValidationClient
     }
 
     private static string DefaultCoreServiceRoot() =>
-        JoinBaseAndPrefix(AgentVendClient.DefaultApiUrl, AgentVendClient.DefaultCorePathPrefix);
+        JoinBaseAndPrefix(TollaraClient.DefaultApiUrl, TollaraClient.DefaultCorePathPrefix);
 
     private static string JoinBaseAndPrefix(string baseUrl, string pathPrefix)
     {

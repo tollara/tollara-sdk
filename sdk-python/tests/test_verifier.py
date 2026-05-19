@@ -1,7 +1,7 @@
 """Tests for inbound HMAC verification helpers."""
 
-from agentvend_service_sdk import (
-    AgentVendHeaders,
+from tollara_service_sdk import (
+    TollaraHeaders,
     InboundHmacRequest,
     SignedUserContext,
     calculate_hmac,
@@ -12,7 +12,7 @@ from agentvend_service_sdk import (
     verify_signature_from_headers,
     verify_signature_from_headers_and_get_user_context,
 )
-from agentvend_service_sdk.verifier import build_gateway_user_context_string, build_gateway_user_context_string_v2
+from tollara_service_sdk.verifier import build_gateway_user_context_string, build_gateway_user_context_string_v2
 
 
 def test_verify_inbound_hmac_accepts_gateway_hmac_v2_when_signing_version_header_is_2():
@@ -25,13 +25,13 @@ def test_verify_inbound_hmac_accepts_gateway_hmac_v2_when_signing_version_header
     data_to_sign = payload + timestamp + ucs
     signature = calculate_hmac(data_to_sign, secret)
     headers = {
-        "x-agentvend-signature": signature,
-        "x-agentvend-timestamp": timestamp,
-        "x-agentvend-signing-version": "2",
-        "x-agentvend-user-id": "user1",
-        "x-agentvend-plan": "plan1",
-        "x-agentvend-roles": "role1,role2",
-        "x-agentvend-subscription-active": "false",
+        "x-tollara-signature": signature,
+        "x-tollara-timestamp": timestamp,
+        "x-tollara-signing-version": "2",
+        "x-tollara-user-id": "user1",
+        "x-tollara-plan": "plan1",
+        "x-tollara-roles": "role1,role2",
+        "x-tollara-subscription-active": "false",
     }
     assert verify_signature_from_headers(secret, headers, payload) is True
 
@@ -45,12 +45,12 @@ def test_verify_inbound_hmac_rejects_v1_when_signature_is_v2_without_header():
     )
     signature = calculate_hmac(payload + timestamp + ucs, secret)
     headers = {
-        "x-agentvend-signature": signature,
-        "x-agentvend-timestamp": timestamp,
-        "x-agentvend-user-id": "user1",
-        "x-agentvend-plan": "plan1",
-        "x-agentvend-roles": "role1,role2",
-        "x-agentvend-subscription-active": "false",
+        "x-tollara-signature": signature,
+        "x-tollara-timestamp": timestamp,
+        "x-tollara-user-id": "user1",
+        "x-tollara-plan": "plan1",
+        "x-tollara-roles": "role1,role2",
+        "x-tollara-subscription-active": "false",
     }
     assert verify_signature_from_headers(secret, headers, payload) is False
 
@@ -88,13 +88,13 @@ def test_verify_signature_from_headers_lowercase_keys():
     )
     signature = calculate_hmac(payload + timestamp + ucs, secret)
     headers = {
-        "x-agentvend-signature": signature,
-        "x-agentvend-timestamp": timestamp,
-        "x-agentvend-user-id": "user1",
-        "x-agentvend-plan": "plan1",
-        "x-agentvend-roles": "role1,role2",
-        "x-agentvend-quota-remaining": "10",
-        "x-agentvend-subscription-active": "false",
+        "x-tollara-signature": signature,
+        "x-tollara-timestamp": timestamp,
+        "x-tollara-user-id": "user1",
+        "x-tollara-plan": "plan1",
+        "x-tollara-roles": "role1,role2",
+        "x-tollara-quota-remaining": "10",
+        "x-tollara-subscription-active": "false",
     }
     assert verify_signature_from_headers(secret, headers, payload) is True
 
@@ -108,13 +108,13 @@ def test_verify_inbound_context_ok():
     )
     signature = calculate_hmac(payload + timestamp + ucs, secret)
     headers = {
-        "x-agentvend-signature": signature,
-        "x-agentvend-timestamp": timestamp,
-        "x-agentvend-user-id": "user1",
-        "x-agentvend-plan": "plan1",
-        "x-agentvend-roles": "role1,role2",
-        "x-agentvend-quota-remaining": "10",
-        "x-agentvend-subscription-active": "false",
+        "x-tollara-signature": signature,
+        "x-tollara-timestamp": timestamp,
+        "x-tollara-user-id": "user1",
+        "x-tollara-plan": "plan1",
+        "x-tollara-roles": "role1,role2",
+        "x-tollara-quota-remaining": "10",
+        "x-tollara-subscription-active": "false",
     }
     ctx = verify_inbound_context(secret, headers, payload)
     assert ctx is not None
@@ -125,8 +125,8 @@ def test_verify_inbound_context_ok():
 
 def test_verify_inbound_context_invalid():
     headers = {
-        "x-agentvend-signature": "bad",
-        "x-agentvend-timestamp": "1700000000",
+        "x-tollara-signature": "bad",
+        "x-tollara-timestamp": "1700000000",
     }
     assert verify_inbound_context("my-agent-secret", headers, "") is None
 
@@ -192,9 +192,9 @@ def test_subscriber_with_billing_headers():
 def test_get_user_context_case_insensitive():
     ctx = get_user_context(
         {
-            "x-agentvend-user-id": "u1",
-            AgentVendHeaders.SUBSCRIPTION_ACTIVE: "true",
-            AgentVendHeaders.BILLING_MODEL: "SUBSCRIPTION",
+            "x-tollara-user-id": "u1",
+            TollaraHeaders.SUBSCRIPTION_ACTIVE: "true",
+            TollaraHeaders.BILLING_MODEL: "SUBSCRIPTION",
         }
     )
     assert ctx.user_id == "u1"

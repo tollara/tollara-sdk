@@ -1,12 +1,12 @@
-# AgentVend SDK (PHP)
+# Tollara SDK (PHP)
 
-**Package:** `agentvend/service-sdk` (Packagist)
+**Package:** `tollara/service-sdk` (Packagist)
 
-HMAC signing, **inbound gateway verification** (`AgentVend\AgentSdk\Verifier`), and an `AgentVendClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
+HMAC signing, **inbound gateway verification** (`Tollara\AgentSdk\Verifier`), and an `TollaraClient` for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
 ## Configuration (base URLs)
 
-Use the AgentVend API origin **`https://api.agentvend.api`** by default. You may omit a configured base when your app only needs that origin; set **`AGENTVEND_API_URL`** (or your config equivalent) only to override—for example staging.
+Use the Tollara API origin **`https://api.tollara.ai`** by default. You may omit a configured base when your app only needs that origin; set **`TOLLARA_API_URL`** (or your config equivalent) only to override—for example staging.
 
 Use this README as the public usage reference.
 
@@ -14,16 +14,16 @@ Use this README as the public usage reference.
 
 Use these environment variable names in your app config:
 
-- `AGENTVEND_API_URL` — Optional. API origin; defaults to `https://api.agentvend.api` in product terms if unset.
-- `AGENTVEND_SERVICE_ID` — Service UUID (optional for some Core flows).
-- `AGENTVEND_SERVICE_SECRET` — Service secret for outbound signing and inbound HMAC verification.
+- `TOLLARA_API_URL` — Optional. API origin; defaults to `https://api.tollara.ai` in product terms if unset.
+- `TOLLARA_SERVICE_ID` — Service UUID (optional for some Core flows).
+- `TOLLARA_SERVICE_SECRET` — Service secret for outbound signing and inbound HMAC verification.
 
-`AgentVendClient` uses HTTP requests directly and supports advanced configuration options when needed.
+`TollaraClient` uses HTTP requests directly and supports advanced configuration options when needed.
 
 ### Verify HMAC and trusted user context in one call
 
 ```php
-use AgentVend\AgentSdk\Verifier;
+use Tollara\AgentSdk\Verifier;
 
 $ctx = Verifier::verifyInboundHmacAndGetUserContext($serviceSecret, $headersArray, $rawBody);
 if ($ctx !== null) {
@@ -34,15 +34,15 @@ if ($ctx !== null) {
 ## Install
 
 ```bash
-composer require agentvend/service-sdk
+composer require tollara/service-sdk
 ```
 
 ## Inbound verification
 
 ```php
-use AgentVend\AgentSdk\AgentVendHeaders;
-use AgentVend\AgentSdk\InboundHmacRequest;
-use AgentVend\AgentSdk\Verifier;
+use Tollara\AgentSdk\TollaraHeaders;
+use Tollara\AgentSdk\InboundHmacRequest;
+use Tollara\AgentSdk\Verifier;
 
 $valid = Verifier::verifySignatureFromHeaders($serviceSecret, $headersArray, $rawBody);
 
@@ -55,18 +55,18 @@ $ctx = Verifier::parseUserContext($headersArray);
 ## Outbound signing
 
 ```php
-use AgentVend\AgentSdk\Hmac;
+use Tollara\AgentSdk\Hmac;
 
 $sig = Hmac::calculateHmac($data, $key);
 $sig = Hmac::calculateHmacWithTimestamp($bodyJson, $timestamp, $serviceSecret);
 ```
 
-## AgentVend client example
+## Tollara client example
 
 ```php
-use AgentVend\AgentSdk\AgentVendClient;
+use Tollara\AgentSdk\TollaraClient;
 
-$client = new AgentVendClient(
+$client = new TollaraClient(
     serviceId: $serviceId,
     serviceSecret: $serviceSecret
 );
