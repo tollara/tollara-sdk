@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AgentVend\AgentSdk;
+namespace Tollara\AgentSdk;
 
 final class Hmac
 {

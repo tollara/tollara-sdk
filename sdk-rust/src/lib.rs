@@ -1,4 +1,4 @@
-//! AgentVend SDK: HMAC verification, user context, validate key, report usage (see docs/hmac-spec.md).
+//! Tollara SDK: HMAC verification, user context, validate key, report usage (see docs/hmac-spec.md).
 
 mod headers;
 mod hmac;
@@ -21,6 +21,6 @@ pub mod validation_client;
 #[cfg(feature = "http")]
 pub mod usage_client;
 #[cfg(feature = "http")]
-pub mod agent_vend_client;
+pub mod tollara_client;
 #[cfg(feature = "http")]
-pub use agent_vend_client::DEFAULT_API_URL;
+pub use tollara_client::DEFAULT_API_URL;

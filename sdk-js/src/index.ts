@@ -1,4 +1,4 @@
-export { AgentVendHeaders, type AgentVendHeaderName } from './agentVendHeaders';
+export { TollaraHeaders, type TollaraHeaderName } from './tollaraHeaders';
 export { calculateHmac, calculateHmacWithTimestamp, constantTimeEquals, validateHmacSignature } from './hmac';
 export {
   verifySignature,
@@ -43,14 +43,12 @@ export {
   type GatewayInvokeResult,
 } from './gatewayInvoke';
 export {
-  AgentVendClient,
+  TollaraClient,
   DEFAULT_API_URL,
   DEFAULT_CORE_PATH_PREFIX,
   DEFAULT_GATEWAY_PATH_PREFIX,
   ENV_SERVICE_ID,
   ENV_SERVICE_SECRET,
-  ENV_AGENT_ID,
-  ENV_AGENT_SECRET,
   ENV_API_URL,
-  type AgentVendClientOptions,
-} from './agentVendClient';
+  type TollaraClientOptions,
+} from './tollaraClient';

@@ -1,4 +1,4 @@
-# API overview (AgentVend services used by SDKs)
+# API overview (Tollara services used by SDKs)
 
 ## Base URLs (configuration)
 
@@ -24,11 +24,11 @@
 | **Invoke (async)** | Gateway | POST/GET | Same path with `/invoke/async`; response has `requestId`, `progressUrl`, `callbackUrl`. Auth: `Authorization: Bearer <agentKey>` |
 | **Job status**     | Gateway | GET | `{gatewayPath}/requests/{requestId}/status` (optional polling) |
 | **Job result**     | Gateway | GET | `{gatewayPath}/requests/{requestId}/result` |
-| **Validate agent key** | Core | POST | `{corePath}/agent-keys/validate`. Body: `{ "agentKey", "agentId", "agentSecret" }`. Response: HMAC in `X-AgentVend-Signature`, `X-AgentVend-Timestamp`; body: `valid`, `userId`, `agentId`, `plan`, `roles`, `quotaRemaining`, `subscriptionActive`. Verify response HMAC. |
-| **Report usage**   | Usage | POST | `{usagePath}/report`. Body: `{ userId, agentId, unitsUsed, timestamp }`. Headers: `X-AgentVend-Signature`, `X-AgentVend-Timestamp` (signature = HMAC(body + timestamp, agentSecret)). |
+| **Validate agent key** | Core | POST | `{corePath}/agent-keys/validate`. Body: `{ "agentKey", "agentId", "agentSecret" }`. Response: HMAC in `X-Tollara-Signature`, `X-Tollara-Timestamp`; body: `valid`, `userId`, `agentId`, `plan`, `roles`, `quotaRemaining`, `subscriptionActive`. Verify response HMAC. |
+| **Report usage**   | Usage | POST | `{usagePath}/report`. Body: `{ userId, agentId, unitsUsed, timestamp }`. Headers: `X-Tollara-Signature`, `X-Tollara-Timestamp` (signature = HMAC(body + timestamp, agentSecret)). |
 | **Progress (async)** | Usage | POST | `{usagePath}/progress/{requestId}` or full `progressUrl`. Body: `{ stage, percentageComplete, errorMessage?, timestamp }`. Sign: HMAC(body + timestamp, agentSecret). |
 | **Completion (async)** | Usage | POST | `{usagePath}/complete/{requestId}` or full `callbackUrl`. Body: `{ status, result?, resultUrl?, contentType?, units?, timestamp }`. Same signing. |
 
 ## Headers from gateway to agent backend
 
-`X-AgentVend-Signature`, `X-AgentVend-Timestamp`, `X-AgentVend-User-ID`, `X-AgentVend-Plan`, `X-AgentVend-Roles`, `X-AgentVend-Quota-Remaining`, `X-AgentVend-Subscription-Active`
+`X-Tollara-Signature`, `X-Tollara-Timestamp`, `X-Tollara-User-ID`, `X-Tollara-Plan`, `X-Tollara-Roles`, `X-Tollara-Quota-Remaining`, `X-Tollara-Subscription-Active`

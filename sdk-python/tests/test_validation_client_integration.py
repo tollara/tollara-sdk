@@ -8,13 +8,13 @@ from uuid import UUID
 import pytest
 import responses
 
-from agentvend_service_sdk.validation_client import (
+from tollara_service_sdk.validation_client import (
     validate_service_key,
     estimate_usage,
     ServiceKeyValidationResult,
     UsageEstimateResult,
 )
-from agentvend_service_sdk.hmac_utils import calculate_hmac
+from tollara_service_sdk.hmac_utils import calculate_hmac
 
 CORE_BASE = "http://core.test"
 SERVICE_SECRET = "test-agent-secret"
@@ -50,8 +50,8 @@ def test_validate_service_key_returns_result_when_core_returns_200_with_valid_hm
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-AgentVend-Signature": signature,
-            "X-AgentVend-Timestamp": timestamp,
+            "X-Tollara-Signature": signature,
+            "X-Tollara-Timestamp": timestamp,
         },
     )
 
@@ -110,8 +110,8 @@ def test_validate_service_key_returns_none_when_hmac_invalid():
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-AgentVend-Signature": "invalid-signature",
-            "X-AgentVend-Timestamp": "1700000000",
+            "X-Tollara-Signature": "invalid-signature",
+            "X-Tollara-Timestamp": "1700000000",
         },
     )
 
@@ -145,8 +145,8 @@ def test_validate_service_key_returns_none_when_valid_false_in_body():
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-AgentVend-Signature": signature,
-            "X-AgentVend-Timestamp": timestamp,
+            "X-Tollara-Signature": signature,
+            "X-Tollara-Timestamp": timestamp,
         },
     )
 
@@ -179,8 +179,8 @@ def test_validate_service_key_sends_service_key_and_service_id_in_body():
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-AgentVend-Signature": signature,
-            "X-AgentVend-Timestamp": "1700000000",
+            "X-Tollara-Signature": signature,
+            "X-Tollara-Timestamp": "1700000000",
         },
     )
 
@@ -203,8 +203,8 @@ def test_validate_service_key_custom_core_path_prefix():
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-AgentVend-Signature": "x",
-            "X-AgentVend-Timestamp": "1",
+            "X-Tollara-Signature": "x",
+            "X-Tollara-Timestamp": "1",
         },
     )
     validate_service_key(
@@ -244,8 +244,8 @@ def test_estimate_usage_returns_result_when_core_returns_200_with_valid_hmac():
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-AgentVend-Signature": signature,
-            "X-AgentVend-Timestamp": timestamp,
+            "X-Tollara-Signature": signature,
+            "X-Tollara-Timestamp": timestamp,
         },
     )
 
@@ -281,8 +281,8 @@ def test_estimate_usage_returns_none_when_hmac_invalid():
         status=200,
         headers={
             "Content-Type": "application/json",
-            "X-AgentVend-Signature": "bad",
-            "X-AgentVend-Timestamp": "1700000000",
+            "X-Tollara-Signature": "bad",
+            "X-Tollara-Timestamp": "1700000000",
         },
     )
 

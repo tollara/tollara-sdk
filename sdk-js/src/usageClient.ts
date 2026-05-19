@@ -1,4 +1,4 @@
-import { AgentVendHeaders } from './agentVendHeaders';
+import { TollaraHeaders } from './tollaraHeaders';
 import { CompletionStatus } from './completionStatus';
 import { DEFAULT_API_URL, DEFAULT_USAGE_PATH_PREFIX } from './constants';
 import { calculateHmacWithTimestamp } from './hmac';
@@ -78,8 +78,8 @@ export async function reportProgress(params: ReportProgressParams): Promise<bool
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        [AgentVendHeaders.SIGNATURE]: signature,
-        [AgentVendHeaders.TIMESTAMP]: timestamp,
+        [TollaraHeaders.SIGNATURE]: signature,
+        [TollaraHeaders.TIMESTAMP]: timestamp,
       },
       body: bodyString,
     });
@@ -146,8 +146,8 @@ export async function reportCompletionFull(params: ReportCompletionParams): Prom
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        [AgentVendHeaders.SIGNATURE]: signature,
-        [AgentVendHeaders.TIMESTAMP]: timestamp,
+        [TollaraHeaders.SIGNATURE]: signature,
+        [TollaraHeaders.TIMESTAMP]: timestamp,
       },
       body: bodyString,
     });
@@ -172,7 +172,7 @@ export interface UsageReportResponse {
  */
 export async function reportUsage(
   params: {
-    /** API origin; defaults to `https://api.agentvend.api`. */
+    /** API origin; defaults to `https://api.tollara.ai`. */
     baseUrl?: string | null;
     userId: string;
     serviceId: string;
@@ -203,8 +203,8 @@ export async function reportUsage(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      [AgentVendHeaders.SIGNATURE]: signature,
-      [AgentVendHeaders.TIMESTAMP]: epochSec,
+      [TollaraHeaders.SIGNATURE]: signature,
+      [TollaraHeaders.TIMESTAMP]: epochSec,
     },
     body: bodyString,
   });

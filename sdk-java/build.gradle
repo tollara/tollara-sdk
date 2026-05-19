@@ -11,8 +11,14 @@ plugins {
     id 'signing'
 }
 
-group = 'com.agentvend'
-version = '0.0.5'
+if (System.getProperty('os.name')?.toLowerCase(Locale.ROOT)?.contains('windows')
+        && !System.getProperty('javax.net.ssl.trustStore')
+        && !System.getProperty('javax.net.ssl.trustStoreType')) {
+    System.setProperty('javax.net.ssl.trustStoreType', 'Windows-ROOT')
+}
+
+group = 'com.tollara'
+version = '0.0.1'
 
 repositories {
     mavenCentral()
@@ -74,13 +80,13 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
-            groupId = 'com.agentvend'
+            groupId = 'com.tollara'
             artifactId = 'service-sdk'
             version = version
             pom {
-                name = 'AgentVend Service SDK (Java)'
-                description = 'Client SDK for AgentVend - verify HMAC, validate service keys, report usage, progress, completion'
-                url = 'https://github.com/maffers001/agentvend-sdk'
+                name = 'Tollara Service SDK (Java)'
+                description = 'Client SDK for Tollara - verify HMAC, validate service keys, report usage, progress, completion'
+                url = 'https://github.com/tollara/tollara-sdk'
                 licenses {
                     license {
                         name = 'The Apache License, Version 2.0'
@@ -89,15 +95,15 @@ publishing {
                 }
                 developers {
                     developer {
-                        id = 'agentvend'
-                        name = (findProperty('mavenCentralDeveloperName') ?: 'AgentVend').toString()
-                        email = (findProperty('mavenCentralDeveloperEmail') ?: 'support@agentvend.ai')
+                        id = 'tollara'
+                        name = (findProperty('mavenCentralDeveloperName') ?: 'Tollara').toString()
+                        email = (findProperty('mavenCentralDeveloperEmail') ?: 'support@tollara.ai')
                     }
                 }
                 scm {
-                    connection = 'scm:git:git://github.com/maffers001/agentvend-sdk.git'
-                    developerConnection = 'scm:git:ssh://git@github.com/maffers001/agentvend-sdk.git'
-                    url = 'https://github.com/maffers001/agentvend-sdk'
+                    connection = 'scm:git:git://github.com/tollara/tollara-sdk.git'
+                    developerConnection = 'scm:git:ssh://git@github.com/tollara/tollara-sdk.git'
+                    url = 'https://github.com/tollara/tollara-sdk'
                 }
             }
         }
@@ -151,7 +157,7 @@ tasks.register('finalizeSonatypeCentralUpload') {
         if (!user || !pass) {
             throw new GradleException('Set mavenCentralUsername/mavenCentralPassword or MAVEN_CENTRAL_PUBLISH_USERNAME / MAVEN_CENTRAL_PUBLISH_PASSWORD')
         }
-        def namespace = (findProperty('mavenCentralNamespace') ?: 'com.agentvend').toString()
+        def namespace = (findProperty('mavenCentralNamespace') ?: 'com.tollara').toString()
         def basePath = findProperty('sonatype.manualUploadPath')?.toString()
             ?: "/manual/upload/defaultRepository/${namespace}"
         def host = (findProperty('sonatype.stagingApiHost') ?: 'https://ossrh-staging-api.central.sonatype.com').toString()

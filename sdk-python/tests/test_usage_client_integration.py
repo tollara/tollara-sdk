@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 import pytest
 import responses
 
-from agentvend_service_sdk.completion_status import CompletionStatus
-from agentvend_service_sdk.hmac_utils import calculate_hmac_with_timestamp
-from agentvend_service_sdk.usage_client import (
+from tollara_service_sdk.completion_status import CompletionStatus
+from tollara_service_sdk.hmac_utils import calculate_hmac_with_timestamp
+from tollara_service_sdk.usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
     report_completion_with_result,
@@ -57,17 +57,17 @@ def test_report_usage_sends_signed_request_and_returns_response():
     assert len(responses.calls) == 1
     req = responses.calls[0].request
     assert req.headers.get("Content-Type", "").startswith("application/json")
-    assert "X-AgentVend-Signature" in req.headers
-    assert "X-AgentVend-Timestamp" in req.headers
+    assert "X-Tollara-Signature" in req.headers
+    assert "X-Tollara-Timestamp" in req.headers
     body = json.loads(req.body)
     assert body["userId"] == "user-1"
     assert body["serviceId"] == "service-1"
     assert body["unitsUsed"] == 1.0
     iso = datetime.fromtimestamp(1700000000, tz=timezone.utc).isoformat().replace("+00:00", "Z")
     assert body["timestamp"] == iso
-    assert req.headers.get("X-AgentVend-Timestamp") == "1700000000"
+    assert req.headers.get("X-Tollara-Timestamp") == "1700000000"
     body_str = json.dumps(body, separators=(",", ":"))
-    assert req.headers.get("X-AgentVend-Signature") == calculate_hmac_with_timestamp(
+    assert req.headers.get("X-Tollara-Signature") == calculate_hmac_with_timestamp(
         body_str, "1700000000", SERVICE_SECRET
     )
 
@@ -133,8 +133,8 @@ def test_report_progress_posts_to_progress_url_with_signature():
     assert ok is True
     assert len(responses.calls) == 1
     req = responses.calls[0].request
-    assert req.headers.get("X-AgentVend-Timestamp") == timestamp
-    assert "X-AgentVend-Signature" in req.headers
+    assert req.headers.get("X-Tollara-Timestamp") == timestamp
+    assert "X-Tollara-Signature" in req.headers
     body = json.loads(req.body)
     assert body["stage"] == "processing"
     assert body["percentageComplete"] == 50
@@ -165,8 +165,8 @@ def test_report_completion_posts_to_callback_url_with_signature():
     assert ok is True
     assert len(responses.calls) == 1
     req = responses.calls[0].request
-    assert req.headers.get("X-AgentVend-Timestamp") == timestamp
-    assert "X-AgentVend-Signature" in req.headers
+    assert req.headers.get("X-Tollara-Timestamp") == timestamp
+    assert "X-Tollara-Signature" in req.headers
     body = json.loads(req.body)
     assert body["status"] == "COMPLETED"
     assert body["result"] == "done"

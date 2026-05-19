@@ -26,7 +26,7 @@ export interface GatewayPollResult {
  * GET .../requests/{requestId}/status with Bearer service key.
  */
 export async function getRequestStatus(params: {
-  /** API origin; defaults to `https://api.agentvend.api`. */
+  /** API origin; defaults to `https://api.tollara.ai`. */
   baseUrl?: string | null;
   requestId: string;
   serviceKey: string;
@@ -50,7 +50,7 @@ export async function getRequestStatus(params: {
  * GET .../requests/{requestId}/result with Bearer service key.
  */
 export async function getRequestResult(params: {
-  /** API origin; defaults to `https://api.agentvend.api`. */
+  /** API origin; defaults to `https://api.tollara.ai`. */
   baseUrl?: string | null;
   requestId: string;
   serviceKey: string;

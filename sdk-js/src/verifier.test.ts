@@ -1,4 +1,4 @@
-import { AgentVendHeaders } from './agentVendHeaders';
+import { TollaraHeaders } from './tollaraHeaders';
 import {
   verifySignature,
   getUserContext,
@@ -25,13 +25,13 @@ describe('verifier', () => {
       verifySignatureFromHeaders(
         secret,
         {
-          [AgentVendHeaders.SIGNATURE.toLowerCase()]: signature,
-          [AgentVendHeaders.TIMESTAMP.toLowerCase()]: timestamp,
-          [AgentVendHeaders.SIGNING_VERSION.toLowerCase()]: '2',
-          'x-agentvend-user-id': 'user1',
-          'x-agentvend-plan': 'plan1',
-          'x-agentvend-roles': 'role1,role2',
-          'x-agentvend-subscription-active': 'false',
+          [TollaraHeaders.SIGNATURE.toLowerCase()]: signature,
+          [TollaraHeaders.TIMESTAMP.toLowerCase()]: timestamp,
+          [TollaraHeaders.SIGNING_VERSION.toLowerCase()]: '2',
+          'x-tollara-user-id': 'user1',
+          'x-tollara-plan': 'plan1',
+          'x-tollara-roles': 'role1,role2',
+          'x-tollara-subscription-active': 'false',
         },
         payload
       )
@@ -47,12 +47,12 @@ describe('verifier', () => {
       verifySignatureFromHeaders(
         secret,
         {
-          'x-agentvend-signature': signature,
-          'x-agentvend-timestamp': timestamp,
-          'x-agentvend-user-id': 'user1',
-          'x-agentvend-plan': 'plan1',
-          'x-agentvend-roles': 'role1,role2',
-          'x-agentvend-subscription-active': 'false',
+          'x-tollara-signature': signature,
+          'x-tollara-timestamp': timestamp,
+          'x-tollara-user-id': 'user1',
+          'x-tollara-plan': 'plan1',
+          'x-tollara-roles': 'role1,role2',
+          'x-tollara-subscription-active': 'false',
         },
         payload
       )
@@ -89,13 +89,13 @@ describe('verifier', () => {
     const ok = verifySignatureFromHeaders(
       secret,
       {
-        'x-agentvend-signature': signature,
-        'x-agentvend-timestamp': timestamp,
-        'x-agentvend-user-id': 'user1',
-        'x-agentvend-plan': 'plan1',
-        'x-agentvend-roles': 'role1,role2',
-        'x-agentvend-quota-remaining': '10',
-        'x-agentvend-subscription-active': 'false',
+        'x-tollara-signature': signature,
+        'x-tollara-timestamp': timestamp,
+        'x-tollara-user-id': 'user1',
+        'x-tollara-plan': 'plan1',
+        'x-tollara-roles': 'role1,role2',
+        'x-tollara-quota-remaining': '10',
+        'x-tollara-subscription-active': 'false',
       },
       payload
     );
@@ -110,13 +110,13 @@ describe('verifier', () => {
     const ctx = verifySignatureFromHeadersAndGetUserContext(
       secret,
       {
-        'x-agentvend-signature': signature,
-        'x-agentvend-timestamp': timestamp,
-        'x-agentvend-user-id': 'user1',
-        'x-agentvend-plan': 'plan1',
-        'x-agentvend-roles': 'role1,role2',
-        'x-agentvend-quota-remaining': '10',
-        'x-agentvend-subscription-active': 'false',
+        'x-tollara-signature': signature,
+        'x-tollara-timestamp': timestamp,
+        'x-tollara-user-id': 'user1',
+        'x-tollara-plan': 'plan1',
+        'x-tollara-roles': 'role1,role2',
+        'x-tollara-quota-remaining': '10',
+        'x-tollara-subscription-active': 'false',
       },
       payload
     );
@@ -127,7 +127,7 @@ describe('verifier', () => {
   it('verifySignatureFromHeadersAndGetUserContext returns null when invalid', () => {
     const ctx = verifySignatureFromHeadersAndGetUserContext(
       secret,
-      { 'x-agentvend-signature': 'bad', 'x-agentvend-timestamp': '1700000000' },
+      { 'x-tollara-signature': 'bad', 'x-tollara-timestamp': '1700000000' },
       ''
     );
     expect(ctx).toBeNull();
@@ -230,14 +230,14 @@ describe('verifier', () => {
 
   it('getUserContext parses lowercase headers', () => {
     const ctx = getUserContext({
-      'x-agentvend-user-id': 'u1',
-      'x-agentvend-plan': 'p1',
-      'x-agentvend-roles': 'r1,r2',
-      'x-agentvend-quota-remaining': '5',
-      'x-agentvend-subscription-active': 'true',
-      'x-agentvend-billing-model': 'SUBSCRIPTION',
-      'x-agentvend-measurement-type': 'PER_REQUEST',
-      'x-agentvend-unit-label': 'request',
+      'x-tollara-user-id': 'u1',
+      'x-tollara-plan': 'p1',
+      'x-tollara-roles': 'r1,r2',
+      'x-tollara-quota-remaining': '5',
+      'x-tollara-subscription-active': 'true',
+      'x-tollara-billing-model': 'SUBSCRIPTION',
+      'x-tollara-measurement-type': 'PER_REQUEST',
+      'x-tollara-unit-label': 'request',
     });
     expect(ctx.userId).toBe('u1');
     expect(ctx.plan).toBe('p1');
@@ -251,11 +251,11 @@ describe('verifier', () => {
 
   it('getUserContext parses canonical-case headers', () => {
     const ctx = getUserContext({
-      'X-AgentVend-User-ID': 'u1',
-      'X-AgentVend-Plan': 'p1',
-      'X-AgentVend-Roles': 'r1,r2',
-      'X-AgentVend-Quota-Remaining': '5',
-      'X-AgentVend-Subscription-Active': 'true',
+      'X-Tollara-User-ID': 'u1',
+      'X-Tollara-Plan': 'p1',
+      'X-Tollara-Roles': 'r1,r2',
+      'X-Tollara-Quota-Remaining': '5',
+      'X-Tollara-Subscription-Active': 'true',
     });
     expect(ctx.userId).toBe('u1');
     expect(ctx.plan).toBe('p1');

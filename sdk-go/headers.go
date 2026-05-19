@@ -1,16 +1,16 @@
 package sdk
 
-// Canonical AgentVend HTTP header names.
+// Canonical Tollara HTTP header names.
 const (
-	HeaderSignature          = "X-AgentVend-Signature"
-	HeaderTimestamp          = "X-AgentVend-Timestamp"
-	HeaderUserID             = "X-AgentVend-User-ID"
-	HeaderPlan               = "X-AgentVend-Plan"
-	HeaderRoles              = "X-AgentVend-Roles"
-	HeaderQuotaRemaining     = "X-AgentVend-Quota-Remaining"
-	HeaderSubscriptionActive = "X-AgentVend-Subscription-Active"
-	HeaderBillingModel       = "X-AgentVend-Billing-Model"
-	HeaderMeasurementType    = "X-AgentVend-Measurement-Type"
-	HeaderUnitLabel          = "X-AgentVend-Unit-Label"
-	HeaderSigningVersion     = "X-AgentVend-Signing-Version"
+	HeaderSignature          = "X-Tollara-Signature"
+	HeaderTimestamp          = "X-Tollara-Timestamp"
+	HeaderUserID             = "X-Tollara-User-ID"
+	HeaderPlan               = "X-Tollara-Plan"
+	HeaderRoles              = "X-Tollara-Roles"
+	HeaderQuotaRemaining     = "X-Tollara-Quota-Remaining"
+	HeaderSubscriptionActive = "X-Tollara-Subscription-Active"
+	HeaderBillingModel       = "X-Tollara-Billing-Model"
+	HeaderMeasurementType    = "X-Tollara-Measurement-Type"
+	HeaderUnitLabel          = "X-Tollara-Unit-Label"
+	HeaderSigningVersion     = "X-Tollara-Signing-Version"
 )

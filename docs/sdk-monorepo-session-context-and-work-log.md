@@ -1,6 +1,6 @@
 # SDK monorepo: session context and work log
 
-This document records the **context and outcomes** from a multi-turn working session on the Agent Hub / AgentVend SDK monorepo (branch work around `implement-sdk-plan-rebrand` and related changes). It is meant as institutional memory for what was discussed, decided, and implemented—not as a substitute for the formal plan in `.cursor/plans/` or the API specs in this folder.
+This document records the **context and outcomes** from a multi-turn working session on the Agent Hub / Tollara SDK monorepo (branch work around `implement-sdk-plan-rebrand` and related changes). It is meant as institutional memory for what was discussed, decided, and implemented—not as a substitute for the formal plan in `.cursor/plans/` or the API specs in this folder.
 
 **Last updated:** March 2026
 
@@ -8,7 +8,7 @@ This document records the **context and outcomes** from a multi-turn working ses
 
 ## 1. Project context
 
-- **Repository:** SDK monorepo for Agent Hub (product naming evolved toward **AgentVend** in places: packages, `com.agentvend`, docs).
+- **Repository:** SDK monorepo for Agent Hub (product naming evolved toward **Tollara** in places: packages, `com.tollara`, docs).
 - **Goal:** Multiple language SDKs and integrations, each with its **own release artifact** (Maven, npm, crates.io, PyPI, etc.), plus shared docs (HMAC, API surface, caller/backend roles).
 - **Authoritative technical references in-repo:**
   - `docs/sdk-repo-project-context.md` — services, path prefixes (default vs ECS), Java reference role.
@@ -32,7 +32,7 @@ This document records the **context and outcomes** from a multi-turn working ses
 
 ### 2.3 Renaming “marketplace” / placeholder naming
 
-- **`marketplace`** was used as a temporary package/product name; global replace paths were documented (e.g. `PACKAGE_NAME.md` in earlier work). Later rebranding toward **AgentVend** appeared in Java group IDs, packages (`com.agentvend`), and POM metadata.
+- **`marketplace`** was used as a temporary package/product name; global replace paths were documented (e.g. `PACKAGE_NAME.md` in earlier work). Later rebranding toward **Tollara** appeared in Java group IDs, packages (`com.tollara`), and POM metadata.
 
 ### 2.4 Removing `client/` and `lib/`
 
@@ -51,7 +51,7 @@ This document records the **context and outcomes** from a multi-turn working ses
 
 ### 3.2 `sdk-java`
 
-- **Consolidation:** Client and HMAC logic refactored into `sdk-java` (package **`com.agentvend`** in current tree: clients, models, `HmacUtils`, request verifier).
+- **Consolidation:** Client and HMAC logic refactored into `sdk-java` (package **`com.tollara`** in current tree: clients, models, `HmacUtils`, request verifier).
 - **`build.gradle`:** Spring Web, Jackson, Lombok, SLF4J API; test deps: JUnit 5, Mockito, **WireMock** 3.x, AssertJ.
 - **WireMock integration tests** (stubs per `docs/sdk-api-spec.md`):
   - `AgentKeyValidationClientIntegrationTest` — valid/invalid HMAC, 401, `valid: false`.

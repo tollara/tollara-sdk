@@ -1,5 +1,5 @@
-/** Default AgentVend API origin (production). */
-export const DEFAULT_API_URL = 'https://api.agentvend.api';
+/** Default Tollara API origin (production). */
+export const DEFAULT_API_URL = 'https://api.tollara.ai';
 
 /** Path segments joined to `baseUrl` for each service (not part of the public URL API). */
 export const DEFAULT_CORE_PATH_PREFIX = '/api/v1';

@@ -1,8 +1,8 @@
-# Project context for SDK monorepo (agentvend-sdk)
+# Project context for SDK monorepo (tollara-sdk)
 
-## What is AgentVend?
+## What is Tollara?
 
-**AgentVend** is a SaaS platform for marketing, monetizing, and managing **AI Agents and MCP Servers**. Developers list agents, set pricing (subscriptions, pay-per-use, credits, tiered), and earn revenue. The platform provides:
+**Tollara** is a SaaS platform for marketing, monetizing, and managing **AI Agents and MCP Servers**. Developers list agents, set pricing (subscriptions, pay-per-use, credits, tiered), and earn revenue. The platform provides:
 
 - **Secure API access** – agent keys, HMAC-signed requests, subscription/quota checks  
 - **Authentication** – AWS Cognito for end users; agent keys for API callers  
@@ -11,14 +11,14 @@
 
 The SDK monorepo you are building provides **client SDKs and integrations** so that:
 
-1. **Callers** can invoke agents on AgentVend (validate keys, call gateway invoke endpoints).  
+1. **Callers** can invoke agents on Tollara (validate keys, call gateway invoke endpoints).  
 2. **Backends** (agent implementers) can receive requests from the gateway, verify HMAC, extract user context, and report usage (and progress/completion for async).
 
 ---
 
-## AgentVend services relevant to SDKs
+## Tollara services relevant to SDKs
 
-Only three services from AgentVend are used by the SDKs. Base URLs are configurable. **When deployed to ECS**, each service uses a path prefix of the form **`/{service}/api/v1`** for consistency; local/Docker may use different path layouts.
+Only three services from Tollara are used by the SDKs. Base URLs are configurable. **When deployed to ECS**, each service uses a path prefix of the form **`/{service}/api/v1`** for consistency; local/Docker may use different path layouts.
 
 | Service   | Role for SDKs | Typical port | Path prefix (local/default) | Path prefix (ECS) |
 |-----------|----------------|-------------|-----------------------------|-------------------|
@@ -26,7 +26,7 @@ Only three services from AgentVend are used by the SDKs. Base URLs are configura
 | **Core**    | Agent/key/subscription data; **agent key validation** | 8081 | `/api/v1` (servlet context) | `/core/api/v1` (servlet context) |
 | **Usage**   | **Usage report**, **progress**, **completion** (async); quota | 8084 | `/api/usage` (controller under context `/`) | `/usage/api/v1` (servlet context; controller path ``) |
 
-- **Gateway peculiarity:** The path prefix (`/api` or `/gateway/api/v1`) is set at **controller** level (`agentvend.gateway.controller-path`), not as the servlet context-path (which stays `/`).  
+- **Gateway peculiarity:** The path prefix (`/api` or `/gateway/api/v1`) is set at **controller** level (`tollara.gateway.controller-path`), not as the servlet context-path (which stays `/`).  
 - **Security service** (Cognito, user auth) is not used by these SDKs; callers use **agent keys** (Bearer token) for gateway invoke and for validate.  
 - **Messaging** and **Gateway-usage-consumer** are internal; SDKs do not call them.
 
@@ -40,13 +40,13 @@ Use configurable base URLs per service (`gatewayBaseUrl`, `coreServiceUrl`, `usa
 |---------|---------|--------|-----------------------------------|
 | **Invoke (sync)** | Gateway | POST/GET/PUT/DELETE | `{gatewayPath}/agent/{agentId}/endpoint/{endpointId}/invoke` — where `gatewayPath` is `/api` (default) or `/gateway/api/v1` (ECS). |
 | **Invoke (async)** | Gateway | POST/GET | Same as above with `/invoke/async`; response has `requestId`, `progressUrl`, `callbackUrl`. Auth: `Authorization: Bearer <agentKey>`. |
-| **Validate agent key** | Core | POST | `{corePath}/agent-keys/validate` — where `corePath` is `/api/v1` (default) or `/core/api/v1` (ECS). Body: `{ "agentKey", "agentId", "agentSecret" }`. Response: HMAC in `X-AgentVend-Signature`, `X-AgentVend-Timestamp`; body has `valid`, `userId`, `agentId`, `plan`, `roles`, `quotaRemaining`, `subscriptionActive`. **Verify response HMAC** as `HMAC(responseBody + timestamp, agentSecret)`. |
-| **Report usage** | Usage | POST | `{usagePath}/report` — where `usagePath` is `/api/usage` (default) or `/usage/api/v1` (ECS). Body: `{ userId, agentId, unitsUsed, timestamp }`. Headers: `X-AgentVend-Signature`, `X-AgentVend-Timestamp` (signature = HMAC(body + timestamp, agentSecret)). |
+| **Validate agent key** | Core | POST | `{corePath}/agent-keys/validate` — where `corePath` is `/api/v1` (default) or `/core/api/v1` (ECS). Body: `{ "agentKey", "agentId", "agentSecret" }`. Response: HMAC in `X-Tollara-Signature`, `X-Tollara-Timestamp`; body has `valid`, `userId`, `agentId`, `plan`, `roles`, `quotaRemaining`, `subscriptionActive`. **Verify response HMAC** as `HMAC(responseBody + timestamp, agentSecret)`. |
+| **Report usage** | Usage | POST | `{usagePath}/report` — where `usagePath` is `/api/usage` (default) or `/usage/api/v1` (ECS). Body: `{ userId, agentId, unitsUsed, timestamp }`. Headers: `X-Tollara-Signature`, `X-Tollara-Timestamp` (signature = HMAC(body + timestamp, agentSecret)). |
 | **Progress (async)** | Usage | POST | `{usagePath}/progress/{requestId}` — same `usagePath` as above; or use the full `progressUrl` from the async response. Body: `{ stage, percentageComplete, errorMessage?, timestamp }`. Sign: HMAC(body + timestamp, agentSecret). |
 | **Completion (async)** | Usage | POST | `{usagePath}/complete/{requestId}` — same `usagePath`; or use the full `callbackUrl` from the async response. Body: `{ status, result?, resultUrl?, contentType?, units?, timestamp }`. Same signing. |
 
 **Headers from gateway → agent backend:**  
-`X-AgentVend-Signature`, `X-AgentVend-Timestamp`, `X-AgentVend-User-ID`, `X-AgentVend-Plan`, `X-AgentVend-Roles`, `X-AgentVend-Quota-Remaining`, `X-AgentVend-Subscription-Active`
+`X-Tollara-Signature`, `X-Tollara-Timestamp`, `X-Tollara-User-ID`, `X-Tollara-Plan`, `X-Tollara-Roles`, `X-Tollara-Quota-Remaining`, `X-Tollara-Subscription-Active`
 
 ---
 
@@ -56,7 +56,7 @@ Use configurable base URLs per service (`gatewayBaseUrl`, `coreServiceUrl`, `usa
 - **Inbound (gateway → agent):** Canonical string = `payload + timestamp + userContextString` (no separators).  
   - `userContextString` = `userId ?? ""` + `plan ?? ""` + `roles.join(",")` + `quotaRemaining.toString()`.  
 - **Outbound (report / progress / complete):** Canonical string = `bodyString + timestamp`.  
-- **Validation response (core → client):** Response body (JSON string) + timestamp; HMAC with agentSecret; compare to `X-AgentVend-Signature`.  
+- **Validation response (core → client):** Response body (JSON string) + timestamp; HMAC with agentSecret; compare to `X-Tollara-Signature`.  
 - Use **constant-time comparison** for signatures. Optional: timestamp window (e.g. ±5 minutes) for replay protection.
 
 The plan and `docs/hmac-spec.md` in the SDK repo should include test vectors; each language implements the same behavior.
@@ -69,7 +69,7 @@ The **client** and the **lib** code it depends on (e.g. HMAC utilities) have bee
 
 **Reference files in this repo (paths may vary by layout):**
 
-- **AgentVendRequestVerifier** – `verifyInboundHmac` (`InboundHmacRequest`, `Function<String,String>` header accessor, or header map), `userContextFromHeaders`, `UserContext`; deprecated `verifyHmacSignature` / `extractUserContext`  
+- **TollaraRequestVerifier** – `verifyInboundHmac` (`InboundHmacRequest`, `Function<String,String>` header accessor, or header map), `userContextFromHeaders`, `UserContext`; deprecated `verifyHmacSignature` / `extractUserContext`  
 - **UsageServiceClient** – `sendProgressUpdate`, `sendCompletion`, `reportUsage`; progress/complete URL parsing and body signing  
 - **AgentKeyValidationClient** – `validateAgentKey`, request/response DTOs, response HMAC check, optional cache  
 - **HmacUtils** (vendored from lib) – `calculateHmac(data, key)`, `calculateHmacWithTimestamp(data, timestamp, key)` (canonical = `data + timestamp`)  
@@ -81,9 +81,9 @@ Other language SDKs should implement the same logical surface and HMAC spec; the
 
 ## Naming
 
-- **Product name:** AgentVend (business name; capital V in "AgentVend").  
-- **Package/artifact names:** Use `agentvend` (lowercase) for package IDs (e.g. npm: `@agentvend/agent-sdk`, NuGet: `AgentVend.AgentSdk`, PyPI: `agentvend-sdk` (Python import `agentvend_sdk`), RubyGems: `agentvend_sdk`, Maven: `com.agentvend:agent-sdk`).  
-- **HTTP headers:** `X-AgentVend-Signature`, `X-AgentVend-Timestamp`, `X-AgentVend-User-ID`, etc.
+- **Product name:** Tollara (business name; capital V in "Tollara").  
+- **Package/artifact names:** Use `tollara` (lowercase) for package IDs (e.g. npm: `@tollara/agent-sdk`, NuGet: `Tollara.ServiceSdk`, PyPI: `tollara-sdk` (Python import `tollara_sdk`), RubyGems: `tollara_sdk`, Maven: `com.tollara:agent-sdk`).  
+- **HTTP headers:** `X-Tollara-Signature`, `X-Tollara-Timestamp`, `X-Tollara-User-ID`, etc.
 
 ---
 
@@ -113,7 +113,7 @@ Each `sdk-*` and `integration-*` is self-contained (own build, deps, tests). No 
 
 - New repo: root README + PACKAGE_NAME.md.  
 - `docs/hmac-spec.md` (and optional `api-overview.md`) with test vector(s).  
-- sdk-java: client and vendored lib are already in this repo; remove any leftover agent-hub dependency; publish with placeholder groupId/artifactId.  
+- sdk-java: client and vendored lib are already in this repo; publish with `com.tollara:service-sdk`.  
 - Each sdk-* and integration: unified API surface and HMAC spec; README with install + minimal example.  
 - CI: per-folder test and publish.  
-- Product name is AgentVend; package prefix is `agentvend`.
+- Product name is Tollara; package prefix is `tollara`.

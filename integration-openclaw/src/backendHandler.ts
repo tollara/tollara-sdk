@@ -3,7 +3,7 @@
  * Use with your HTTP server: call verifyRequest, then your logic, then reportUsageIfNeeded.
  */
 
-import { verifySignatureFromHeaders, getUserContext, reportUsage } from '@agentvend/service-sdk';
+import { verifySignatureFromHeaders, getUserContext, reportUsage } from '@tollara/service-sdk';
 import type { PluginConfig } from './types';
 
 export interface IncomingRequest {

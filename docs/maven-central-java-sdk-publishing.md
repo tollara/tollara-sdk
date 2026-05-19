@@ -1,6 +1,6 @@
 # Publishing the Java SDK to Maven Central (Sonatype)
 
-This document captures **maintainer instructions** and **background** for shipping **`sdk-java`** to [Maven Central](https://central.sonatype.com/) under the verified namespace **`com.agentvend`**.
+This document captures **maintainer instructions** and **background** for shipping **`sdk-java`** to [Maven Central](https://central.sonatype.com/) under the verified namespace **`com.tollara`**.
 
 For a shorter checklist, see **Publish to Maven Central** in [`sdk-java/README.md`](../sdk-java/README.md).
 
@@ -16,7 +16,7 @@ Legacy **OSSRH** (e.g. `oss.sonatype.org` / `s01.oss.sonatype.org`) reached **en
 
 ### Namespace
 
-This project publishes with **`groupId` `com.agentvend`**. That namespace must remain **verified** in the Portal ([Namespaces](https://central.sonatype.com/publishing/namespaces)).
+This project publishes with **`groupId` `com.tollara`**. That namespace must remain **verified** in the Portal ([Namespaces](https://central.sonatype.com/publishing/namespaces)).
 
 ### Gradle plugins
 
@@ -41,7 +41,7 @@ Official reference: [Central Repository requirements](https://central.sonatype.o
 ## How this repository implements publishing
 
 **Project path:** `sdk-java/`  
-**Coordinates:** `com.agentvend:agent-sdk` (see `build.gradle`).
+**Coordinates:** `com.tollara:agent-sdk` (see `build.gradle`).
 
 - **`maven-publish`**: `MavenPublication` `mavenJava`, POM with license, developer, SCM.
 - **`signing`**: signs the publication. Signing runs **only** when publishing to Sonatype’s staging repo or when running **`finalizeSonatypeCentralUpload`**, so normal **`./gradlew build`** and **`publishToMavenLocal`** do not require GPG.
@@ -121,7 +121,7 @@ This runs the Sonatype upload, then the finalize POST.
 
 | Property | Default / purpose |
 |----------|-------------------|
-| `mavenCentralNamespace` | `com.agentvend` — segment in the manual finalize path |
+| `mavenCentralNamespace` | `com.tollara` — segment in the manual finalize path |
 | `mavenCentralPublishingType` | `user_managed` — Portal behavior after finalize (`user_managed`, `automatic`, `portal_api`; see Sonatype) |
 | `sonatype.stagingApiHost` | `https://ossrh-staging-api.central.sonatype.com` |
 | `sonatype.manualUploadPath` | Default `/manual/upload/defaultRepository/{namespace}`; override if Sonatype changes the path — confirm against [their docs](https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/) / OpenAPI |
