@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-tollara",
-  "version": "0.0.2",
-  "description": "n8n community nodes for Tollara: Trigger, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
+  "version": "0.0.3",
+  "description": "n8n community nodes for Tollara: Verify Request, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
@@ -16,7 +16,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && node scripts/copy-icons.mjs",
+    "build": "node scripts/clean-dist.mjs && tsc && node scripts/copy-icons.mjs",
     "dev": "tsc --watch"
   },
   "files": [
@@ -28,7 +28,7 @@
       "dist/credentials/TollaraApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/TollaraTrigger/TollaraTrigger.node.js",
+      "dist/nodes/TollaraVerifyRequest/TollaraVerifyRequest.node.js",
       "dist/nodes/TollaraInvoke/TollaraInvoke.node.js",
       "dist/nodes/TollaraJobStatus/TollaraJobStatus.node.js",
       "dist/nodes/TollaraJobResult/TollaraJobResult.node.js",
