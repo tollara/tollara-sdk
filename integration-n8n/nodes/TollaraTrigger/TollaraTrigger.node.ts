@@ -1,11 +1,12 @@
 import type { ITriggerFunctions, IHookFunctions, INodeType, INodeTypeDescription, IWebhookResponseData, IDataObject } from 'n8n-workflow';
 import { verifySignatureFromHeaders, getUserContext } from '@tollara/service-sdk';
+import { getTollaraCredentials } from '../../lib/tollaraCredentials';
 
 export class TollaraTrigger implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Trigger',
     name: 'tollaraTrigger',
-    icon: 'file:tollara.svg',
+    icon: 'file:tollara.png',
     group: ['trigger'],
     version: 1,
     description: 'Webhook that verifies HMAC and parses X-Tollara-* headers',
@@ -38,11 +39,11 @@ export class TollaraTrigger implements INodeType {
     },
   };
 
-  // n8n trigger context may be ITriggerFunctions with emit; type def expects IWebhookFunctions
+  // n8n trigger context provides emit; INodeType.webhook types expect IWebhookFunctions
   // @ts-expect-error - trigger context provides emit for webhook response
   async webhook(this: ITriggerFunctions): Promise<IWebhookResponseData> {
     const credentials = await this.getCredentials('tollaraApi');
-    const serviceSecret = (credentials as { serviceSecret?: string }).serviceSecret as string;
+    const { serviceSecret } = getTollaraCredentials(credentials);
     const req = (this as unknown as { getRequestObject?: () => { body: unknown; headers: Record<string, string> } }).getRequestObject?.();
     if (!req) return {};
     const body = req.body;
