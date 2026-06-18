@@ -42,3 +42,27 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 npm install
 npm run build
 ```
+
+## Local testing (Docker)
+
+Self-hosted n8n can install unverified community nodes from npm (unlike n8n Cloud).
+
+From `integration-n8n/docker`:
+
+```powershell
+cd integration-n8n\docker
+.\start.ps1
+```
+
+Or manually:
+
+```powershell
+cd integration-n8n\docker
+docker compose up -d
+```
+
+Open **http://localhost:5678**, create an owner account, then add nodes — search **Tollara**.
+
+The compose file pre-installs `n8n-nodes-tollara@0.0.1` via `N8N_COMMUNITY_PACKAGES`. Data persists in the `n8n_data` Docker volume.
+
+Stop: `docker compose down` (from the `docker` folder).
