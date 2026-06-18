@@ -1,6 +1,6 @@
 # n8n Community Nodes – Tollara
 
-n8n nodes for Tollara: webhook trigger with HMAC verification, gateway invoke, async job polling, progress/complete, validate service key, report usage, and estimate usage.
+n8n nodes for Tollara: verify inbound HMAC from the n8n Webhook node, gateway invoke, async job polling, progress/complete, validate service key, report usage, and estimate usage.
 
 **Package:** `n8n-nodes-tollara`
 
@@ -13,7 +13,7 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 
 ## Nodes
 
-- **Tollara Trigger** – Webhook that verifies HMAC using the service secret and parses `X-Tollara-*` headers. Outputs request body and user context.
+- **Tollara Verify Request** – Verify Tollara HMAC on output from the n8n **Webhook** node. Passes through all webhook fields (`headers`, `params`, `query`, `body`, binary) and adds `userContext`.
 - **Tollara Invoke** – Invoke a service endpoint (sync or async). Supports GET, POST, PUT, DELETE.
 - **Tollara Job Status** – Poll async job status by request ID.
 - **Tollara Job Result** – Fetch async job result by request ID.
@@ -27,7 +27,9 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 
 **Caller async:** Tollara Invoke (async) → Tollara Job Status → Tollara Job Result
 
-**Backend async:** Tollara Trigger → [your logic] → Tollara Progress → Tollara Complete
+**Backend async:** Webhook → Tollara Verify Request → [your logic] → Tollara Progress → Tollara Complete
+
+Enable **Raw Body** on the Webhook node for reliable HMAC verification. Point your Tollara service at the Webhook production URL.
 
 ## Credentials
 
@@ -47,6 +49,8 @@ npm run build
 
 Self-hosted n8n can install unverified community nodes from npm (unlike n8n Cloud).
 
+**Local dev (no npm publish):** the Docker setup bind-mounts your built `integration-n8n` folder. Changes take effect after `npm run build` and `docker compose restart`.
+
 From `integration-n8n/docker`:
 
 ```powershell
@@ -57,12 +61,15 @@ cd integration-n8n\docker
 Or manually:
 
 ```powershell
-cd integration-n8n\docker
-docker compose up -d
+cd integration-n8n
+npm install
+npm run build
+cd docker
+docker compose up -d --force-recreate
 ```
 
 Open **http://localhost:5678**, create an owner account, then add nodes — search **Tollara**.
 
-The compose file pre-installs `n8n-nodes-tollara@0.0.1` via `N8N_COMMUNITY_PACKAGES`. Data persists in the `n8n_data` Docker volume.
+Workflow data persists in the `n8n_data` Docker volume. The Tollara package is loaded from your repo via bind mount, not from npm.
 
 Stop: `docker compose down` (from the `docker` folder).
