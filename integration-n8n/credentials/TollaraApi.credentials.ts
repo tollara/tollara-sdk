@@ -18,6 +18,15 @@ export class TollaraApi implements ICredentialType {
       description: 'Service secret for HMAC signing and verification',
     },
     {
+      displayName: 'Service ID',
+      name: 'serviceId',
+      type: 'string',
+      default: '',
+      placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+      description:
+        'Optional. Your service UUID from the Tollara Service Workspace (open your service → Settings). Used by Validate Key when not overridden on the node.',
+    },
+    {
       displayName: 'API URL',
       name: 'apiUrl',
       type: 'string',

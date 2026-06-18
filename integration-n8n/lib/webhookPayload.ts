@@ -53,3 +53,18 @@ export function headersFromWebhookItem(item: INodeExecutionData): Record<string,
   }
   return {};
 }
+
+/** Bearer token from Webhook node output (`headers.authorization`). */
+export function bearerTokenFromWebhookItem(item: INodeExecutionData): string | undefined {
+  const headers = headersFromWebhookItem(item);
+  let authorization: string | undefined;
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'authorization' && typeof value === 'string') {
+      authorization = value;
+      break;
+    }
+  }
+  if (!authorization) return undefined;
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return (match ? match[1] : authorization).trim() || undefined;
+}
