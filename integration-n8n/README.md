@@ -19,7 +19,7 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 - **Tollara Job Result** – Fetch async job result by request ID.
 - **Tollara Progress** – Send a progress update (use the `progressUrl` from an async invoke response).
 - **Tollara Complete** – Send completion (use the `callbackUrl` from an async invoke response).
-- **Tollara Validate Key** – Validate a service key and return user/plan/quota.
+- **Tollara Validate Key** – Validate a service key and return user/plan/quota. Place after the n8n **Webhook** node; reads `Authorization: Bearer` automatically. Set **Service ID** once in credentials (Service Workspace → your service → Settings).
 - **Tollara Report Usage** – Report usage units for a user and service.
 - **Tollara Estimate Usage** – Estimate usage cost and quota for a service key.
 
@@ -36,6 +36,7 @@ Enable **Raw Body** on the Webhook node for reliable HMAC verification. Point yo
 **Tollara API**
 
 - **Service Secret** (required) – Used for HMAC signing and verification.
+- **Service ID** (optional) – Your service UUID from the Tollara Service Workspace (service settings). Avoids re-entering it on each Validate Key node.
 - **API URL** (optional) – Leave blank for production. Override only for local or dev testing.
 
 ## Build
