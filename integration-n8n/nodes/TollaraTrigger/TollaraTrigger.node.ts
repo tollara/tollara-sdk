@@ -1,6 +1,23 @@
-import type { ITriggerFunctions, IHookFunctions, INodeType, INodeTypeDescription, IWebhookResponseData, IDataObject } from 'n8n-workflow';
+import type {
+  IHookFunctions,
+  INodeType,
+  INodeTypeDescription,
+  IWebhookFunctions,
+  IWebhookResponseData,
+  IDataObject,
+} from 'n8n-workflow';
 import { verifySignatureFromHeaders, getUserContext } from '@tollara/service-sdk';
 import { getTollaraCredentials } from '../../lib/tollaraCredentials';
+
+function requestPayload(req: ReturnType<IWebhookFunctions['getRequestObject']>): string {
+  const rawBody = (req as { rawBody?: Buffer | string }).rawBody;
+  if (rawBody != null) {
+    return typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8');
+  }
+  const body = req.body;
+  if (body == null) return '';
+  return typeof body === 'object' ? JSON.stringify(body) : String(body);
+}
 
 export class TollaraTrigger implements INodeType {
   description: INodeTypeDescription = {
@@ -39,25 +56,23 @@ export class TollaraTrigger implements INodeType {
     },
   };
 
-  // n8n trigger context provides emit; INodeType.webhook types expect IWebhookFunctions
-  // @ts-expect-error - trigger context provides emit for webhook response
-  async webhook(this: ITriggerFunctions): Promise<IWebhookResponseData> {
+  async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
     const credentials = await this.getCredentials('tollaraApi');
     const { serviceSecret } = getTollaraCredentials(credentials);
-    const req = (this as unknown as { getRequestObject?: () => { body: unknown; headers: Record<string, string> } }).getRequestObject?.();
-    if (!req) return {};
-    const body = req.body;
-    const headers = req.headers || {};
-    const payload = typeof body === 'object' ? JSON.stringify(body) : (body as string) ?? '';
-    const valid = verifySignatureFromHeaders(serviceSecret, headers as Record<string, string>, payload);
+    const req = this.getRequestObject();
+    const headers = req.headers as Record<string, string>;
+    const payload = requestPayload(req);
+    const valid = verifySignatureFromHeaders(serviceSecret, headers, payload);
 
     if (!valid) {
       throw new Error('Invalid HMAC signature');
     }
 
-    const userContext = getUserContext(headers as Record<string, string>);
+    const userContext = getUserContext(headers);
+    const body = req.body;
 
-    this.emit([this.helpers.returnJsonArray([{ body, userContext } as IDataObject])]);
-    return {};
+    return {
+      workflowData: [[{ json: { body, userContext } as IDataObject }]],
+    };
   }
 }
