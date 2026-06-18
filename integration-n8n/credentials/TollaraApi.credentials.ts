@@ -18,20 +18,12 @@ export class TollaraApi implements ICredentialType {
       description: 'Service secret for HMAC signing and verification',
     },
     {
-      displayName: 'Gateway URL',
-      name: 'gatewayUrl',
-      type: 'string',
-      default: 'http://localhost:8083',
-      placeholder: 'https://gateway.example.com',
-      description: 'Base URL of the gateway service (for Invoke)',
-    },
-    {
       displayName: 'API URL',
       name: 'apiUrl',
       type: 'string',
-      default: 'https://api.tollara.ai',
+      default: '',
       placeholder: 'https://api.tollara.ai',
-      description: 'Tollara API origin (validate key, usage, polling); defaults to production',
+      description: 'Leave blank for production; override only for local or dev testing',
     },
   ];
 }

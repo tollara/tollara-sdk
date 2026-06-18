@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-tollara",
   "version": "0.0.1",
-  "description": "n8n community nodes for Tollara: Trigger (HMAC webhook), Invoke, Progress, Complete, Validate Service Key",
+  "description": "n8n community nodes for Tollara: Trigger, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
@@ -16,7 +16,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-icons.mjs",
     "dev": "tsc --watch"
   },
   "files": [
@@ -30,9 +30,13 @@
     "nodes": [
       "dist/nodes/TollaraTrigger/TollaraTrigger.node.js",
       "dist/nodes/TollaraInvoke/TollaraInvoke.node.js",
+      "dist/nodes/TollaraJobStatus/TollaraJobStatus.node.js",
+      "dist/nodes/TollaraJobResult/TollaraJobResult.node.js",
       "dist/nodes/TollaraProgress/TollaraProgress.node.js",
       "dist/nodes/TollaraComplete/TollaraComplete.node.js",
-      "dist/nodes/TollaraValidateKey/TollaraValidateKey.node.js"
+      "dist/nodes/TollaraValidateKey/TollaraValidateKey.node.js",
+      "dist/nodes/TollaraReportUsage/TollaraReportUsage.node.js",
+      "dist/nodes/TollaraEstimateUsage/TollaraEstimateUsage.node.js"
     ],
     "packageId": "n8n-nodes-tollara"
   },
@@ -42,7 +46,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@tollara/service-sdk": "file:../sdk-js"
+    "@tollara/service-sdk": "^0.0.1"
   },
   "peerDependencies": {
     "n8n-workflow": "*"

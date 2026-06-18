@@ -1,11 +1,12 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
 import { CompletionStatus, reportCompletionFull } from '@tollara/service-sdk';
+import { getTollaraCredentials } from '../../lib/tollaraCredentials';
 
 export class TollaraComplete implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Complete',
     name: 'tollaraComplete',
-    icon: 'file:tollara.svg',
+    icon: 'file:tollara.png',
     group: ['transform'],
     version: 1,
     description: 'Send completion to the usage service (async flows)',
@@ -26,7 +27,7 @@ export class TollaraComplete implements INodeType {
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('tollaraApi');
-    const serviceSecret = (credentials as { serviceSecret?: string }).serviceSecret as string;
+    const { serviceSecret } = getTollaraCredentials(credentials);
     const callbackUrl = this.getNodeParameter('callbackUrl', 0) as string;
     const requestId = this.getNodeParameter('requestId', 0) as string;
     const status = this.getNodeParameter('status', 0) as string;

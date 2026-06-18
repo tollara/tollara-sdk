@@ -1,22 +1,23 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
-import { validateServiceKey } from '@tollara/service-sdk';
+import { estimateUsage } from '@tollara/service-sdk';
 import { getTollaraCredentials } from '../../lib/tollaraCredentials';
 
-export class TollaraValidateKey implements INodeType {
+export class TollaraEstimateUsage implements INodeType {
   description: INodeTypeDescription = {
-    displayName: 'Tollara Validate Key',
-    name: 'tollaraValidateKey',
+    displayName: 'Tollara Estimate Usage',
+    name: 'tollaraEstimateUsage',
     icon: 'file:tollara.png',
     group: ['transform'],
     version: 1,
-    description: 'Validate a service key via the core service',
-    defaults: { name: 'Tollara Validate Key' },
+    description: 'Estimate usage cost and quota for a service key',
+    defaults: { name: 'Tollara Estimate Usage' },
     inputs: ['main'],
     outputs: ['main'],
     credentials: [{ name: 'tollaraApi', required: true }],
     properties: [
       { displayName: 'Service Key', name: 'serviceKey', type: 'string', typeOptions: { password: true }, default: '', required: true },
       { displayName: 'Service ID', name: 'serviceId', type: 'string', default: '' },
+      { displayName: 'Estimated Units', name: 'estimatedUnits', type: 'number', default: 1, required: true },
     ],
   };
 
@@ -24,15 +25,21 @@ export class TollaraValidateKey implements INodeType {
     const credentials = await this.getCredentials('tollaraApi');
     const { apiUrl, serviceSecret } = getTollaraCredentials(credentials);
     const serviceKey = this.getNodeParameter('serviceKey', 0) as string;
-    const serviceId = (this.getNodeParameter('serviceId', 0) as string) || undefined;
+    const serviceId = (this.getNodeParameter('serviceId', 0) as string) || null;
+    const estimatedUnits = this.getNodeParameter('estimatedUnits', 0) as number;
 
-    const result = await validateServiceKey({
+    const result = await estimateUsage({
       baseUrl: apiUrl,
       serviceKey,
-      serviceId: serviceId ?? null,
+      serviceId,
       serviceSecret,
+      estimatedUnits,
     });
 
-    return [[{ json: (result ?? {}) as IDataObject }]];
+    if (!result) {
+      throw new Error('Usage estimate failed or was denied');
+    }
+
+    return [[{ json: result as unknown as IDataObject }]];
   }
 }
