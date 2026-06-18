@@ -1,0 +1,24 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: tollara-n8n-dev
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=Europe/London
+      - TZ=Europe/London
+      # Community nodes (self-hosted: unverified npm packages allowed)
+      - N8N_COMMUNITY_PACKAGES_ENABLED=true
+      - N8N_UNVERIFIED_PACKAGES_ENABLED=true
+      - N8N_VERIFIED_PACKAGES_ENABLED=true
+      # Auto-install n8n-nodes-tollara on startup (n8n >= 2.21)
+      - N8N_COMMUNITY_PACKAGES_MANAGED_BY_ENV=true
+      - N8N_COMMUNITY_PACKAGES=[{"name":"n8n-nodes-tollara","version":"0.0.1"}]
+      # Local HTTP access without HTTPS cookie issues
+      - N8N_SECURE_COOKIE=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
