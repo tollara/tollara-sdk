@@ -2,6 +2,7 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 import { verifySignatureFromHeaders, getUserContext } from '@tollara/service-sdk';
 import { getTollaraCredentials } from '../../lib/tollaraCredentials';
 import { headersFromWebhookItem, signedPayloadFromWebhookItem } from '../../lib/webhookPayload';
+import { passthroughItemWithJson } from '../../lib/passthroughItem';
 
 export class TollaraVerifyRequest implements INodeType {
   description: INodeTypeDescription = {
@@ -48,11 +49,7 @@ export class TollaraVerifyRequest implements INodeType {
 
       const userContext = getUserContext(headers);
 
-      returnData.push({
-        json: { ...(item.json as IDataObject), userContext } as IDataObject,
-        ...(item.binary ? { binary: item.binary } : {}),
-        pairedItem: { item: i },
-      });
+      returnData.push(passthroughItemWithJson(item, { userContext }, i));
     }
 
     return [returnData];

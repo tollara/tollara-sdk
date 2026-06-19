@@ -2,6 +2,7 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 import { validateServiceKey } from '@tollara/service-sdk';
 import { getTollaraCredentials, resolveServiceId } from '../../lib/tollaraCredentials';
 import { bearerTokenFromWebhookItem } from '../../lib/webhookPayload';
+import { passthroughItemWithJson, validationResultToUserContext } from '../../lib/passthroughItem';
 
 export class TollaraValidateKey implements INodeType {
   description: INodeTypeDescription = {
@@ -10,7 +11,7 @@ export class TollaraValidateKey implements INodeType {
     icon: 'file:tollara.png',
     group: ['transform'],
     version: 1,
-    description: 'Validate a service key via the core service (typical after the n8n Webhook node)',
+    description: 'Validate a service key (typical after Webhook). Passes through all incoming data and adds userContext.',
     defaults: { name: 'Tollara Validate Key' },
     inputs: ['main'],
     outputs: ['main'],
@@ -86,11 +87,9 @@ export class TollaraValidateKey implements INodeType {
         throw new Error('Service key validation failed');
       }
 
-      returnData.push({
-        json: { ...(item.json as IDataObject), ...result } as IDataObject,
-        ...(item.binary ? { binary: item.binary } : {}),
-        pairedItem: { item: i },
-      });
+      returnData.push(
+        passthroughItemWithJson(item, { userContext: validationResultToUserContext(result) }, i),
+      );
     }
 
     return [returnData];
