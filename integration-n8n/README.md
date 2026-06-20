@@ -37,7 +37,10 @@ Enable **Raw Body** on the Webhook node for reliable HMAC verification. Point yo
 
 - **Service Secret** (required) – Used for HMAC signing and verification.
 - **Service ID** (optional) – Your service UUID from the Tollara Service Workspace (service settings). Avoids re-entering it on each Validate Key node.
-- **API URL** (optional) – Leave blank for production. Override only for local or dev testing.
+- **API URL** (optional) – Leave blank for production. Default base URL for all services.
+- **Core / Usage / Gateway API URL** (optional) – Per-service overrides for local dev when services run on different ports. Each falls back to **API URL**, then the production default.
+
+**Local Docker example:** leave **API URL** blank and set **Core API URL** to `http://host.docker.internal:8081` and **Usage API URL** to `http://host.docker.internal:8084` (and **Gateway API URL** to `http://host.docker.internal:8083` if you use Invoke). One credential works for the whole workflow.
 
 ## Build
 

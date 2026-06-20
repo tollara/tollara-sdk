@@ -1,6 +1,6 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { getRequestResult } from '@tollara/service-sdk';
-import { getTollaraCredentials } from '../../lib/tollaraCredentials';
+import { getTollaraCredentials, resolveGatewayApiUrl } from '../../lib/tollaraCredentials';
 import { parseJsonBody } from '../../lib/parseJsonBody';
 
 export class TollaraJobResult implements INodeType {
@@ -23,11 +23,12 @@ export class TollaraJobResult implements INodeType {
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('tollaraApi');
-    const { apiUrl } = getTollaraCredentials(credentials);
+    const credentialsParsed = getTollaraCredentials(credentials);
+    const gatewayApiUrl = resolveGatewayApiUrl(credentialsParsed);
     const serviceKey = this.getNodeParameter('serviceKey', 0) as string;
     const requestId = this.getNodeParameter('requestId', 0) as string;
 
-    const result = await getRequestResult({ baseUrl: apiUrl, requestId, serviceKey });
+    const result = await getRequestResult({ baseUrl: gatewayApiUrl, requestId, serviceKey });
 
     const output: IDataObject = {
       statusCode: result.status,

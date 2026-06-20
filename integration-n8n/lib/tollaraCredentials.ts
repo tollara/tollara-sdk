@@ -1,17 +1,48 @@
 import type { IDataObject } from 'n8n-workflow';
 
-export function getTollaraCredentials(credentials: IDataObject): {
+export interface TollaraCredentials {
   apiUrl: string | undefined;
+  coreApiUrl: string | undefined;
+  usageApiUrl: string | undefined;
+  gatewayApiUrl: string | undefined;
   serviceSecret: string;
   serviceId: string | undefined;
-} {
-  const rawApiUrl = (credentials.apiUrl as string | undefined)?.trim();
-  const rawServiceId = (credentials.serviceId as string | undefined)?.trim();
+}
+
+function trimOptional(value: string | undefined): string | undefined {
+  const raw = value?.trim();
+  return raw || undefined;
+}
+
+export function getTollaraCredentials(credentials: IDataObject): TollaraCredentials {
   return {
-    apiUrl: rawApiUrl || undefined,
+    apiUrl: trimOptional(credentials.apiUrl as string | undefined),
+    coreApiUrl: trimOptional(credentials.coreApiUrl as string | undefined),
+    usageApiUrl: trimOptional(credentials.usageApiUrl as string | undefined),
+    gatewayApiUrl: trimOptional(credentials.gatewayApiUrl as string | undefined),
     serviceSecret: credentials.serviceSecret as string,
-    serviceId: rawServiceId || undefined,
+    serviceId: trimOptional(credentials.serviceId as string | undefined),
   };
+}
+
+/** Service-specific override, else shared API URL (SDK defaults to production when both unset). */
+export function resolveServiceApiUrl(
+  serviceUrl: string | undefined,
+  apiUrl: string | undefined,
+): string | undefined {
+  return serviceUrl ?? apiUrl;
+}
+
+export function resolveCoreApiUrl(credentials: TollaraCredentials): string | undefined {
+  return resolveServiceApiUrl(credentials.coreApiUrl, credentials.apiUrl);
+}
+
+export function resolveUsageApiUrl(credentials: TollaraCredentials): string | undefined {
+  return resolveServiceApiUrl(credentials.usageApiUrl, credentials.apiUrl);
+}
+
+export function resolveGatewayApiUrl(credentials: TollaraCredentials): string | undefined {
+  return resolveServiceApiUrl(credentials.gatewayApiUrl, credentials.apiUrl);
 }
 
 /** Node parameter override, else credential default. */
