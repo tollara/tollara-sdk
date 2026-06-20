@@ -1,6 +1,6 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { validateServiceKey } from '@tollara/service-sdk';
-import { getTollaraCredentials, resolveServiceId } from '../../lib/tollaraCredentials';
+import { getTollaraCredentials, resolveCoreApiUrl, resolveServiceId } from '../../lib/tollaraCredentials';
 import { bearerTokenFromWebhookItem } from '../../lib/webhookPayload';
 import { passthroughItemWithJson, validationResultToUserContext } from '../../lib/passthroughItem';
 
@@ -52,7 +52,9 @@ export class TollaraValidateKey implements INodeType {
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('tollaraApi');
-    const { apiUrl, serviceSecret, serviceId: credentialServiceId } = getTollaraCredentials(credentials);
+    const credentialsParsed = getTollaraCredentials(credentials);
+    const { serviceSecret, serviceId: credentialServiceId } = credentialsParsed;
+    const coreApiUrl = resolveCoreApiUrl(credentialsParsed);
     const serviceKeySource = this.getNodeParameter('serviceKeySource', 0) as string;
     const manualServiceKey = this.getNodeParameter('serviceKey', 0, '') as string;
     const nodeServiceId = (this.getNodeParameter('serviceId', 0) as string) || undefined;
@@ -77,7 +79,7 @@ export class TollaraValidateKey implements INodeType {
       }
 
       const result = await validateServiceKey({
-        baseUrl: apiUrl,
+        baseUrl: coreApiUrl,
         serviceKey,
         serviceId,
         serviceSecret,
