@@ -1,0 +1,229 @@
+{
+  "name": "Tollara Demo — URL Metadata API (proxied sync)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## URL Metadata API\n\n**Tollara:** proxied sync service\n\n**Webhook path:** `url-metadata`\n\n**Invoke body:** `{ \"url\": \"https://example.com\" }`\n\n**Credential:** Tollara Proxied API",
+        "height": 220,
+        "width": 420
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -120]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "url-metadata",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000010",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "b2c3d4e5-0001-4000-8000-url-metadata"
+    },
+    {
+      "parameters": {
+        "rawBodyBinaryProperty": "data"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000011",
+      "name": "Tollara Verify Request",
+      "type": "n8n-nodes-tollara.tollaraVerifyRequest",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "credentials": {
+        "tollaraApi": {
+          "name": "Tollara Proxied API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = typeof $json.body === 'string' ? JSON.parse($json.body || '{}') : ($json.body ?? {});\nconst url = (body.url ?? '').trim();\nconst valid = /^https?:\\/\\//i.test(url);\nreturn [{ json: { ...$json, url, valid } }];"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000012",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-valid-url",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000013",
+      "name": "URL Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000014",
+      "name": "Fetch Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.data ?? $input.first().json.body ?? '';\nconst url = $('Parse Input').first().json.url;\n\nfunction pick(re, text) {\n  const m = text.match(re);\n  return m ? m[1].trim() : null;\n}\n\nconst title = pick(/<title[^>]*>([^<]*)<\\/title>/i, html)\n  || pick(/<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']+)[\"']/i, html);\n\nconst description = pick(/<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']+)[\"']/i, html)\n  || pick(/<meta[^>]+property=[\"']og:description[\"'][^>]+content=[\"']([^\"']+)[\"']/i, html);\n\nreturn [{ json: { url, title, description, status: 'ok' } }];"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000015",
+      "name": "Extract Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000016",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'error', message: 'Missing or invalid url — send { \"url\": \"https://...\" }' } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000017",
+      "name": "Respond Bad Request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 420]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Tollara Verify Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tollara Verify Request": {
+      "main": [
+        [
+          {
+            "node": "Parse Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Input": {
+      "main": [
+        [
+          {
+            "node": "URL Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "URL Valid?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Page",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Bad Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Page": {
+      "main": [
+        [
+          {
+            "node": "Extract Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Metadata": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
