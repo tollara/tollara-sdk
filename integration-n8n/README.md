@@ -25,6 +25,14 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 
 ## Example workflows
 
+Import-ready demo workflows live in [`example-workflows/`](example-workflows/README.md):
+
+| Workflow | Mode |
+|----------|------|
+| `url-metadata-sync.json` | Proxied sync — fetch page title/description |
+| `topic-brief-async-backend.json` | Proxied async — Wikipedia brief + Progress/Complete |
+| `subscriber-echo-non-proxied.json` | Non-proxied — Validate Key + echo + Report Usage |
+
 **Caller async:** Tollara Invoke (async) → Tollara Job Status → Tollara Job Result
 
 **Backend async:** Webhook → Tollara Verify Request → [your logic] → Tollara Progress → Tollara Complete
