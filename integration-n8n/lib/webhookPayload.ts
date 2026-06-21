@@ -23,13 +23,70 @@ function isEmptyBodyValue(body: unknown): boolean {
   return false;
 }
 
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return v != null && typeof v === 'object' && !Array.isArray(v);
+}
+
+/**
+ * Gateway async forward: HMAC is computed over `{ payload, request_id }` only.
+ * `progress_url` and `callback_url` are appended after signing (see ServiceInvocationService).
+ */
+export function gatewayAsyncSigningPayload(body: Record<string, unknown>): string | null {
+  if (!('request_id' in body) || body.request_id == null) {
+    return null;
+  }
+
+  const payloadNode = body.payload;
+  let payloadString: string;
+  if (payloadNode == null) {
+    payloadString = '';
+  } else if (typeof payloadNode === 'string') {
+    payloadString = payloadNode;
+  } else {
+    payloadString = JSON.stringify(payloadNode);
+  }
+
+  return JSON.stringify({ payload: payloadString, request_id: String(body.request_id) });
+}
+
+function signingPayloadFromRawUtf8(raw: string): string {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (isPlainObject(parsed)) {
+      const asyncPayload = gatewayAsyncSigningPayload(parsed);
+      if (asyncPayload != null) {
+        return asyncPayload;
+      }
+    }
+  } catch {
+    // Not JSON — use raw string (sync pass-through).
+  }
+  return raw;
+}
+
+function signingPayloadFromParsedBody(body: unknown): string {
+  if (isEmptyBodyValue(body)) return '';
+  if (typeof body === 'string') {
+    return signingPayloadFromRawUtf8(body);
+  }
+  if (isPlainObject(body)) {
+    const asyncPayload = gatewayAsyncSigningPayload(body);
+    if (asyncPayload != null) {
+      return asyncPayload;
+    }
+    return JSON.stringify(body);
+  }
+  return JSON.stringify(body);
+}
+
 export function signedPayloadFromWebhookItem(
   item: INodeExecutionData,
   rawBodyBinaryProperty: string,
 ): string {
   const binary = item.binary?.[rawBodyBinaryProperty];
   if (binary?.data) {
-    return Buffer.from(binary.data, 'base64').toString('utf8');
+    const raw = Buffer.from(binary.data, 'base64').toString('utf8');
+    return signingPayloadFromRawUtf8(raw);
   }
 
   const json = item.json as IDataObject;
@@ -39,10 +96,7 @@ export function signedPayloadFromWebhookItem(
     return '';
   }
 
-  const body = json.body;
-  if (isEmptyBodyValue(body)) return '';
-  if (typeof body === 'string') return body;
-  return JSON.stringify(body);
+  return signingPayloadFromParsedBody(json.body);
 }
 
 export function headersFromWebhookItem(item: INodeExecutionData): Record<string, string> {
