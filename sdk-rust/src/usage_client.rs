@@ -3,7 +3,6 @@
 use crate::headers;
 use crate::hmac::calculate_hmac_with_timestamp;
 use serde::Deserialize;
-use serde::Serialize;
 
 /// Completion status for async completion POST (sdk-api-spec §3.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,6 +27,17 @@ pub struct UsageReportResponse {
     pub status: Option<String>,
     pub is_over_limit: bool,
     pub remaining_requests_per_period: i64,
+}
+
+/// Result of a progress or completion callback POST to the usage service.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsageCallbackResult {
+    pub success: bool,
+    pub http_status: u16,
+    pub http_status_text: String,
+    pub request_url: String,
+    pub response_body: Option<String>,
+    pub network_error: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -62,6 +72,9 @@ pub fn build_usage_report_url(usage_base_url: &str, usage_path_prefix: Option<&s
 
 /// Parses `?key=value&...` and returns (base_url, timestamp value if present).
 fn parse_timestamp_from_url(url: &str) -> (String, Option<String>) {
+    if url.is_empty() {
+        return (String::new(), None);
+    }
     let (base, query) = match url.split_once('?') {
         Some((b, q)) => (b.to_string(), q),
         None => return (url.to_string(), None),
@@ -76,6 +89,130 @@ fn parse_timestamp_from_url(url: &str) -> (String, Option<String>) {
         }
     }
     (base, None)
+}
+
+async fn post_signed_usage_callback(
+    client: &reqwest::Client,
+    url_with_query: &str,
+    body: &serde_json::Value,
+    body_str: &str,
+    service_secret: &str,
+) -> UsageCallbackResult {
+    let (base_url, timestamp) = parse_timestamp_from_url(url_with_query);
+    let timestamp = match timestamp {
+        Some(t) => t,
+        None => {
+            let status_text = if url_with_query.is_empty() {
+                "Missing or invalid callback/progress URL"
+            } else {
+                "Missing timestamp query parameter in URL"
+            };
+            return UsageCallbackResult {
+                success: false,
+                http_status: 0,
+                http_status_text: status_text.to_string(),
+                request_url: base_url,
+                response_body: None,
+                network_error: None,
+            };
+        }
+    };
+    let signature = calculate_hmac_with_timestamp(body_str, &timestamp, service_secret);
+    let resp = client
+        .post(&base_url)
+        .json(body)
+        .header(headers::SIGNATURE, signature)
+        .header(headers::TIMESTAMP, &timestamp)
+        .send()
+        .await;
+    match resp {
+        Ok(r) => {
+            let http_status = r.status().as_u16();
+            let success = r.status().is_success();
+            let http_status_text = r
+                .status()
+                .canonical_reason()
+                .map(str::to_string)
+                .unwrap_or_else(|| {
+                    if success {
+                        "OK".to_string()
+                    } else {
+                        format!("HTTP {http_status}")
+                    }
+                });
+            let response_body = r.text().await.ok().filter(|s| !s.is_empty());
+            UsageCallbackResult {
+                success,
+                http_status,
+                http_status_text,
+                request_url: base_url,
+                response_body,
+                network_error: None,
+            }
+        }
+        Err(e) => UsageCallbackResult {
+            success: false,
+            http_status: 0,
+            http_status_text: "Network error".to_string(),
+            request_url: base_url,
+            response_body: None,
+            network_error: Some(e.to_string()),
+        },
+    }
+}
+
+/// Sends a progress update. Returns structured callback result (see JS `UsageCallbackResult`).
+pub async fn report_progress(
+    client: &reqwest::Client,
+    progress_url: &str,
+    _request_id: &str,
+    stage: &str,
+    percentage_complete: i32,
+    service_secret: &str,
+    error_message: Option<&str>,
+) -> UsageCallbackResult {
+    let now_iso = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let mut body = serde_json::json!({
+        "stage": stage,
+        "percentageComplete": percentage_complete,
+        "timestamp": now_iso,
+    });
+    if let Some(msg) = error_message {
+        body["errorMessage"] = serde_json::Value::String(msg.to_string());
+    }
+    let body_str = body.to_string();
+    post_signed_usage_callback(client, progress_url, &body, &body_str, service_secret).await
+}
+
+/// Sends a completion notification with optional result fields.
+pub async fn report_completion(
+    client: &reqwest::Client,
+    callback_url: &str,
+    _request_id: &str,
+    status: CompletionStatus,
+    service_secret: &str,
+    units: f64,
+    result: Option<&str>,
+    result_url: Option<&str>,
+    content_type: Option<&str>,
+) -> UsageCallbackResult {
+    let now_iso = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let mut body = serde_json::json!({
+        "status": status.as_str(),
+        "timestamp": now_iso,
+        "units": units,
+    });
+    if let Some(r) = result {
+        body["result"] = serde_json::Value::String(r.to_string());
+    }
+    if let Some(u) = result_url {
+        body["resultUrl"] = serde_json::Value::String(u.to_string());
+    }
+    if let Some(c) = content_type {
+        body["contentType"] = serde_json::Value::String(c.to_string());
+    }
+    let body_str = body.to_string();
+    post_signed_usage_callback(client, callback_url, &body, &body_str, service_secret).await
 }
 
 /// Reports usage with the current time as timestamp.
@@ -147,160 +284,6 @@ pub async fn report_usage_at(
         is_over_limit: data.is_over_limit.unwrap_or(false),
         remaining_requests_per_period: data.remaining_requests_per_period.unwrap_or(0),
     })
-}
-
-/// Sends a progress update without an error message.
-pub async fn report_progress_simple(
-    client: &reqwest::Client,
-    progress_url: &str,
-    request_id: &str,
-    stage: &str,
-    percentage_complete: i32,
-    service_secret: &str,
-) -> bool {
-    report_progress(
-        client,
-        progress_url,
-        request_id,
-        stage,
-        percentage_complete,
-        service_secret,
-        None,
-    )
-    .await
-}
-
-/// Sends a progress update. Returns `false` if URL has no timestamp or request fails.
-pub async fn report_progress(
-    client: &reqwest::Client,
-    progress_url: &str,
-    _request_id: &str,
-    stage: &str,
-    percentage_complete: i32,
-    service_secret: &str,
-    error_message: Option<&str>,
-) -> bool {
-    let (base_url, timestamp) = parse_timestamp_from_url(progress_url);
-    let timestamp = match timestamp {
-        Some(t) => t,
-        None => return false,
-    };
-    let now_iso = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    let mut body = serde_json::json!({
-        "stage": stage,
-        "percentageComplete": percentage_complete,
-        "timestamp": now_iso,
-    });
-    if let Some(msg) = error_message {
-        body["errorMessage"] = serde_json::Value::String(msg.to_string());
-    }
-    let body_str = body.to_string();
-    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, service_secret);
-    let resp = client
-        .post(&base_url)
-        .json(&body)
-        .header(headers::SIGNATURE, signature)
-        .header(headers::TIMESTAMP, &timestamp)
-        .send()
-        .await;
-    match resp {
-        Ok(r) => r.status().is_success(),
-        Err(_) => false,
-    }
-}
-
-/// Sends completion with status and units only.
-pub async fn report_completion(
-    client: &reqwest::Client,
-    callback_url: &str,
-    request_id: &str,
-    status: CompletionStatus,
-    service_secret: &str,
-    units: f64,
-) -> bool {
-    report_completion_full(
-        client,
-        callback_url,
-        request_id,
-        status,
-        service_secret,
-        None,
-        None,
-        None,
-        units,
-    )
-    .await
-}
-
-/// Sends completion with inline result text.
-pub async fn report_completion_with_result(
-    client: &reqwest::Client,
-    callback_url: &str,
-    request_id: &str,
-    status: CompletionStatus,
-    service_secret: &str,
-    result: &str,
-    units: f64,
-) -> bool {
-    report_completion_full(
-        client,
-        callback_url,
-        request_id,
-        status,
-        service_secret,
-        Some(result),
-        None,
-        None,
-        units,
-    )
-    .await
-}
-
-/// Sends a completion notification. Returns `false` if URL has no timestamp or request fails.
-pub async fn report_completion_full(
-    client: &reqwest::Client,
-    callback_url: &str,
-    _request_id: &str,
-    status: CompletionStatus,
-    service_secret: &str,
-    result: Option<&str>,
-    result_url: Option<&str>,
-    content_type: Option<&str>,
-    units: f64,
-) -> bool {
-    let (base_url, timestamp) = parse_timestamp_from_url(callback_url);
-    let timestamp = match timestamp {
-        Some(t) => t,
-        None => return false,
-    };
-    let now_iso = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    let mut body = serde_json::json!({
-        "status": status.as_str(),
-        "timestamp": now_iso,
-        "units": units,
-    });
-    if let Some(r) = result {
-        body["result"] = serde_json::Value::String(r.to_string());
-    }
-    if let Some(u) = result_url {
-        body["resultUrl"] = serde_json::Value::String(u.to_string());
-    }
-    if let Some(c) = content_type {
-        body["contentType"] = serde_json::Value::String(c.to_string());
-    }
-    let body_str = body.to_string();
-    let signature = calculate_hmac_with_timestamp(&body_str, &timestamp, service_secret);
-    let resp = client
-        .post(&base_url)
-        .json(&body)
-        .header(headers::SIGNATURE, signature)
-        .header(headers::TIMESTAMP, &timestamp)
-        .send()
-        .await;
-    match resp {
-        Ok(r) => r.status().is_success(),
-        Err(_) => false,
-    }
 }
 
 #[cfg(test)]

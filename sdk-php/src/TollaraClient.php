@@ -165,27 +165,17 @@ final class TollaraClient
         return is_array($json) ? $json : null;
     }
 
-    public function sendProgressUpdate(string $progressUrl, string $requestId, string $stage, int $percentageComplete, ?string $errorMessage = null): bool
+    public function sendProgressUpdate(string $progressUrl, string $requestId, string $stage, int $percentageComplete, ?string $errorMessage = null): UsageCallbackResult
     {
-        [$baseUrl, $ts] = $this->splitTimestampUrl($progressUrl);
-        if ($ts === null) {
-            return false;
-        }
         $bodyArr = ['stage' => $stage, 'percentageComplete' => $percentageComplete, 'timestamp' => gmdate('c')];
         if ($errorMessage !== null) {
             $bodyArr['errorMessage'] = $errorMessage;
         }
         $body = json_encode($bodyArr, JSON_UNESCAPED_SLASHES);
         if (!is_string($body)) {
-            return false;
+            return new UsageCallbackResult(false, 0, 'Network error', '', null, 'Failed to encode progress body');
         }
-        $sig = Hmac::calculateHmacWithTimestamp($body, $ts, $this->serviceSecret);
-        $res = $this->requestRaw('POST', $baseUrl, $body, [
-            'Content-Type: application/json',
-            TollaraHeaders::SIGNATURE . ': ' . $sig,
-            TollaraHeaders::TIMESTAMP . ': ' . $ts,
-        ]);
-        return $res !== null && $res['status'] >= 200 && $res['status'] < 300;
+        return $this->postSignedUsageCallback($progressUrl, $body);
     }
 
     public function sendCompletion(
@@ -196,11 +186,7 @@ final class TollaraClient
         ?string $result = null,
         ?string $resultUrl = null,
         ?string $contentType = null
-    ): bool {
-        [$baseUrl, $ts] = $this->splitTimestampUrl($callbackUrl);
-        if ($ts === null) {
-            return false;
-        }
+    ): UsageCallbackResult {
         $bodyArr = ['status' => strtoupper($status), 'timestamp' => gmdate('c'), 'units' => $units];
         if ($result !== null) {
             $bodyArr['result'] = $result;
@@ -213,7 +199,19 @@ final class TollaraClient
         }
         $body = json_encode($bodyArr, JSON_UNESCAPED_SLASHES);
         if (!is_string($body)) {
-            return false;
+            return new UsageCallbackResult(false, 0, 'Network error', '', null, 'Failed to encode completion body');
+        }
+        return $this->postSignedUsageCallback($callbackUrl, $body);
+    }
+
+    private function postSignedUsageCallback(string $urlWithQuery, string $body): UsageCallbackResult
+    {
+        [$baseUrl, $ts] = $this->splitTimestampUrl($urlWithQuery);
+        if ($ts === null) {
+            $statusText = $urlWithQuery === ''
+                ? 'Missing or invalid callback/progress URL'
+                : 'Missing timestamp query parameter in URL';
+            return new UsageCallbackResult(false, 0, $statusText, $baseUrl);
         }
         $sig = Hmac::calculateHmacWithTimestamp($body, $ts, $this->serviceSecret);
         $res = $this->requestRaw('POST', $baseUrl, $body, [
@@ -221,7 +219,13 @@ final class TollaraClient
             TollaraHeaders::SIGNATURE . ': ' . $sig,
             TollaraHeaders::TIMESTAMP . ': ' . $ts,
         ]);
-        return $res !== null && $res['status'] >= 200 && $res['status'] < 300;
+        if ($res === null) {
+            return new UsageCallbackResult(false, 0, 'Network error', $baseUrl, null, 'Request failed');
+        }
+        $success = $res['status'] >= 200 && $res['status'] < 300;
+        $statusText = $success ? 'OK' : ('HTTP ' . $res['status']);
+        $responseBody = $res['body'] !== '' ? $res['body'] : null;
+        return new UsageCallbackResult($success, $res['status'], $statusText, $baseUrl, $responseBody);
     }
 
     /** @return array{ok:bool,status:int,body:string} */

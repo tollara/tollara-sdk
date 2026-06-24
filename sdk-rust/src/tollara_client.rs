@@ -277,7 +277,7 @@ impl TollaraClient {
         stage: &str,
         percentage_complete: i32,
         error_message: Option<&str>,
-    ) -> bool {
+    ) -> usage_client::UsageCallbackResult {
         usage_client::report_progress(
             &self.http,
             progress_url,
@@ -296,7 +296,10 @@ impl TollaraClient {
         request_id: &str,
         status: usage_client::CompletionStatus,
         units: f64,
-    ) -> bool {
+        result: Option<&str>,
+        result_url: Option<&str>,
+        content_type: Option<&str>,
+    ) -> usage_client::UsageCallbackResult {
         usage_client::report_completion(
             &self.http,
             callback_url,
@@ -304,50 +307,9 @@ impl TollaraClient {
             status,
             &self.service_secret,
             units,
-        )
-        .await
-    }
-
-    pub async fn send_completion_with_result(
-        &self,
-        callback_url: &str,
-        request_id: &str,
-        status: usage_client::CompletionStatus,
-        result: &str,
-        units: f64,
-    ) -> bool {
-        usage_client::report_completion_with_result(
-            &self.http,
-            callback_url,
-            request_id,
-            status,
-            &self.service_secret,
-            result,
-            units,
-        )
-        .await
-    }
-
-    pub async fn send_completion_full(
-        &self,
-        callback_url: &str,
-        request_id: &str,
-        status: usage_client::CompletionStatus,
-        result: Option<&str>,
-        result_url: Option<&str>,
-        content_type: Option<&str>,
-        units: f64,
-    ) -> bool {
-        usage_client::report_completion_full(
-            &self.http,
-            callback_url,
-            request_id,
-            status,
-            &self.service_secret,
             result,
             result_url,
             content_type,
-            units,
         )
         .await
     }

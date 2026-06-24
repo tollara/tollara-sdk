@@ -337,26 +337,28 @@ async fn report_progress_posts_to_progress_url_with_signature() {
         .create();
 
     let client = Client::new();
-    let ok = usage_client::report_progress_simple(
+    let result = usage_client::report_progress(
         &client,
         &progress_url,
         "req-123",
         "processing",
         50,
         AGENT_SECRET,
+        None,
     )
     .await;
 
-    assert!(ok);
+    assert!(result.success);
+    assert_eq!(result.http_status, 200);
 }
 
 #[tokio::test]
-async fn report_progress_returns_false_when_url_missing_timestamp() {
+async fn report_progress_returns_failure_when_url_missing_timestamp() {
     let mut server = mockito::Server::new();
     let progress_url = format!("{}/api/usage/progress/req-1", server.url());
 
     let client = Client::new();
-    let ok = usage_client::report_progress(
+    let result = usage_client::report_progress(
         &client,
         &progress_url,
         "req-1",
@@ -367,7 +369,55 @@ async fn report_progress_returns_false_when_url_missing_timestamp() {
     )
     .await;
 
-    assert!(!ok);
+    assert!(!result.success);
+    assert_eq!(result.http_status, 0);
+}
+
+#[tokio::test]
+async fn report_progress_handles_missing_url_without_throwing() {
+    let client = Client::new();
+    let result = usage_client::report_progress(
+        &client,
+        "",
+        "req-1",
+        "processing",
+        25,
+        AGENT_SECRET,
+        None,
+    )
+    .await;
+
+    assert!(!result.success);
+    assert_eq!(result.http_status_text, "Missing or invalid callback/progress URL");
+}
+
+#[tokio::test]
+async fn report_progress_returns_http_status_and_body_on_failure() {
+    let mut server = mockito::Server::new();
+    let progress_path = "/api/usage/progress/req-1";
+    let progress_url = format!("{}{}?timestamp=1700000000", server.url(), progress_path);
+
+    let _mock = server
+        .mock("POST", progress_path)
+        .with_status(404)
+        .with_body("Invalid requestId: req-1")
+        .create();
+
+    let client = Client::new();
+    let result = usage_client::report_progress(
+        &client,
+        &progress_url,
+        "req-1",
+        "processing",
+        25,
+        AGENT_SECRET,
+        None,
+    )
+    .await;
+
+    assert!(!result.success);
+    assert_eq!(result.http_status, 404);
+    assert_eq!(result.response_body.as_deref(), Some("Invalid requestId: req-1"));
 }
 
 #[tokio::test]
@@ -383,37 +433,43 @@ async fn report_completion_posts_to_callback_url_with_signature() {
         .create();
 
     let client = Client::new();
-    let ok = usage_client::report_completion_with_result(
+    let result = usage_client::report_completion(
         &client,
         &callback_url,
         "req-456",
         CompletionStatus::Completed,
         AGENT_SECRET,
-        "done",
         1.0,
+        Some("done"),
+        None,
+        None,
     )
     .await;
 
-    assert!(ok);
+    assert!(result.success);
 }
 
 #[tokio::test]
-async fn report_completion_returns_false_when_url_missing_timestamp() {
+async fn report_completion_returns_failure_when_url_missing_timestamp() {
     let mut server = mockito::Server::new();
     let callback_url = format!("{}/api/usage/complete/req-1", server.url());
 
     let client = Client::new();
-    let ok = usage_client::report_completion(
+    let result = usage_client::report_completion(
         &client,
         &callback_url,
         "req-1",
         CompletionStatus::Failed,
         AGENT_SECRET,
         0.0,
+        None,
+        None,
+        None,
     )
     .await;
 
-    assert!(!ok);
+    assert!(!result.success);
+    assert_eq!(result.http_status, 0);
 }
 
 #[tokio::test]
