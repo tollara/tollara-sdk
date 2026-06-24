@@ -17,10 +17,10 @@ from .gateway_invoke import GatewayInvokeResult, invoke_service as gateway_invok
 from .usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
-    report_completion_full,
     report_progress,
     report_usage,
     report_usage_at,
+    UsageCallbackResult,
     UsageReportResponse,
 )
 from .validation_client import (
@@ -251,7 +251,7 @@ class TollaraClient:
         error_message: Optional[str] = None,
         *,
         session: Optional["requests.Session"] = None,
-    ) -> bool:
+    ) -> UsageCallbackResult:
         return report_progress(
             progress_url,
             request_id,
@@ -273,27 +273,17 @@ class TollaraClient:
         result_url: Optional[str] = None,
         content_type: Optional[str] = None,
         session: Optional["requests.Session"] = None,
-    ) -> bool:
-        sess = session or self._session
-        if result is not None or result_url is not None or content_type is not None:
-            return report_completion_full(
-                callback_url,
-                request_id,
-                status,
-                self._service_secret,
-                result=result,
-                result_url=result_url,
-                content_type=content_type,
-                units=units,
-                session=sess,
-            )
+    ) -> UsageCallbackResult:
         return report_completion(
             callback_url,
             request_id,
             status,
             self._service_secret,
+            result=result,
+            result_url=result_url,
+            content_type=content_type,
             units=units,
-            session=sess,
+            session=session or self._session,
         )
 
     def get_request_status(

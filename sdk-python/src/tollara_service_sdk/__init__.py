@@ -25,11 +25,10 @@ from .completion_status import CompletionStatus
 from .usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
-    report_completion_full,
-    report_completion_with_result,
     report_progress,
     report_usage,
     report_usage_at,
+    UsageCallbackResult,
     UsageReportResponse,
 )
 from .gateway_client import get_request_status, get_request_result, GatewayPollResult
@@ -71,11 +70,10 @@ __all__ = [
     "CompletionStatus",
     "report_progress",
     "report_completion",
-    "report_completion_with_result",
-    "report_completion_full",
     "report_usage",
     "report_usage_at",
     "DEFAULT_USAGE_PATH_PREFIX",
+    "UsageCallbackResult",
     "UsageReportResponse",
     "get_request_status",
     "get_request_result",

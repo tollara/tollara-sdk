@@ -9,9 +9,9 @@ import { getRequestResult, getRequestStatus, type GatewayPollResult } from './ga
 import { invokeService, type GatewayHttpMethod, type GatewayInvokeResult } from './gatewayInvoke';
 import {
   reportCompletion,
-  reportCompletionFull,
   reportProgress,
   reportUsage,
+  type UsageCallbackResult,
   type UsageReportResponse,
 } from './usageClient';
 import {
@@ -171,7 +171,7 @@ export class TollaraClient {
     stage: string,
     percentageComplete: number,
     errorMessage?: string | null
-  ): Promise<boolean> {
+  ): Promise<UsageCallbackResult> {
     return reportProgress({
       progressUrl,
       requestId,
@@ -189,25 +189,15 @@ export class TollaraClient {
     status: CompletionStatus,
     units: number,
     options?: { result?: string | null; resultUrl?: string | null; contentType?: string | null }
-  ): Promise<boolean> {
+  ): Promise<UsageCallbackResult> {
     const { result, resultUrl, contentType } = options ?? {};
-    if (result != null || resultUrl != null || contentType != null) {
-      return reportCompletionFull({
-        callbackUrl,
-        requestId,
-        status,
-        result,
-        resultUrl,
-        contentType,
-        units,
-        serviceSecret: this.serviceSecret,
-        fetch: this.fetchFn,
-      });
-    }
     return reportCompletion({
       callbackUrl,
       requestId,
       status,
+      result,
+      resultUrl,
+      contentType,
       units,
       serviceSecret: this.serviceSecret,
       fetch: this.fetchFn,

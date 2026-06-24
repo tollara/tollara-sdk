@@ -1,6 +1,7 @@
 package com.tollara.client;
 
 import com.tollara.client.model.CompletionStatus;
+import com.tollara.client.model.UsageCallbackResult;
 import com.tollara.client.model.UsageReportResponse;
 
 import com.tollara.client.model.UsageEstimateResult;
@@ -145,25 +146,25 @@ public final class TollaraClient {
         return usage.reportUsage(userId, serviceId, unitsUsed, timestamp);
     }
 
-    public boolean sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete) {
+    public UsageCallbackResult sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete) {
         return usage.sendProgressUpdate(progressUrl, requestId, stage, percentageComplete);
     }
 
-    public boolean sendProgressUpdate(
+    public UsageCallbackResult sendProgressUpdate(
             String progressUrl, String requestId, String stage, int percentageComplete, String errorMessage) {
         return usage.sendProgressUpdate(progressUrl, requestId, stage, percentageComplete, errorMessage);
     }
 
-    public boolean sendCompletion(String callbackUrl, String requestId, CompletionStatus status, BigDecimal units) {
+    public UsageCallbackResult sendCompletion(String callbackUrl, String requestId, CompletionStatus status, BigDecimal units) {
         return usage.sendCompletion(callbackUrl, requestId, status, units);
     }
 
-    public boolean sendCompletion(
+    public UsageCallbackResult sendCompletion(
             String callbackUrl, String requestId, CompletionStatus status, String result, BigDecimal units) {
         return usage.sendCompletion(callbackUrl, requestId, status, result, units);
     }
 
-    public boolean sendCompletion(
+    public UsageCallbackResult sendCompletion(
             String callbackUrl,
             String requestId,
             CompletionStatus status,

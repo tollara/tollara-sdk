@@ -20,7 +20,9 @@ Use **`TollaraClient`** with one API origin.
 
 **Progress / completion** still use the **full** `progressUrl` / `callbackUrl` strings from the gateway (including query params).
 
-**Usage report signing (Usage §3):** the JSON body includes an ISO-8601 **`timestamp`** field; **`X-Tollara-Timestamp`** is **Unix epoch seconds** (same value concatenated to the raw body string for HMAC). Progress/completion use the **timestamp from the URL** query string for signing, as returned by the platform.
+**Usage report signing (Usage §3):** the JSON body includes an ISO-8601 **`timestamp`** field; **`X-Tollara-Timestamp`** is **Unix epoch seconds** (same value concatenated to the raw body string for HMAC). Progress/completion use the **timestamp from the URL** query string for signing, as returned by the platform. **Sign exactly the bytes you POST** — the usage service verifies progress/completion HMAC against the raw HTTP request body (see spec §3).
+
+Progress and completion return **`UsageCallbackResult`** (`success`, `httpStatus`, `httpStatusText`, `requestUrl`, optional `responseBody` / `networkError`) instead of a bare boolean.
 
 ### Environment variables
 
@@ -200,10 +202,13 @@ GatewayInvokeResult inv = client.invokeService("POST", serviceId, endpointId, se
 UsageReportResponse usageResp = client.reportUsage(userId, serviceId, BigDecimal.ONE);
 
 // Give progress update (use the full progressUrl from the gateway/async payload).
-client.sendProgressUpdate(progressUrl, requestId, "some processing info", 50);
+UsageCallbackResult progress = client.sendProgressUpdate(progressUrl, requestId, "some processing info", 50);
+if (!progress.isSuccess()) {
+    System.err.println(progress.getHttpStatus() + " " + progress.getResponseBody());
+}
 
 // Job finished (use the full callbackUrl from the gateway/async payload).
-client.sendCompletion(callbackUrl, requestId, CompletionStatus.COMPLETED, "some result", java.math.BigDecimal.ONE);
+UsageCallbackResult complete = client.sendCompletion(callbackUrl, requestId, CompletionStatus.COMPLETED, "some result", java.math.BigDecimal.ONE);
 
 // Poll async job status (Bearer service key).
 GatewayHttpResponse status = client.getRequestStatus(requestId, serviceKey);

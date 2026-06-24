@@ -44,6 +44,16 @@ class UsageReportResponse:
     overage_rate: Optional[float]
 
 
+@dataclass
+class UsageCallbackResult:
+    success: bool
+    http_status: int
+    http_status_text: str
+    request_url: str
+    response_body: Optional[str] = None
+    network_error: Optional[str] = None
+
+
 def _parse_url_params(url: str) -> tuple[str, Optional[str]]:
     parsed = urlparse(url)
     base = f"{parsed.scheme}://{parsed.netloc}{parsed.path}" if parsed.scheme else url.split("?")[0]
@@ -52,6 +62,62 @@ def _parse_url_params(url: str) -> tuple[str, Optional[str]]:
     qs = parse_qs(parsed.query)
     timestamp = (qs.get("timestamp") or [None])[0]
     return base, timestamp
+
+
+def _post_signed_usage_callback(
+    url_with_query: str,
+    body_str: str,
+    service_secret: str,
+    *,
+    session: Optional["requests.Session"] = None,
+) -> UsageCallbackResult:
+    base_url, timestamp = _parse_url_params(url_with_query)
+    if not timestamp:
+        status_text = (
+            "Missing timestamp query parameter in URL"
+            if url_with_query
+            else "Missing or invalid callback/progress URL"
+        )
+        return UsageCallbackResult(
+            success=False,
+            http_status=0,
+            http_status_text=status_text,
+            request_url=base_url,
+        )
+
+    try:
+        import requests
+    except ImportError as exc:
+        raise ImportError("usage callbacks require 'requests'. pip install requests") from exc
+
+    signature = calculate_hmac_with_timestamp(body_str, timestamp, service_secret)
+    sess = session or requests.Session()
+    try:
+        resp = sess.post(
+            base_url,
+            data=body_str,
+            headers={
+                "Content-Type": "application/json",
+                TollaraHeaders.SIGNATURE: signature,
+                TollaraHeaders.TIMESTAMP: timestamp,
+            },
+        )
+        response_body = resp.text or None
+        return UsageCallbackResult(
+            success=resp.ok,
+            http_status=resp.status_code,
+            http_status_text=resp.reason or ("OK" if resp.ok else f"HTTP {resp.status_code}"),
+            request_url=base_url,
+            response_body=response_body,
+        )
+    except requests.RequestException as exc:
+        return UsageCallbackResult(
+            success=False,
+            http_status=0,
+            http_status_text="Network error",
+            request_url=base_url,
+            network_error=str(exc),
+        )
 
 
 def report_progress(
@@ -63,76 +129,22 @@ def report_progress(
     error_message: Optional[str] = None,
     *,
     session: Optional["requests.Session"] = None,
-) -> bool:
+) -> UsageCallbackResult:
     """POST progress to usage service. Requires 'requests'."""
-    try:
-        import requests
-    except ImportError:
-        raise ImportError("report_progress requires 'requests'. pip install requests")
-    base_url, timestamp = _parse_url_params(progress_url)
-    if not timestamp:
-        return False
-    body = {"stage": stage, "percentageComplete": percentage_complete, "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+    body: Dict[str, Any] = {
+        "stage": stage,
+        "percentageComplete": percentage_complete,
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
     if error_message is not None:
         body["errorMessage"] = error_message
     body_str = json.dumps(body, separators=(",", ":"))
-    signature = calculate_hmac_with_timestamp(body_str, timestamp, service_secret)
-    sess = session or __import__("requests").Session()
-    resp = sess.post(
-        base_url,
-        data=body_str,
-        headers={
-            "Content-Type": "application/json",
-            TollaraHeaders.SIGNATURE: signature,
-            TollaraHeaders.TIMESTAMP: timestamp,
-        },
+    return _post_signed_usage_callback(
+        progress_url, body_str, service_secret, session=session
     )
-    return resp.ok
 
 
 def report_completion(
-    callback_url: str,
-    request_id: str,
-    status: CompletionStatus,
-    service_secret: str,
-    *,
-    units: float = 0.0,
-    session: Optional["requests.Session"] = None,
-) -> bool:
-    """POST completion with status and units only."""
-    return report_completion_full(
-        callback_url,
-        request_id,
-        status,
-        service_secret,
-        units=units,
-        session=session,
-    )
-
-
-def report_completion_with_result(
-    callback_url: str,
-    request_id: str,
-    status: CompletionStatus,
-    service_secret: str,
-    result: str,
-    *,
-    units: float = 0.0,
-    session: Optional["requests.Session"] = None,
-) -> bool:
-    """POST completion with inline result text."""
-    return report_completion_full(
-        callback_url,
-        request_id,
-        status,
-        service_secret,
-        result=result,
-        units=units,
-        session=session,
-    )
-
-
-def report_completion_full(
     callback_url: str,
     request_id: str,
     status: CompletionStatus,
@@ -143,15 +155,9 @@ def report_completion_full(
     content_type: Optional[str] = None,
     units: float = 0.0,
     session: Optional["requests.Session"] = None,
-) -> bool:
-    try:
-        import requests
-    except ImportError:
-        raise ImportError("report_completion_full requires 'requests'. pip install requests")
-    base_url, timestamp = _parse_url_params(callback_url)
-    if not timestamp:
-        return False
-    body = {
+) -> UsageCallbackResult:
+    """POST completion to usage service. Requires 'requests'."""
+    body: Dict[str, Any] = {
         "status": status.api_value,
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "units": units,
@@ -163,18 +169,9 @@ def report_completion_full(
     if content_type is not None:
         body["contentType"] = content_type
     body_str = json.dumps(body, separators=(",", ":"))
-    signature = calculate_hmac_with_timestamp(body_str, timestamp, service_secret)
-    sess = session or requests.Session()
-    resp = sess.post(
-        base_url,
-        data=body_str,
-        headers={
-            "Content-Type": "application/json",
-            TollaraHeaders.SIGNATURE: signature,
-            TollaraHeaders.TIMESTAMP: timestamp,
-        },
+    return _post_signed_usage_callback(
+        callback_url, body_str, service_secret, session=session
     )
-    return resp.ok
 
 
 def report_usage(

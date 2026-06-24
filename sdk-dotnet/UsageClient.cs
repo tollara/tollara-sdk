@@ -4,6 +4,14 @@ using System.Text.Json;
 
 namespace Tollara;
 
+public record UsageCallbackResult(
+    bool Success,
+    int HttpStatus,
+    string HttpStatusText,
+    string RequestUrl,
+    string? ResponseBody = null,
+    string? NetworkError = null);
+
 public record UsageReportResponse(
     string? Status,
     string? Warning,
@@ -26,52 +34,81 @@ public static class UsageClient
         return $"{baseUrl}{p}/report";
     }
 
-    public static Task<bool> ReportProgressAsync(HttpClient http, string progressUrl, string requestId,
+    public static Task<UsageCallbackResult> ReportProgressAsync(HttpClient http, string progressUrl, string requestId,
         string stage, int percentageComplete, string serviceSecret, CancellationToken ct = default) =>
         ReportProgressAsync(http, progressUrl, requestId, stage, percentageComplete, null, serviceSecret, ct);
 
-    public static async Task<bool> ReportProgressAsync(HttpClient http, string progressUrl, string requestId,
+    public static Task<UsageCallbackResult> ReportProgressAsync(HttpClient http, string progressUrl, string requestId,
         string stage, int percentageComplete, string? errorMessage, string serviceSecret, CancellationToken ct = default)
     {
-        var (baseUrl, timestamp) = ParseUrlParams(progressUrl);
-        if (timestamp == null) return false;
-        var body = new Dictionary<string, object> { ["stage"] = stage, ["percentageComplete"] = percentageComplete, ["timestamp"] = DateTime.UtcNow.ToString("o") };
+        var body = new Dictionary<string, object>
+        {
+            ["stage"] = stage,
+            ["percentageComplete"] = percentageComplete,
+            ["timestamp"] = DateTime.UtcNow.ToString("o"),
+        };
         if (errorMessage != null) body["errorMessage"] = errorMessage;
         var bodyStr = JsonSerializer.Serialize(body);
-        var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, serviceSecret);
-        var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
-        req.Headers.TryAddWithoutValidation(TollaraHeaders.Signature, signature);
-        req.Headers.TryAddWithoutValidation(TollaraHeaders.Timestamp, timestamp);
-        req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
-        var res = await http.SendAsync(req, ct);
-        return res.IsSuccessStatusCode;
+        return PostSignedUsageCallbackAsync(http, progressUrl, bodyStr, serviceSecret, ct);
     }
 
-    public static Task<bool> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
+    public static Task<UsageCallbackResult> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
         CompletionStatus status, string serviceSecret, CancellationToken ct = default) =>
         ReportCompletionAsync(http, callbackUrl, requestId, status, null, null, null, 0, serviceSecret, ct);
 
-    public static Task<bool> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
-        CompletionStatus status, string result, decimal units, string serviceSecret, CancellationToken ct = default) =>
+    public static Task<UsageCallbackResult> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
+        CompletionStatus status, string? result, decimal units, string serviceSecret, CancellationToken ct = default) =>
         ReportCompletionAsync(http, callbackUrl, requestId, status, result, null, null, units, serviceSecret, ct);
 
-    public static async Task<bool> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
+    public static Task<UsageCallbackResult> ReportCompletionAsync(HttpClient http, string callbackUrl, string requestId,
         CompletionStatus status, string? result, string? resultUrl, string? contentType, decimal units, string serviceSecret, CancellationToken ct = default)
     {
-        var (baseUrl, timestamp) = ParseUrlParams(callbackUrl);
-        if (timestamp == null) return false;
-        var body = new Dictionary<string, object> { ["status"] = status.ToApiString(), ["timestamp"] = DateTime.UtcNow.ToString("o"), ["units"] = units };
+        var body = new Dictionary<string, object>
+        {
+            ["status"] = status.ToApiString(),
+            ["timestamp"] = DateTime.UtcNow.ToString("o"),
+            ["units"] = units,
+        };
         if (result != null) body["result"] = result;
         if (resultUrl != null) body["resultUrl"] = resultUrl;
         if (contentType != null) body["contentType"] = contentType;
         var bodyStr = JsonSerializer.Serialize(body);
-        var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, serviceSecret);
-        var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
-        req.Headers.TryAddWithoutValidation(TollaraHeaders.Signature, signature);
-        req.Headers.TryAddWithoutValidation(TollaraHeaders.Timestamp, timestamp);
-        req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
-        var res = await http.SendAsync(req, ct);
-        return res.IsSuccessStatusCode;
+        return PostSignedUsageCallbackAsync(http, callbackUrl, bodyStr, serviceSecret, ct);
+    }
+
+    private static async Task<UsageCallbackResult> PostSignedUsageCallbackAsync(
+        HttpClient http, string urlWithQuery, string bodyStr, string serviceSecret, CancellationToken ct)
+    {
+        var (baseUrl, timestamp) = ParseUrlParams(urlWithQuery);
+        if (timestamp == null)
+        {
+            var statusText = string.IsNullOrEmpty(urlWithQuery)
+                ? "Missing or invalid callback/progress URL"
+                : "Missing timestamp query parameter in URL";
+            return new UsageCallbackResult(false, 0, statusText, baseUrl);
+        }
+
+        try
+        {
+            var signature = Hmac.CalculateHmacWithTimestamp(bodyStr, timestamp, serviceSecret);
+            var req = new HttpRequestMessage(HttpMethod.Post, baseUrl);
+            req.Headers.TryAddWithoutValidation(TollaraHeaders.Signature, signature);
+            req.Headers.TryAddWithoutValidation(TollaraHeaders.Timestamp, timestamp);
+            req.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
+            var res = await http.SendAsync(req, ct);
+            var responseBody = await res.Content.ReadAsStringAsync(ct);
+            var statusText = res.IsSuccessStatusCode ? res.ReasonPhrase ?? "OK" : res.ReasonPhrase ?? $"HTTP {(int)res.StatusCode}";
+            return new UsageCallbackResult(
+                res.IsSuccessStatusCode,
+                (int)res.StatusCode,
+                statusText,
+                baseUrl,
+                string.IsNullOrEmpty(responseBody) ? null : responseBody);
+        }
+        catch (Exception ex)
+        {
+            return new UsageCallbackResult(false, 0, "Network error", baseUrl, NetworkError: ex.Message);
+        }
     }
 
     /// <summary>Report usage using the SDK default API origin and usage path prefix (same as <see cref="TollaraClient"/>).</summary>

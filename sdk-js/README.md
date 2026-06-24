@@ -130,16 +130,20 @@ await reportUsage({
 URLs come from the platform (`progress_url`, `callback_url`).
 
 ```ts
-import { CompletionStatus, reportProgress, reportCompletionWithResult } from '@tollara/service-sdk';
+import { CompletionStatus, reportProgress, reportCompletion } from '@tollara/service-sdk';
 
-await reportProgress({
+const progress = await reportProgress({
   progressUrl,
   requestId,
   stage: 'processing',
   percentageComplete: 50,
   serviceSecret,
 });
-await reportCompletionWithResult({
+if (!progress.success) {
+  console.error(progress.httpStatus, progress.responseBody);
+}
+
+const complete = await reportCompletion({
   callbackUrl,
   requestId,
   status: CompletionStatus.Completed,

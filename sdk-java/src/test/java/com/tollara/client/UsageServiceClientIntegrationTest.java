@@ -1,6 +1,7 @@
 package com.tollara.client;
 
 import com.tollara.client.model.CompletionStatus;
+import com.tollara.client.model.UsageCallbackResult;
 import com.tollara.client.model.UsageReportResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -92,9 +93,10 @@ class UsageServiceClientIntegrationTest {
         );
 
         String progressUrl = usageBaseUrl + progressPath + "?signature=ignored&timestamp=" + timestamp;
-        boolean ok = client.sendProgressUpdate(progressUrl, requestId, "processing", 50);
+        UsageCallbackResult result = client.sendProgressUpdate(progressUrl, requestId, "processing", 50);
 
-        assertThat(ok).isTrue();
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getHttpStatus()).isEqualTo(200);
     }
 
     @Test
@@ -112,15 +114,40 @@ class UsageServiceClientIntegrationTest {
         );
 
         String callbackUrl = usageBaseUrl + completePath + "?signature=ignored&timestamp=" + timestamp;
-        boolean ok = client.sendCompletion(callbackUrl, requestId, CompletionStatus.COMPLETED, "done", BigDecimal.ONE);
+        UsageCallbackResult result = client.sendCompletion(callbackUrl, requestId, CompletionStatus.COMPLETED, "done", BigDecimal.ONE);
 
-        assertThat(ok).isTrue();
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getHttpStatus()).isEqualTo(200);
     }
 
     @Test
-    void sendProgressUpdate_returnsFalse_whenUrlMissingTimestamp() {
+    void sendCompletion_usesStatusTimestampUnitsFieldOrder() {
+        String requestId = "req-order";
+        String timestamp = "1700000002";
+        String completePath = "/api/usage/complete/" + requestId;
+        wireMock.stubFor(
+                post(urlPathEqualTo(completePath))
+                        .willReturn(aResponse().withStatus(200))
+        );
+
+        String callbackUrl = usageBaseUrl + completePath + "?timestamp=" + timestamp;
+        client.sendCompletion(callbackUrl, requestId, CompletionStatus.COMPLETED, "done", BigDecimal.ONE);
+
+        String body = wireMock.getAllServeEvents().get(0).getRequest().getBodyAsString();
+        int statusIdx = body.indexOf("\"status\"");
+        int timestampIdx = body.indexOf("\"timestamp\"");
+        int unitsIdx = body.indexOf("\"units\"");
+        int resultIdx = body.indexOf("\"result\"");
+        assertThat(statusIdx).isLessThan(timestampIdx);
+        assertThat(timestampIdx).isLessThan(unitsIdx);
+        assertThat(unitsIdx).isLessThan(resultIdx);
+    }
+
+    @Test
+    void sendProgressUpdate_returnsFailure_whenUrlMissingTimestamp() {
         String progressUrl = usageBaseUrl + "/api/usage/progress/req-1";
-        boolean ok = client.sendProgressUpdate(progressUrl, "req-1", "stage", 0);
-        assertThat(ok).isFalse();
+        UsageCallbackResult result = client.sendProgressUpdate(progressUrl, "req-1", "stage", 0);
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getHttpStatus()).isZero();
     }
 }

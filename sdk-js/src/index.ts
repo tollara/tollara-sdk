@@ -28,11 +28,10 @@ export {
   DEFAULT_USAGE_PATH_PREFIX,
   reportProgress,
   reportCompletion,
-  reportCompletionWithResult,
-  reportCompletionFull,
   reportUsage,
   type ReportProgressParams,
   type ReportCompletionParams,
+  type UsageCallbackResult,
   type UsageReportResponse,
 } from './usageClient';
 export { getRequestStatus, getRequestResult, type GatewayPollResult } from './gatewayClient';
