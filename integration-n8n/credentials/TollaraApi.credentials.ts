@@ -55,7 +55,7 @@ export class TollaraApi implements ICredentialType {
       type: 'string',
       default: '',
       placeholder: 'http://host.docker.internal:8084',
-      description: 'Optional. Used by Report Usage.',
+      description: 'Optional. Used by Report Usage. Also rewrites progress/complete URLs from the gateway when they point at production hosts (local Docker).',
     },
     {
       displayName: 'Gateway API URL',

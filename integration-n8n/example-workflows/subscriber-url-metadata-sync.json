@@ -1,0 +1,109 @@
+{
+  "name": "Tollara Demo — Subscriber URL Metadata (invoke sync)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Subscriber — URL Metadata (sync invoke)\n\n**Tollara:** caller / buyer automation\n\nCalls **backend-url-metadata-sync** via gateway.\n\n**Before run:** edit **Set Config** — `serviceKey`, `serviceId`, `endpointId` from your Tollara listing.\n\n**Credential:** Tollara Subscriber API (Gateway `http://host.docker.internal:8083`)\n\n**Requires:** backend workflow active + listing `realUrl` → n8n webhook.",
+        "height": 280,
+        "width": 460
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-220, -100]
+    },
+    {
+      "parameters": {},
+      "id": "d1e2f3a4-0004-4000-8000-000000000010",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Replace placeholders with your Tollara listing + subscriber service key\nreturn [{\n  json: {\n    serviceKey: 'YOUR_SERVICE_KEY',\n    serviceId: 'YOUR_SERVICE_ID',\n    endpointId: 'YOUR_URL_METADATA_ENDPOINT_ID',\n    invokeBody: JSON.stringify({ url: 'https://example.com' }),\n  },\n}];"
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000011",
+      "name": "Set Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "async": false,
+        "serviceKey": "={{ $('Set Config').item.json.serviceKey }}",
+        "serviceId": "={{ $('Set Config').item.json.serviceId }}",
+        "endpointId": "={{ $('Set Config').item.json.endpointId }}",
+        "body": "={{ $('Set Config').item.json.invokeBody }}"
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000012",
+      "name": "Tollara Invoke",
+      "type": "n8n-nodes-tollara.tollaraInvoke",
+      "typeVersion": 1,
+      "position": [480, 300],
+      "credentials": {
+        "tollaraApi": {
+          "name": "Tollara Subscriber API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoke = $('Tollara Invoke').first().json;\nconst data = invoke.data ?? {};\nreturn [{\n  json: {\n    statusCode: invoke.statusCode,\n    url: data.url,\n    title: data.title,\n    description: data.description,\n    raw: invoke.body,\n  },\n}];"
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000013",
+      "name": "Format Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Config": {
+      "main": [
+        [
+          {
+            "node": "Tollara Invoke",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tollara Invoke": {
+      "main": [
+        [
+          {
+            "node": "Format Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
