@@ -162,8 +162,10 @@ public static class UsageClient
         return p.ValueKind == JsonValueKind.Number && p.TryGetDecimal(out var d) ? d : null;
     }
 
-    private static (string baseUrl, string? timestamp) ParseUrlParams(string url)
+    private static (string baseUrl, string? timestamp) ParseUrlParams(string? url)
     {
+        if (url is null)
+            return ("", null);
         var idx = url.IndexOf('?');
         if (idx < 0) return (url, null);
         var baseUrl = url[..idx];

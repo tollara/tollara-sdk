@@ -54,7 +54,9 @@ class UsageCallbackResult:
     network_error: Optional[str] = None
 
 
-def _parse_url_params(url: str) -> tuple[str, Optional[str]]:
+def _parse_url_params(url: Optional[str]) -> tuple[str, Optional[str]]:
+    if url is None:
+        return "", None
     parsed = urlparse(url)
     base = f"{parsed.scheme}://{parsed.netloc}{parsed.path}" if parsed.scheme else url.split("?")[0]
     if not parsed.query:

@@ -76,6 +76,56 @@ public class UsageClientTests
     }
 
     [Fact]
+    public async Task ReportProgressAsync_ReturnsFailureWhenTimestampMissing()
+    {
+        using var http = new HttpClient(new CaptureUriHandler());
+        var result = await UsageClient.ReportProgressAsync(
+            http,
+            "https://usage.test/api/usage/progress/req-1",
+            "req-1",
+            "processing",
+            25,
+            "secret",
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(0, result.HttpStatus);
+    }
+
+    [Fact]
+    public async Task ReportProgressAsync_HandlesMissingUrlWithoutThrowing()
+    {
+        using var http = new HttpClient(new CaptureUriHandler());
+        var result = await UsageClient.ReportProgressAsync(
+            http,
+            null!,
+            "req-1",
+            "processing",
+            25,
+            "secret",
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(0, result.HttpStatus);
+        Assert.Equal("Missing or invalid callback/progress URL", result.HttpStatusText);
+    }
+
+    [Fact]
+    public async Task ReportProgressAsync_ReturnsHttpStatusAndBodyOnFailure()
+    {
+        var progressPath = "/api/usage/progress/req-1";
+        var progressUrl = $"https://usage.test{progressPath}?timestamp=1700000000";
+        var handler = new FixedResponseHandler(HttpStatusCode.NotFound, "Invalid requestId: req-1");
+        using var http = new HttpClient(handler);
+        var result = await UsageClient.ReportProgressAsync(
+            http, progressUrl, "req-1", "processing", 25, "secret", CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(404, result.HttpStatus);
+        Assert.Equal("Invalid requestId: req-1", result.ResponseBody);
+    }
+
+    [Fact]
     public async Task ReportCompletionAsync_ReturnsFailureWhenTimestampMissing()
     {
         using var http = new HttpClient(new CaptureUriHandler());
@@ -89,5 +139,14 @@ public class UsageClientTests
 
         Assert.False(result.Success);
         Assert.Equal(0, result.HttpStatus);
+    }
+
+    private sealed class FixedResponseHandler(HttpStatusCode statusCode, string body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(statusCode)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "text/plain"),
+            });
     }
 }
