@@ -76,8 +76,10 @@ $client->estimateUsage($serviceKey, 1.0);
 $client->estimateUsageWithJwt($bearerJwt, $coreUserId, $serviceId, 1.0);
 $client->invokeService('POST', $serviceId, $endpointId, $serviceKey, '{}', false);
 $client->reportUsage($userId, $serviceId, 1.0);
-$client->sendProgressUpdate($progressUrl, $requestId, 'processing', 50);
-$client->sendCompletion($callbackUrl, $requestId, 'COMPLETED', 1.0);
+$result = $client->sendProgressUpdate($progressUrl, $requestId, 'processing', 50);
+if (!$result->success) { /* handle callback failure */ }
+$complete = $client->sendCompletion($callbackUrl, $requestId, 'COMPLETED', 1.0);
+if (!$complete->success) { /* handle callback failure */ }
 $client->getRequestStatus($requestId, $serviceKey);
 ```
 

@@ -13,6 +13,11 @@ module TollaraSdk
   DEFAULT_GATEWAY_PATH_PREFIX = "/api"
   DEFAULT_USAGE_PATH_PREFIX = "/api/usage"
 
+  UsageCallbackResult = Struct.new(
+    :success, :http_status, :http_status_text, :request_url, :response_body, :network_error,
+    keyword_init: true
+  )
+
   HEADERS = {
     signature: "X-Tollara-Signature",
     timestamp: "X-Tollara-Timestamp",
@@ -23,7 +28,7 @@ module TollaraSdk
     subscription_active: "X-Tollara-Subscription-Active",
     billing_model: "X-Tollara-Billing-Model",
     measurement_type: "X-Tollara-Measurement-Type",
-    unit_label: "X-Tollara-Unit-Label"
+    unit_label: "X-Tollara-Unit-Label",
     signing_version: "X-Tollara-Signing-Version"
   }.freeze
 
@@ -130,35 +135,17 @@ module TollaraSdk
     end
 
     def send_progress_update(progress_url, request_id, stage, percentage_complete, error_message = nil)
-      base, ts = split_timestamp_url(progress_url)
-      return false if ts.to_s.empty?
       body_hash = { stage: stage, percentageComplete: percentage_complete, timestamp: Time.now.utc.iso8601(3) }
       body_hash[:errorMessage] = error_message unless error_message.nil?
-      body = JSON.generate(body_hash)
-      sig = TollaraSdk.calculate_hmac_with_timestamp(body, ts, @service_secret)
-      res = request("POST", base, body, {
-        "Content-Type" => "application/json",
-        HEADERS[:signature] => sig,
-        HEADERS[:timestamp] => ts
-      })
-      res.is_a?(Net::HTTPSuccess)
+      post_signed_usage_callback(progress_url, JSON.generate(body_hash))
     end
 
     def send_completion(callback_url, request_id, status, units, result: nil, result_url: nil, content_type: nil)
-      base, ts = split_timestamp_url(callback_url)
-      return false if ts.to_s.empty?
       body_hash = { status: status.to_s.upcase, timestamp: Time.now.utc.iso8601(3), units: units }
       body_hash[:result] = result unless result.nil?
       body_hash[:resultUrl] = result_url unless result_url.nil?
       body_hash[:contentType] = content_type unless content_type.nil?
-      body = JSON.generate(body_hash)
-      sig = TollaraSdk.calculate_hmac_with_timestamp(body, ts, @service_secret)
-      res = request("POST", base, body, {
-        "Content-Type" => "application/json",
-        HEADERS[:signature] => sig,
-        HEADERS[:timestamp] => ts
-      })
-      res.is_a?(Net::HTTPSuccess)
+      post_signed_usage_callback(callback_url, JSON.generate(body_hash))
     end
 
     def get_request_status(request_id, service_key)
@@ -181,7 +168,41 @@ module TollaraSdk
       p.sub(%r{/\z}, "")
     end
 
+    def post_signed_usage_callback(url_with_query, body)
+      base, ts = split_timestamp_url(url_with_query)
+      if ts.to_s.empty?
+        status_text = url_with_query.to_s.empty? ? "Missing or invalid callback/progress URL" : "Missing timestamp query parameter in URL"
+        return UsageCallbackResult.new(success: false, http_status: 0, http_status_text: status_text, request_url: base.to_s)
+      end
+      sig = TollaraSdk.calculate_hmac_with_timestamp(body, ts, @service_secret)
+      res = request("POST", base, body, {
+        "Content-Type" => "application/json",
+        HEADERS[:signature] => sig,
+        HEADERS[:timestamp] => ts
+      })
+      response_body = res.body.to_s
+      response_body = nil if response_body.empty?
+      status_text = res.message.to_s
+      status_text = (res.is_a?(Net::HTTPSuccess) ? "OK" : "HTTP #{res.code}") if status_text.empty?
+      UsageCallbackResult.new(
+        success: res.is_a?(Net::HTTPSuccess),
+        http_status: res.code.to_i,
+        http_status_text: status_text,
+        request_url: base,
+        response_body: response_body
+      )
+    rescue StandardError => e
+      UsageCallbackResult.new(
+        success: false,
+        http_status: 0,
+        http_status_text: "Network error",
+        request_url: base.to_s,
+        network_error: e.message
+      )
+    end
+
     def split_timestamp_url(url)
+      return ["", nil] if url.nil? || url.to_s.strip.empty?
       uri = URI(url)
       ts = nil
       if uri.query

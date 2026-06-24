@@ -83,6 +83,16 @@ type UsageReportResponse struct {
 	OverageRate               *float64 `json:"overageRate"`
 }
 
+// UsageCallbackResult is the result of a progress or completion callback POST.
+type UsageCallbackResult struct {
+	Success        bool
+	HTTPStatus     int
+	HTTPStatusText string
+	RequestURL     string
+	ResponseBody   string
+	NetworkError   string
+}
+
 type GatewayInvokeAsyncEnvelope struct {
 	Status      string `json:"status"`
 	RequestID   string `json:"requestId"`
@@ -245,46 +255,78 @@ func (c *TollaraClient) ReportUsageAt(userID, serviceID string, unitsUsed float6
 	return &out, nil
 }
 
-func (c *TollaraClient) SendProgressUpdate(progressURL, requestID, stage string, percentageComplete int, errorMessage *string) (bool, error) {
-	base, ts := splitURLTimestamp(progressURL)
-	if ts == "" {
-		return false, nil
-	}
+func (c *TollaraClient) SendProgressUpdate(progressURL, requestID, stage string, percentageComplete int, errorMessage *string) UsageCallbackResult {
 	body := map[string]interface{}{
 		"stage": stage, "percentageComplete": percentageComplete, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	if errorMessage != nil {
 		body["errorMessage"] = *errorMessage
 	}
-	bodyBytes, _ := json.Marshal(body)
-	sig := CalculateHmacWithTimestamp(string(bodyBytes), ts, c.ServiceSecret)
-	_, _, status, err := c.doRaw("POST", base, string(bodyBytes), map[string]string{
-		"Content-Type":  "application/json",
-		HeaderSignature: sig,
-		HeaderTimestamp: ts,
-	})
-	return err == nil && status >= 200 && status < 300, err
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		base, _ := splitURLTimestamp(progressURL)
+		return UsageCallbackResult{
+			Success: false, HTTPStatus: 0, HTTPStatusText: "Network error", RequestURL: base, NetworkError: err.Error(),
+		}
+	}
+	return c.postSignedUsageCallback(progressURL, string(bodyBytes))
 }
 
-func (c *TollaraClient) SendCompletion(callbackURL, requestID, status string, units float64, result, resultURL, contentType *string) (bool, error) {
-	base, ts := splitURLTimestamp(callbackURL)
-	if ts == "" {
-		return false, nil
-	}
+func (c *TollaraClient) SendCompletion(callbackURL, requestID, status string, units float64, result, resultURL, contentType *string) UsageCallbackResult {
 	body := map[string]interface{}{
 		"status": strings.ToUpper(status), "timestamp": time.Now().UTC().Format(time.RFC3339Nano), "units": units,
 	}
-	if result != nil { body["result"] = *result }
-	if resultURL != nil { body["resultUrl"] = *resultURL }
-	if contentType != nil { body["contentType"] = *contentType }
-	bodyBytes, _ := json.Marshal(body)
-	sig := CalculateHmacWithTimestamp(string(bodyBytes), ts, c.ServiceSecret)
-	_, _, code, err := c.doRaw("POST", base, string(bodyBytes), map[string]string{
-		"Content-Type":  "application/json",
-		HeaderSignature: sig,
-		HeaderTimestamp: ts,
+	if result != nil {
+		body["result"] = *result
+	}
+	if resultURL != nil {
+		body["resultUrl"] = *resultURL
+	}
+	if contentType != nil {
+		body["contentType"] = *contentType
+	}
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		base, _ := splitURLTimestamp(callbackURL)
+		return UsageCallbackResult{
+			Success: false, HTTPStatus: 0, HTTPStatusText: "Network error", RequestURL: base, NetworkError: err.Error(),
+		}
+	}
+	return c.postSignedUsageCallback(callbackURL, string(bodyBytes))
+}
+
+func (c *TollaraClient) postSignedUsageCallback(urlWithQuery, bodyString string) UsageCallbackResult {
+	base, ts := splitURLTimestamp(urlWithQuery)
+	if ts == "" {
+		statusText := "Missing or invalid callback/progress URL"
+		if strings.TrimSpace(urlWithQuery) != "" {
+			statusText = "Missing timestamp query parameter in URL"
+		}
+		return UsageCallbackResult{Success: false, HTTPStatus: 0, HTTPStatusText: statusText, RequestURL: base}
+	}
+	sig := CalculateHmacWithTimestamp(bodyString, ts, c.ServiceSecret)
+	respBody, _, status, err := c.doRaw("POST", base, bodyString, map[string]string{
+		"Content-Type":    "application/json",
+		HeaderSignature:   sig,
+		HeaderTimestamp:   ts,
 	})
-	return err == nil && code >= 200 && code < 300, err
+	if err != nil {
+		return UsageCallbackResult{
+			Success: false, HTTPStatus: 0, HTTPStatusText: "Network error", RequestURL: base, NetworkError: err.Error(),
+		}
+	}
+	success := status >= 200 && status < 300
+	statusText := http.StatusText(status)
+	if statusText == "" {
+		if success {
+			statusText = "OK"
+		} else {
+			statusText = fmt.Sprintf("HTTP %d", status)
+		}
+	}
+	return UsageCallbackResult{
+		Success: success, HTTPStatus: status, HTTPStatusText: statusText, RequestURL: base, ResponseBody: respBody,
+	}
 }
 
 func (c *TollaraClient) GetRequestStatus(requestID, serviceKey string) (bool, int, string, error) {
@@ -344,6 +386,9 @@ func firstNonBlank(values ...string) string {
 	return ""
 }
 func splitURLTimestamp(raw string) (string, string) {
+	if strings.TrimSpace(raw) == "" {
+		return "", ""
+	}
 	parts := strings.SplitN(raw, "?", 2)
 	if len(parts) != 2 {
 		return raw, ""

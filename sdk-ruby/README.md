@@ -75,7 +75,8 @@ client.estimate_usage(service_key, 1)
 client.estimate_usage_with_jwt(bearer_jwt, core_user_id, service_id, 1)
 client.invoke_service("POST", service_id, endpoint_id, service_key, body: "{}", async: false)
 client.report_usage(user_id, service_id, 1)
-client.send_progress_update(progress_url, request_id, "processing", 50)
+result = client.send_progress_update(progress_url, request_id, "processing", 50)
+raise "progress failed" unless result.success
 client.send_completion(callback_url, request_id, "COMPLETED", 1)
 client.get_request_status(request_id, service_key)
 ```

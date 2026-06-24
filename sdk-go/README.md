@@ -76,8 +76,10 @@ _, _ = client.EstimateUsage(serviceKey, 1)
 _, _ = client.EstimateUsageWithJWT(bearerJwt, coreUserID, serviceID, 1)
 _, _ = client.InvokeService("POST", serviceID, endpointID, serviceKey, "{}", false)
 _, _ = client.ReportUsage(userID, serviceID, 1)
-_, _ = client.SendProgressUpdate(progressURL, requestID, "processing", 50, nil)
-_, _ = client.SendCompletion(callbackURL, requestID, "COMPLETED", 1, nil, nil, nil)
+result := client.SendProgressUpdate(progressURL, requestID, "processing", 50, nil)
+if !result.Success { /* handle callback failure */ }
+complete := client.SendCompletion(callbackURL, requestID, "COMPLETED", 1, nil, nil, nil)
+if !complete.Success { /* handle callback failure */ }
 ok, code, body, _ := client.GetRequestStatus(requestID, serviceKey)
 _ = []any{ok, code, body}
 ```
