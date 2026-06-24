@@ -150,4 +150,31 @@ class UsageServiceClientIntegrationTest {
         assertThat(result.isSuccess()).isFalse();
         assertThat(result.getHttpStatus()).isZero();
     }
+
+    @Test
+    void sendProgressUpdate_returnsFailure_whenUrlNull() {
+        UsageCallbackResult result = client.sendProgressUpdate(null, "req-1", "stage", 0);
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getHttpStatus()).isZero();
+        assertThat(result.getHttpStatusText()).isEqualTo("Missing or invalid callback/progress URL");
+    }
+
+    @Test
+    void sendProgressUpdate_returnsHttpStatusAndBody_onFailure() {
+        String requestId = "req-1";
+        String progressPath = "/api/usage/progress/" + requestId;
+        wireMock.stubFor(
+                post(urlPathEqualTo(progressPath))
+                        .willReturn(aResponse()
+                                .withStatus(404)
+                                .withBody("Invalid requestId: req-1"))
+        );
+
+        String progressUrl = usageBaseUrl + progressPath + "?timestamp=1700000000";
+        UsageCallbackResult result = client.sendProgressUpdate(progressUrl, requestId, "processing", 25);
+
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getHttpStatus()).isEqualTo(404);
+        assertThat(result.getResponseBody()).isEqualTo("Invalid requestId: req-1");
+    }
 }

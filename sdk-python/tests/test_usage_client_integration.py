@@ -178,6 +178,36 @@ def test_report_completion_posts_to_callback_url_with_signature():
     assert keys.index("status") < keys.index("timestamp") < keys.index("units")
 
 
+@responses.activate
+def test_report_progress_returns_http_status_and_body_on_failure():
+    """report_progress returns HTTP status and response body when the usage service rejects the request."""
+    progress_path = "/api/usage/progress/req-1"
+    progress_url = f"http://usage.test{progress_path}?timestamp=1700000000"
+
+    responses.add(
+        responses.POST,
+        f"http://usage.test{progress_path}",
+        body="Invalid requestId: req-1",
+        status=404,
+    )
+
+    result = report_progress(
+        progress_url, "req-1", "processing", 25, SERVICE_SECRET
+    )
+
+    assert result.success is False
+    assert result.http_status == 404
+    assert result.response_body == "Invalid requestId: req-1"
+
+
+def test_report_progress_handles_missing_url_without_throwing():
+    """report_progress returns a failed UsageCallbackResult when progress_url is missing."""
+    result = report_progress(None, "req-1", "processing", 25, SERVICE_SECRET)  # type: ignore[arg-type]
+    assert result.success is False
+    assert result.http_status == 0
+    assert result.http_status_text == "Missing or invalid callback/progress URL"
+
+
 def test_report_progress_returns_failure_when_url_missing_timestamp():
     """report_progress returns a failed UsageCallbackResult when the URL has no timestamp query param."""
     progress_url = f"{USAGE_BASE}/api/usage/progress/req-1"
