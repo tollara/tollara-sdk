@@ -58,4 +58,36 @@ public class UsageClientTests
 
         Assert.Equal("https://usage.example.com/custom/prefix/report", handler.LastRequestUri?.ToString());
     }
+
+    [Fact]
+    public async Task ReportProgressAsync_ReturnsUsageCallbackResult()
+    {
+        var progressPath = "/api/usage/progress/req-1";
+        var timestamp = "1700000000";
+        var progressUrl = $"https://usage.test{progressPath}?timestamp={timestamp}";
+        var handler = new CaptureUriHandler();
+        using var http = new HttpClient(handler);
+        var result = await UsageClient.ReportProgressAsync(
+            http, progressUrl, "req-1", "processing", 50, "secret", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(200, result.HttpStatus);
+        Assert.Equal($"https://usage.test{progressPath}", result.RequestUrl);
+    }
+
+    [Fact]
+    public async Task ReportCompletionAsync_ReturnsFailureWhenTimestampMissing()
+    {
+        using var http = new HttpClient(new CaptureUriHandler());
+        var result = await UsageClient.ReportCompletionAsync(
+            http,
+            "https://usage.test/api/usage/complete/req-1",
+            "req-1",
+            CompletionStatus.Completed,
+            "secret",
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(0, result.HttpStatus);
+    }
 }

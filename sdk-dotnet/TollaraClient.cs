@@ -116,19 +116,19 @@ public sealed class TollaraClient
     public Task<UsageReportResponse> ReportUsageAsync(string userId, string serviceId, decimal unitsUsed, DateTime? timestamp, CancellationToken ct = default) =>
         UsageClient.ReportUsageAsync(_http, _usageBase, userId, serviceId, unitsUsed, _serviceSecret, timestamp, _usagePathPrefix, ct);
 
-    public Task<bool> SendProgressUpdateAsync(string progressUrl, string requestId, string stage, int percentageComplete, CancellationToken ct = default) =>
+    public Task<UsageCallbackResult> SendProgressUpdateAsync(string progressUrl, string requestId, string stage, int percentageComplete, CancellationToken ct = default) =>
         UsageClient.ReportProgressAsync(_http, progressUrl, requestId, stage, percentageComplete, _serviceSecret, ct);
 
-    public Task<bool> SendProgressUpdateAsync(string progressUrl, string requestId, string stage, int percentageComplete, string? errorMessage, CancellationToken ct = default) =>
+    public Task<UsageCallbackResult> SendProgressUpdateAsync(string progressUrl, string requestId, string stage, int percentageComplete, string? errorMessage, CancellationToken ct = default) =>
         UsageClient.ReportProgressAsync(_http, progressUrl, requestId, stage, percentageComplete, errorMessage, _serviceSecret, ct);
 
-    public Task<bool> SendCompletionAsync(string callbackUrl, string requestId, CompletionStatus status, decimal units, CancellationToken ct = default) =>
+    public Task<UsageCallbackResult> SendCompletionAsync(string callbackUrl, string requestId, CompletionStatus status, decimal units, CancellationToken ct = default) =>
         UsageClient.ReportCompletionAsync(_http, callbackUrl, requestId, status, null, null, null, units, _serviceSecret, ct);
 
-    public Task<bool> SendCompletionAsync(string callbackUrl, string requestId, CompletionStatus status, string? result, decimal units, CancellationToken ct = default) =>
+    public Task<UsageCallbackResult> SendCompletionAsync(string callbackUrl, string requestId, CompletionStatus status, string? result, decimal units, CancellationToken ct = default) =>
         UsageClient.ReportCompletionAsync(_http, callbackUrl, requestId, status, result, null, null, units, _serviceSecret, ct);
 
-    public Task<bool> SendCompletionAsync(string callbackUrl, string requestId, CompletionStatus status, string? result, string? resultUrl, string? contentType, decimal units, CancellationToken ct = default) =>
+    public Task<UsageCallbackResult> SendCompletionAsync(string callbackUrl, string requestId, CompletionStatus status, string? result, string? resultUrl, string? contentType, decimal units, CancellationToken ct = default) =>
         UsageClient.ReportCompletionAsync(_http, callbackUrl, requestId, status, result, resultUrl, contentType, units, _serviceSecret, ct);
 
     public Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(string requestId, string serviceKey, CancellationToken ct = default) =>

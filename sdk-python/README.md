@@ -22,6 +22,8 @@ Use **`TollaraClient`** with one API **origin** (scheme + host, optional port).
 
 **Usage report (§3):** JSON body includes an ISO-8601 **`timestamp`**; **`X-Tollara-Timestamp`** is **Unix epoch seconds** for signing. For `report_usage_at`, pass `timestamp` as epoch **seconds** (or omit for “now”); values above `1e11` are treated as milliseconds and converted.
 
+**Progress / completion:** sign exactly the bytes you POST. The usage service verifies HMAC against the **raw HTTP request body** (spec §3). Callbacks return **`UsageCallbackResult`** (`success`, `http_status`, `http_status_text`, `request_url`, optional `response_body` / `network_error`).
+
 Constructor arguments override environment variables when both are set.
 
 ### Environment variables
@@ -108,9 +110,11 @@ if estimate is not None:
 
 usage_resp = client.report_usage(user_id, service_id, 1.0)
 
-client.send_progress_update(progress_url, request_id, "some processing info", 50)
+progress = client.send_progress_update(progress_url, request_id, "some processing info", 50)
+if not progress.success:
+    print(progress.http_status, progress.response_body)
 
-client.send_completion(
+complete = client.send_completion(
     callback_url, request_id, CompletionStatus.COMPLETED, units=1.0, result="some result"
 )
 

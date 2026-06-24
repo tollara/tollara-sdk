@@ -13,11 +13,11 @@ from tollara_service_sdk.hmac_utils import calculate_hmac_with_timestamp
 from tollara_service_sdk.usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
-    report_completion_with_result,
     report_progress,
     report_usage,
     report_usage_at,
     _usage_report_url,
+    UsageCallbackResult,
     UsageReportResponse,
 )
 
@@ -126,11 +126,13 @@ def test_report_progress_posts_to_progress_url_with_signature():
         status=200,
     )
 
-    ok = report_progress(
+    result = report_progress(
         progress_url, "req-123", "processing", 50, SERVICE_SECRET
     )
 
-    assert ok is True
+    assert isinstance(result, UsageCallbackResult)
+    assert result.success is True
+    assert result.http_status == 200
     assert len(responses.calls) == 1
     req = responses.calls[0].request
     assert req.headers.get("X-Tollara-Timestamp") == timestamp
@@ -153,16 +155,17 @@ def test_report_completion_posts_to_callback_url_with_signature():
         status=200,
     )
 
-    ok = report_completion_with_result(
+    result = report_completion(
         callback_url,
         "req-456",
         CompletionStatus.COMPLETED,
         SERVICE_SECRET,
-        "done",
+        result="done",
         units=1.0,
     )
 
-    assert ok is True
+    assert isinstance(result, UsageCallbackResult)
+    assert result.success is True
     assert len(responses.calls) == 1
     req = responses.calls[0].request
     assert req.headers.get("X-Tollara-Timestamp") == timestamp
@@ -171,19 +174,23 @@ def test_report_completion_posts_to_callback_url_with_signature():
     assert body["status"] == "COMPLETED"
     assert body["result"] == "done"
     assert body["units"] == 1.0
+    keys = list(body.keys())
+    assert keys.index("status") < keys.index("timestamp") < keys.index("units")
 
 
-def test_report_progress_returns_false_when_url_missing_timestamp():
-    """report_progress returns False when the URL has no timestamp query param."""
+def test_report_progress_returns_failure_when_url_missing_timestamp():
+    """report_progress returns a failed UsageCallbackResult when the URL has no timestamp query param."""
     progress_url = f"{USAGE_BASE}/api/usage/progress/req-1"
-    ok = report_progress(progress_url, "req-1", "stage", 0, SERVICE_SECRET)
-    assert ok is False
+    result = report_progress(progress_url, "req-1", "stage", 0, SERVICE_SECRET)
+    assert result.success is False
+    assert result.http_status == 0
 
 
-def test_report_completion_returns_false_when_url_missing_timestamp():
-    """report_completion returns False when the URL has no timestamp query param."""
+def test_report_completion_returns_failure_when_url_missing_timestamp():
+    """report_completion returns a failed UsageCallbackResult when the URL has no timestamp query param."""
     callback_url = f"{USAGE_BASE}/api/usage/complete/req-1"
-    ok = report_completion(
+    result = report_completion(
         callback_url, "req-1", CompletionStatus.FAILED, SERVICE_SECRET
     )
-    assert ok is False
+    assert result.success is False
+    assert result.http_status == 0

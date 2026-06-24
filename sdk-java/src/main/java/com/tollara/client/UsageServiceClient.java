@@ -1,6 +1,7 @@
 package com.tollara.client;
 
 import com.tollara.client.model.CompletionStatus;
+import com.tollara.client.model.UsageCallbackResult;
 import com.tollara.client.model.UsageReportRequest;
 import com.tollara.client.model.UsageReportResponse;
 import com.tollara.common.util.HmacUtils;
@@ -70,81 +71,138 @@ public class UsageServiceClient {
         return TollaraUrls.trimTrailingSlashes(x);
     }
 
+    private record ParsedCallbackUrl(String baseUrl, String timestamp) {}
+
+    private static ParsedCallbackUrl parseCallbackUrl(String urlWithQuery) {
+        if (urlWithQuery == null || urlWithQuery.isEmpty()) {
+            return new ParsedCallbackUrl("", null);
+        }
+        String baseUrl = urlWithQuery;
+        String timestamp = null;
+        if (urlWithQuery.contains("?")) {
+            baseUrl = urlWithQuery.substring(0, urlWithQuery.indexOf("?"));
+            String queryString = urlWithQuery.substring(urlWithQuery.indexOf("?") + 1);
+            for (String param : queryString.split("&")) {
+                String[] keyValue = param.split("=", 2);
+                if (keyValue.length == 2 && "timestamp".equals(keyValue[0])) {
+                    timestamp = keyValue[1];
+                }
+            }
+        }
+        return new ParsedCallbackUrl(baseUrl, timestamp);
+    }
+
+    private UsageCallbackResult postSignedUsageCallback(String urlWithQuery, String bodyString) {
+        ParsedCallbackUrl parsed = parseCallbackUrl(urlWithQuery);
+        if (parsed.timestamp() == null) {
+            String statusText = urlWithQuery != null && !urlWithQuery.isEmpty()
+                    ? "Missing timestamp query parameter in URL"
+                    : "Missing or invalid callback/progress URL";
+            return UsageCallbackResult.builder()
+                    .success(false)
+                    .httpStatus(0)
+                    .httpStatusText(statusText)
+                    .requestUrl(parsed.baseUrl())
+                    .build();
+        }
+        try {
+            long timestampLong = Long.parseLong(parsed.timestamp());
+            String signature = HmacUtils.calculateHmacWithTimestamp(bodyString, timestampLong, serviceSecret);
+            Map<String, String> headers = Map.of(
+                    TollaraHeaders.SIGNATURE, signature,
+                    TollaraHeaders.TIMESTAMP, parsed.timestamp());
+            HttpResponse<String> response = HttpSupport.postJson(httpClient, parsed.baseUrl(), bodyString, headers);
+            String responseBody = response.body();
+            return UsageCallbackResult.builder()
+                    .success(response.statusCode() >= 200 && response.statusCode() < 300)
+                    .httpStatus(response.statusCode())
+                    .httpStatusText(response.statusCode() >= 200 && response.statusCode() < 300 ? "OK" : "HTTP " + response.statusCode())
+                    .requestUrl(parsed.baseUrl())
+                    .responseBody(responseBody == null || responseBody.isEmpty() ? null : responseBody)
+                    .build();
+        } catch (IOException e) {
+            log.error("Error posting usage callback: {}", e.getMessage(), e);
+            return UsageCallbackResult.builder()
+                    .success(false)
+                    .httpStatus(0)
+                    .httpStatusText("Network error")
+                    .requestUrl(parsed.baseUrl())
+                    .networkError(e.getMessage())
+                    .build();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return UsageCallbackResult.builder()
+                    .success(false)
+                    .httpStatus(0)
+                    .httpStatusText("Network error")
+                    .requestUrl(parsed.baseUrl())
+                    .networkError(e.getMessage())
+                    .build();
+        } catch (Exception e) {
+            log.error("Error generating signature for usage callback: {}", e.getMessage(), e);
+            return UsageCallbackResult.builder()
+                    .success(false)
+                    .httpStatus(0)
+                    .httpStatusText("Network error")
+                    .requestUrl(parsed.baseUrl())
+                    .networkError(e.getMessage())
+                    .build();
+        }
+    }
+
     /**
      * Sends a progress update to the usage service (no error message).
      */
-    public boolean sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete) {
+    public UsageCallbackResult sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete) {
         return sendProgressUpdate(progressUrl, requestId, stage, percentageComplete, null);
     }
 
     /**
      * Sends a progress update to the usage service.
      */
-    public boolean sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete, String errorMessage) {
+    public UsageCallbackResult sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete, String errorMessage) {
         if (progressUrl == null || progressUrl.isEmpty()) {
             log.warn("Progress URL is null or empty");
-            return false;
+            return UsageCallbackResult.builder()
+                    .success(false)
+                    .httpStatus(0)
+                    .httpStatusText("Missing or invalid callback/progress URL")
+                    .requestUrl("")
+                    .build();
         }
         try {
-            String signature = null;
-            String timestamp = null;
-            String baseUrl = progressUrl;
-            if (progressUrl.contains("?")) {
-                baseUrl = progressUrl.substring(0, progressUrl.indexOf("?"));
-                String queryString = progressUrl.substring(progressUrl.indexOf("?") + 1);
-                for (String param : queryString.split("&")) {
-                    String[] keyValue = param.split("=", 2);
-                    if (keyValue.length == 2) {
-                        if ("signature".equals(keyValue[0])) {
-                            signature = java.net.URLDecoder.decode(keyValue[1], java.nio.charset.StandardCharsets.UTF_8);
-                        } else if ("timestamp".equals(keyValue[0])) {
-                            timestamp = keyValue[1];
-                        }
-                    }
-                }
-            }
-            if (signature == null || timestamp == null) {
-                log.warn("Missing signature or timestamp in progress URL");
-                return false;
-            }
             Map<String, Object> requestBody = new LinkedHashMap<>();
             requestBody.put("stage", stage);
             requestBody.put("percentageComplete", percentageComplete);
+            requestBody.put("timestamp", Instant.now().toString());
             if (errorMessage != null) {
                 requestBody.put("errorMessage", errorMessage);
             }
-            requestBody.put("timestamp", Instant.now().toString());
             String progressUpdatePayload = objectMapper.writeValueAsString(requestBody);
-            long timestampLong = Long.parseLong(timestamp);
-            String newSignature = HmacUtils.calculateHmacWithTimestamp(progressUpdatePayload, timestampLong, serviceSecret);
-            Map<String, String> headers = Map.of(
-                    TollaraHeaders.SIGNATURE, newSignature,
-                    TollaraHeaders.TIMESTAMP, timestamp);
-            HttpResponse<String> response = HttpSupport.postJson(httpClient, baseUrl, progressUpdatePayload, headers);
-            return response.statusCode() >= 200 && response.statusCode() < 300;
+            return postSignedUsageCallback(progressUrl, progressUpdatePayload);
         } catch (IOException e) {
-            log.error("Error sending progress update: {}", e.getMessage(), e);
-            return false;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        } catch (Exception e) {
-            log.error("Error generating signature for progress update: {}", e.getMessage(), e);
-            return false;
+            log.error("Error serializing progress update: {}", e.getMessage(), e);
+            return UsageCallbackResult.builder()
+                    .success(false)
+                    .httpStatus(0)
+                    .httpStatusText("Network error")
+                    .requestUrl(parseCallbackUrl(progressUrl).baseUrl())
+                    .networkError(e.getMessage())
+                    .build();
         }
     }
 
     /**
      * Sends completion with status and billed units only.
      */
-    public boolean sendCompletion(String callbackUrl, String requestId, CompletionStatus status, BigDecimal units) {
+    public UsageCallbackResult sendCompletion(String callbackUrl, String requestId, CompletionStatus status, BigDecimal units) {
         return sendCompletion(callbackUrl, requestId, status, null, null, null, units);
     }
 
     /**
      * Sends completion with inline result text.
      */
-    public boolean sendCompletion(String callbackUrl, String requestId, CompletionStatus status, String result,
+    public UsageCallbackResult sendCompletion(String callbackUrl, String requestId, CompletionStatus status, String result,
                                   BigDecimal units) {
         return sendCompletion(callbackUrl, requestId, status, result, null, null, units);
     }
@@ -152,58 +210,36 @@ public class UsageServiceClient {
     /**
      * Sends completion with result URL and content type.
      */
-    public boolean sendCompletion(String callbackUrl, String requestId, CompletionStatus status, String result,
+    public UsageCallbackResult sendCompletion(String callbackUrl, String requestId, CompletionStatus status, String result,
                                   String resultUrl, String contentType, BigDecimal units) {
         if (callbackUrl == null || callbackUrl.isEmpty()) {
             log.warn("Callback URL is null or empty");
-            return false;
+            return UsageCallbackResult.builder()
+                    .success(false)
+                    .httpStatus(0)
+                    .httpStatusText("Missing or invalid callback/progress URL")
+                    .requestUrl("")
+                    .build();
         }
         try {
-            String signature = null;
-            String timestamp = null;
-            String baseUrl = callbackUrl;
-            if (callbackUrl.contains("?")) {
-                baseUrl = callbackUrl.substring(0, callbackUrl.indexOf("?"));
-                String queryString = callbackUrl.substring(callbackUrl.indexOf("?") + 1);
-                for (String param : queryString.split("&")) {
-                    String[] keyValue = param.split("=", 2);
-                    if (keyValue.length == 2) {
-                        if ("signature".equals(keyValue[0])) {
-                            signature = java.net.URLDecoder.decode(keyValue[1], java.nio.charset.StandardCharsets.UTF_8);
-                        } else if ("timestamp".equals(keyValue[0])) {
-                            timestamp = keyValue[1];
-                        }
-                    }
-                }
-            }
-            if (signature == null || timestamp == null) {
-                log.warn("Missing signature or timestamp in callback URL");
-                return false;
-            }
             Map<String, Object> requestBody = new LinkedHashMap<>();
             requestBody.put("status", status.getApiValue());
+            requestBody.put("timestamp", Instant.now().toString());
+            requestBody.put("units", units != null ? units : BigDecimal.ZERO);
             if (result != null) requestBody.put("result", result);
             if (resultUrl != null) requestBody.put("resultUrl", resultUrl);
             if (contentType != null) requestBody.put("contentType", contentType);
-            requestBody.put("timestamp", Instant.now().toString());
-            requestBody.put("units", units != null ? units : BigDecimal.ZERO);
             String completionPayload = objectMapper.writeValueAsString(requestBody);
-            long timestampLong = Long.parseLong(timestamp);
-            String newSignature = HmacUtils.calculateHmacWithTimestamp(completionPayload, timestampLong, serviceSecret);
-            Map<String, String> headers = Map.of(
-                    TollaraHeaders.SIGNATURE, newSignature,
-                    TollaraHeaders.TIMESTAMP, timestamp);
-            HttpResponse<String> response = HttpSupport.postJson(httpClient, baseUrl, completionPayload, headers);
-            return response.statusCode() >= 200 && response.statusCode() < 300;
+            return postSignedUsageCallback(callbackUrl, completionPayload);
         } catch (IOException e) {
-            log.error("Error sending completion notification: {}", e.getMessage(), e);
-            return false;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        } catch (Exception e) {
-            log.error("Error generating signature for completion: {}", e.getMessage(), e);
-            return false;
+            log.error("Error serializing completion: {}", e.getMessage(), e);
+            return UsageCallbackResult.builder()
+                    .success(false)
+                    .httpStatus(0)
+                    .httpStatusText("Network error")
+                    .requestUrl(parseCallbackUrl(callbackUrl).baseUrl())
+                    .networkError(e.getMessage())
+                    .build();
         }
     }
 

@@ -270,6 +270,8 @@ All three endpoints require request body + timestamp signed with **service secre
 - `X-Tollara-Signature`: signature as above
 - `X-Tollara-Timestamp`: numeric string (Unix epoch seconds)
 
+**Server verification (progress and completion):** For **§3.2** and **§3.3**, the usage service validates HMAC using the **raw HTTP request body** (UTF-8 string exactly as received), not a re-serialized JSON form after parsing. SDKs and service backends must sign the **same byte sequence** they send in the request body. Semantically equivalent JSON with different field order, whitespace, or escaping will fail verification.
+
 ### 3.1 Report usage (non-proxied services)
 
 **Request**
@@ -411,7 +413,8 @@ For **async** invokes, the gateway signs the JSON serialization of the async bod
 - **JWT usage estimate (§2.2):** Response is **not** HMAC-signed; do not expect `X-Tollara-*` signature headers.
 - **Service-key estimate response (core → SDK):** Same verification pattern as validate: `responseBody + timestamp` with `serviceSecret`. Use the **raw** response body string; new fields (`wouldAllow`, `breakdown`, etc.) are included in the signed JSON automatically.
 - **Gateway → service (inbound):** `payload + timestamp + GatewayHmacUserContext` v2 (leading `"2"`, no quota).
-- **Report / progress / completion (SDK → usage):** Send `X-Tollara-Signature` = Base64(HMAC-SHA256(bodyJsonString + timestamp, serviceSecret)) and `X-Tollara-Timestamp` = timestamp (numeric string).
+- **Report usage (SDK → usage, §3.1):** Send `X-Tollara-Signature` = Base64(HMAC-SHA256(bodyJsonString + timestamp, serviceSecret)) and `X-Tollara-Timestamp` = timestamp (numeric string).
+- **Progress / completion (SDK → usage, §3.2–§3.3):** Same signing rule. The usage service verifies against the **raw request body** string (see §3 server verification note); sign exactly what you POST.
 
 ---
 
@@ -439,6 +442,7 @@ Public marketplace and workspace list/detail responses that serialize **`Service
 
 | Date | Summary |
 |------|---------|
+| 2026-06-23 | **§3 / §6 HMAC verification:** Documented that usage service **progress** and **completion** endpoints verify HMAC against the **raw HTTP request body**, not re-serialized JSON after parse. SDKs must sign the exact bytes they send. |
 | 2026-05-05 | **Discovery + accuracy:** Documented **`TOLLARA-SDK-ENDPOINT`** Javadoc tag for finding platform implementations of this spec. **§2.1** `serviceKeyId` description now references DB table **`service_keys`** (replaces stale `agent_keys`). |
 | 2026-05-04 | **Rename plan (agent-hub / platform):** SDK HTTP surface uses paths under **`/services`**, **`/developers`**, **`/service-keys`**, **`/service/{serviceId}/endpoint/{endpointId}/invoke`** (and related gateway/usage paths in §1–§5). Request/response JSON uses **`serviceKey`**, **`serviceId`**, **`serviceSecret`**, **`serviceKeyId`**, **`serviceProductId`**, and developer-oriented IDs/metadata aligned with DB migrations (e.g. **`developers`**, **`service_keys`**, **`service_products`**). Validate success bodies use **`validationSchemaVersion: 2`** (no `quotaRemaining`). Brand **`Tollara`**, **`X-Tollara-*`** headers, **`TOLLARA_*`** env vars, and SDK type names such as **`TollaraClient`** / **`TollaraRequestVerifier`** are unchanged. Marketplace publisher Cognito role is **`DEVELOPER`**; end-user role **`USER`**. Coordinate standalone **tollara-sdk** releases with this file when contract fields or paths change. |
 | 2026-05-03 | **§7** Marketplace card: **`cardMarketing`**, **`cardLogoAssetId` / `cardCoverAssetId`**, resolved **`logoUrl` / `coverImageUrl`** from **`media_assets`**; owner **`marketplaceBranding`** + **`brandingLogoAssetId` / `brandingCoverAssetId`**; **`PUT …/card-media`** and **`PUT …/card-marketing`**. |
