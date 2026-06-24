@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Backend — Topic Brief API\n\n**Tollara:** proxied **async** service (seller)\n\n**Webhook path:** `topic-brief`\n\n**Caller invokes:** `POST …/invoke/async` with `{ \"topic\": \"Docker\" }`\n\n10s waits between progress steps for visible frontend polling.\n\nPair with **subscriber-topic-brief-async** workflow.\n\n**Credential:** Tollara Proxied API",
+        "content": "## Backend — Topic Brief API\n\n**Tollara:** proxied **async** service (seller)\n\n**Webhook path:** `topic-brief`\n\n**Listing must be async** (`isAsync`). Caller invokes `POST …/invoke/async` with `{ \"topic\": \"Docker\" }` — **not** sync invoke.\n\n10s waits before 50%/75% progress and after 75% for visible frontend polling.\n\nPair with **subscriber-topic-brief-async** workflow.\n\n**Credential:** Tollara Proxied API",
         "height": 300,
         "width": 460
       },
@@ -46,7 +46,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = typeof $json.body === 'string' ? JSON.parse($json.body || '{}') : ($json.body ?? {});\nconst inner = typeof raw.payload === 'string' ? JSON.parse(raw.payload || '{}') : (raw.payload ?? {});\nconst topic = (inner.topic ?? '').trim();\nif (!topic) {\n  throw new Error('Missing topic in async payload — send { \"topic\": \"Docker\" }');\n}\nreturn [{\n  json: {\n    requestId: raw.request_id,\n    progressUrl: raw.progress_url,\n    callbackUrl: raw.callback_url,\n    topic,\n    userContext: $json.userContext,\n  },\n}];"
+        "jsCode": "const item = $input.first();\nlet raw;\nconst bin = item.binary?.data;\nif (bin?.data) {\n  raw = JSON.parse(Buffer.from(bin.data, 'base64').toString('utf8'));\n} else if (typeof $json.body === 'string') {\n  raw = JSON.parse($json.body || '{}');\n} else {\n  raw = $json.body ?? {};\n}\n\nif (raw.request_id == null && raw.topic != null && raw.payload == null) {\n  throw new Error(\n    'Received sync-shaped body { \"topic\": \"...\" }. This backend requires async invoke — use POST …/invoke/async and set the Tollara endpoint to async (isAsync).'\n  );\n}\n\nconst inner = raw.payload != null\n  ? (typeof raw.payload === 'string' ? JSON.parse(raw.payload || '{}') : raw.payload)\n  : {};\nconst topic = (inner.topic ?? '').trim();\nif (!topic) {\n  throw new Error('Missing topic in async payload — invoke with { \"topic\": \"Docker\" } via …/invoke/async');\n}\nif (!raw.request_id) {\n  throw new Error('Missing request_id — gateway async invoke only (…/invoke/async)');\n}\n\nreturn [{\n  json: {\n    requestId: raw.request_id,\n    progressUrl: raw.progress_url,\n    callbackUrl: raw.callback_url,\n    topic,\n    userContext: $json.userContext,\n  },\n}];"
       },
       "id": "b2c3d4e5-0002-4000-8000-000000000012",
       "name": "Parse Async Envelope",
@@ -70,17 +70,6 @@
     },
     {
       "parameters": {
-        "amount": 10
-      },
-      "id": "b2c3d4e5-0002-4000-8000-000000000014",
-      "name": "Wait 10s",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [960, 320],
-      "webhookId": "d4e5f6a7-0002-4000-8000-wait1"
-    },
-    {
-      "parameters": {
         "progressUrl": "={{ $('Parse Async Envelope').item.json.progressUrl }}",
         "requestId": "={{ $('Parse Async Envelope').item.json.requestId }}",
         "stage": "Looking up topic",
@@ -90,7 +79,7 @@
       "name": "Progress 25%",
       "type": "n8n-nodes-tollara.tollaraProgress",
       "typeVersion": 1,
-      "position": [1200, 320],
+      "position": [960, 320],
       "credentials": {
         "tollaraApi": {
           "name": "Tollara Proxied API"
@@ -112,7 +101,7 @@
       "name": "Fetch Wikipedia",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1440, 320]
+      "position": [1200, 320]
     },
     {
       "parameters": {
@@ -122,7 +111,7 @@
       "name": "Wait 10s1",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [1680, 320],
+      "position": [1440, 320],
       "webhookId": "e5f6a7b8-0002-4000-8000-wait2"
     },
     {
@@ -136,7 +125,7 @@
       "name": "Progress 50%",
       "type": "n8n-nodes-tollara.tollaraProgress",
       "typeVersion": 1,
-      "position": [1920, 320],
+      "position": [1680, 320],
       "credentials": {
         "tollaraApi": {
           "name": "Tollara Proxied API"
@@ -151,7 +140,7 @@
       "name": "Build Report",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2160, 320]
+      "position": [1920, 320]
     },
     {
       "parameters": {
@@ -161,7 +150,7 @@
       "name": "Wait 10s2",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [2400, 320],
+      "position": [2160, 320],
       "webhookId": "f6a7b8c9-0002-4000-8000-wait3"
     },
     {
@@ -175,12 +164,23 @@
       "name": "Progress 75%",
       "type": "n8n-nodes-tollara.tollaraProgress",
       "typeVersion": 1,
-      "position": [2640, 320],
+      "position": [2400, 320],
       "credentials": {
         "tollaraApi": {
           "name": "Tollara Proxied API"
         }
       }
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "b2c3d4e5-0002-4000-8000-00000000001d",
+      "name": "Wait 10s3",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2640, 320],
+      "webhookId": "a7b8c9d0-0002-4000-8000-wait4"
     },
     {
       "parameters": {
@@ -238,17 +238,6 @@
       ]
     },
     "Respond Accepted": {
-      "main": [
-        [
-          {
-            "node": "Wait 10s",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Wait 10s": {
       "main": [
         [
           {
@@ -326,6 +315,17 @@
       ]
     },
     "Progress 75%": {
+      "main": [
+        [
+          {
+            "node": "Wait 10s3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10s3": {
       "main": [
         [
           {
