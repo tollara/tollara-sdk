@@ -1,7 +1,8 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { CompletionStatus, reportCompletionFull } from '@tollara/service-sdk';
-import { getTollaraCredentials } from '../../lib/tollaraCredentials';
-
+import { CompletionStatus, reportCompletion } from '@tollara/service-sdk';
+import { getTollaraCredentials, resolveUsageApiUrl } from '../../lib/tollaraCredentials';
+import { passthroughItemWithJson } from '../../lib/passthroughItem';
+import { rewriteUsageServiceUrl } from '../../lib/usageUrls';
 export class TollaraComplete implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Complete',
@@ -27,27 +28,52 @@ export class TollaraComplete implements INodeType {
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('tollaraApi');
-    const { serviceSecret } = getTollaraCredentials(credentials);
-    const callbackUrl = this.getNodeParameter('callbackUrl', 0) as string;
-    const requestId = this.getNodeParameter('requestId', 0) as string;
-    const status = this.getNodeParameter('status', 0) as string;
-    const result = this.getNodeParameter('result', 0, '') as string;
-    const resultUrl = this.getNodeParameter('resultUrl', 0, '') as string;
-    const contentType = this.getNodeParameter('contentType', 0, '') as string;
-    const units = this.getNodeParameter('units', 0, 0) as number;
+    const credentialsParsed = getTollaraCredentials(credentials);
+    const { serviceSecret } = credentialsParsed;
+    const items = this.getInputData();
+    const returnData: INodeExecutionData[] = [];
 
-    const statusEnum = status === 'FAILED' ? CompletionStatus.Failed : CompletionStatus.Completed;
-    const ok = await reportCompletionFull({
-      callbackUrl,
-      requestId,
-      status: statusEnum,
-      result: result || undefined,
-      resultUrl: resultUrl || undefined,
-      contentType: contentType || undefined,
-      units,
-      serviceSecret,
-    });
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const callbackUrlParam = this.getNodeParameter('callbackUrl', i) as string;
+      const requestId = this.getNodeParameter('requestId', i) as string;
+      const status = this.getNodeParameter('status', i) as string;
+      const result = this.getNodeParameter('result', i, '') as string;
+      const resultUrl = this.getNodeParameter('resultUrl', i, '') as string;
+      const contentType = this.getNodeParameter('contentType', i, '') as string;
+      const units = this.getNodeParameter('units', i, 0) as number;
 
-    return [[{ json: { success: ok } }]];
+      if (!callbackUrlParam?.trim()) {
+        throw new Error(
+          'Callback URL is empty. Reference an upstream node that holds callbackUrl (e.g. $("Build Report").item.json.callbackUrl).',
+        );
+      }
+
+      const statusEnum = status === 'FAILED' ? CompletionStatus.Failed : CompletionStatus.Completed;
+      const callbackUrl = rewriteUsageServiceUrl(callbackUrlParam, resolveUsageApiUrl(credentialsParsed));
+
+      const httpResult = await reportCompletion({
+        callbackUrl,
+        requestId,
+        status: statusEnum,
+        result: result || undefined,
+        resultUrl: resultUrl || undefined,
+        contentType: contentType || undefined,
+        units,
+        serviceSecret,
+      });
+
+      returnData.push(passthroughItemWithJson(item, {
+        completeSuccess: httpResult.success,
+        completeHttpStatus: httpResult.httpStatus,
+        completeHttpStatusText: httpResult.httpStatusText,
+        completeRequestUrl: httpResult.requestUrl,
+        completeResponseBody: httpResult.responseBody,
+        completeNetworkError: httpResult.networkError,
+        callbackUrlUsed: callbackUrl !== callbackUrlParam ? callbackUrl : undefined,
+      }, i));
+    }
+
+    return [returnData];
   }
 }

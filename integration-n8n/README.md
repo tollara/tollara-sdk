@@ -29,9 +29,12 @@ Import-ready demo workflows live in [`example-workflows/`](example-workflows/REA
 
 | Workflow | Mode |
 |----------|------|
-| `url-metadata-sync.json` | Proxied sync — fetch page title/description |
-| `topic-brief-async-backend.json` | Proxied async — Wikipedia brief + Progress/Complete |
-| `subscriber-echo-non-proxied.json` | Non-proxied — Validate Key + echo + Report Usage |
+| `backend-url-metadata-sync.json` | Proxied sync backend — fetch page title/description |
+| `backend-topic-brief-async.json` | Proxied async backend — Wikipedia brief + Progress/Complete |
+| `backend-echo-non-proxied.json` | Non-proxied backend — Validate Key + echo + Report Usage |
+| `subscriber-url-metadata-sync.json` | Subscriber — Invoke sync (URL Metadata) |
+| `subscriber-url-metadata-estimate.json` | Subscriber — Estimate Usage + Invoke sync |
+| `subscriber-topic-brief-async.json` | Subscriber — Invoke async + Job Status + Job Result |
 
 **Caller async:** Tollara Invoke (async) → Tollara Job Status → Tollara Job Result
 
@@ -61,7 +64,7 @@ npm run build
 
 Self-hosted n8n can install unverified community nodes from npm (unlike n8n Cloud).
 
-**Local dev (no npm publish):** the Docker setup bind-mounts your built `integration-n8n` folder. Changes take effect after `npm run build` and `docker compose restart`.
+**Local dev (no npm publish):** the Docker setup bind-mounts your built `integration-n8n` folder and `sdk-js` (for the `file:../sdk-js` dependency). Changes take effect after rebuilding both packages and restarting n8n.
 
 From `integration-n8n/docker`:
 

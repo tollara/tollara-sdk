@@ -19,6 +19,8 @@ services:
       - n8n_data:/home/node/.n8n
       # Local dev: mount built integration-n8n (run npm run build on host before/up via start.ps1)
       - ../:/home/node/.n8n/nodes/node_modules/n8n-nodes-tollara
+      # file:../sdk-js dependency resolves outside integration-n8n on the host; mount sdk-js too
+      - ../../sdk-js:/home/node/.n8n/nodes/node_modules/n8n-nodes-tollara/node_modules/@tollara/service-sdk
 
 volumes:
   n8n_data:

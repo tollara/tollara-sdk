@@ -1,11 +1,11 @@
 {
-  "name": "Tollara Demo — URL Metadata API (proxied sync)",
+  "name": "Tollara Demo — Backend URL Metadata (proxied sync)",
   "nodes": [
     {
       "parameters": {
-        "content": "## URL Metadata API\n\n**Tollara:** proxied sync service\n\n**Webhook path:** `url-metadata`\n\n**Invoke body:** `{ \"url\": \"https://example.com\" }`\n\n**Credential:** Tollara Proxied API",
-        "height": 220,
-        "width": 420
+        "content": "## Backend — URL Metadata API\n\n**Tollara:** proxied sync **service** (seller)\n\n**Webhook path:** `url-metadata`\n\n**Caller invokes:** `POST …/invoke` with `{ \"url\": \"https://example.com\" }`\n\nPair with **subscriber-url-metadata-sync** workflow.\n\n**Credential:** Tollara Proxied API",
+        "height": 260,
+        "width": 440
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000001",
       "name": "Sticky Note",

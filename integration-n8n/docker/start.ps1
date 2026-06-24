@@ -1,6 +1,15 @@
 # Build local n8n-nodes-tollara and start n8n with a bind mount (no npm publish required).
 Set-Location $PSScriptRoot
 $integrationRoot = Join-Path $PSScriptRoot ".."
+$sdkRoot = Join-Path $integrationRoot ".." "sdk-js"
+
+Write-Host "Building @tollara/service-sdk from $sdkRoot ..."
+Push-Location $sdkRoot
+npm install --no-fund --no-audit
+if ($LASTEXITCODE -ne 0) { Pop-Location; exit $LASTEXITCODE }
+npm run build
+if ($LASTEXITCODE -ne 0) { Pop-Location; exit $LASTEXITCODE }
+Pop-Location
 
 Write-Host "Building n8n-nodes-tollara from $integrationRoot ..."
 Push-Location $integrationRoot
