@@ -146,7 +146,7 @@ Optional<TollaraRequestVerifier.UserContext> verified =
         verifier.verifyInboundHmacAndGetUserContext(request::getHeader, rawBody);
 verified.ifPresent(ctx -> {
     // ctx.getUserId(), ctx.getServiceProductId(), ctx.getSubscriptionStatus(), …
-    if (TollaraRequestVerifier.grantsAccess(ctx.getSubscriptionStatus())) {
+    if (TollaraRequestVerifier.grantAccess(ctx.getSubscriptionStatus())) {
         // invoke-eligible subscription
     }
 });
@@ -184,7 +184,7 @@ TollaraClient client = TollaraClient.builder()
 // Validate a caller’s service key; verify response HMAC inside the client.
 var validation = client.validateServiceKey("bearer-token");
 // validation.getServiceKeyId() — Core key row id when present (validate success, §2.1).
-// validation.getServiceProductId(), getSubscriptionStatus(), grantsAccess() for v3 validate.
+// validation.getServiceProductId(), getSubscriptionStatus(), grantAccess() for v3 validate.
 
 // Pre-flight: Core POST /service-keys/estimate-usage (same body trust as validate; no Bearer).
 // Verifies response HMAC on 200 / 403 / 429 when signature headers are present.

@@ -39,7 +39,7 @@
       "position": [240, 300]    },
     {
       "parameters": {
-        "jsCode": "const v = $('Tollara Validate Key').first().json.userContext;\nconst body = $input.first().json.body ?? {};\nreturn [{\n  json: {\n    status: 'ok',\n    message: `Hello, subscriber (product ${v.serviceProductId}, status ${v.subscriptionStatus})`,\n    grantsAccess: v.grantsAccess,\n    echo: body,\n    servedAt: new Date().toISOString(),\n  },\n}];"
+        "jsCode": "const v = $('Tollara Validate Key').first().json.userContext;\nconst body = $input.first().json.body ?? {};\nreturn [{\n  json: {\n    status: 'ok',\n    message: `Hello, subscriber (product ${v.serviceProductId}, status ${v.subscriptionStatus})`,\n    grantAccess: v.grantAccess,\n    echo: body,\n    servedAt: new Date().toISOString(),\n  },\n}];"
       },
       "id": "c3d4e5f6-0003-4000-8000-000000000012",
       "name": "Build Response",

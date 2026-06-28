@@ -22,7 +22,7 @@ Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `
 use Tollara\ServiceSdk\Verifier;
 
 $ctx = Verifier::verifyInboundHmacAndGetUserContext($serviceSecret, $headersArray, $rawBody);
-if ($ctx !== null && Verifier::grantsAccess($ctx->subscriptionStatus)) {
+if ($ctx !== null && Verifier::grantAccess($ctx->subscriptionStatus)) {
     // invoke-eligible subscription
 }
 ```
@@ -67,7 +67,7 @@ $client = new TollaraClient(
 );
 
 $validation = $client->validateServiceKey($serviceKey); // validationSchemaVersion 3
-if ($validation !== null && $validation->grantsAccess()) { /* ... */ }
+if ($validation !== null && $validation->grantAccess()) { /* ... */ }
 
 $estimate = $client->estimateUsage($serviceKey, 1.0); // estimateSchemaVersion 3; caps/credits on breakdown
 $report = $client->reportUsage($userId, $serviceId, 1.0); // reportSchemaVersion 2 + breakdown

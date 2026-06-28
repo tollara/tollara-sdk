@@ -48,11 +48,11 @@ assertSame('3owner-idACTIVE', $ctx, 'buildV3 billing absent');
 $ctx = Verifier::buildGatewayUserContextStringV3('user-x', 'prod-x', ['r1'], 'EXPIRED', 'PREPAID', 'PER_REQUEST', 'request');
 assertSame('3user-xprod-xr1EXPIREDPREPAIDPER_REQUESTrequest', $ctx, 'buildV3 non access');
 
-assertTrue(Verifier::grantsAccess('ACTIVE'), 'grants ACTIVE');
-assertTrue(Verifier::grantsAccess('trial'), 'grants trial case-insensitive');
-assertTrue(Verifier::grantsAccess('CANCELLING_PENDING'), 'grants CANCELLING_PENDING');
-assertTrue(!Verifier::grantsAccess('EXPIRED'), 'denies EXPIRED');
-assertTrue(!Verifier::grantsAccess(null), 'denies null');
+assertTrue(Verifier::grantAccess('ACTIVE'), 'grants ACTIVE');
+assertTrue(Verifier::grantAccess('trial'), 'grants trial case-insensitive');
+assertTrue(Verifier::grantAccess('CANCELLING_PENDING'), 'grants CANCELLING_PENDING');
+assertTrue(!Verifier::grantAccess('EXPIRED'), 'denies EXPIRED');
+assertTrue(!Verifier::grantAccess(null), 'denies null');
 
 $secret = 'my-agent-secret';
 $payload = '';

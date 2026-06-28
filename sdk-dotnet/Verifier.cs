@@ -49,7 +49,7 @@ public static class Verifier
     /// Returns true when <paramref name="subscriptionStatus"/> is invoke-eligible
     /// (ACTIVE, TRIAL, CANCELLING, CANCELLING_PENDING).
     /// </summary>
-    public static bool GrantsAccess(string? subscriptionStatus)
+    public static bool GrantAccess(string? subscriptionStatus)
     {
         if (string.IsNullOrWhiteSpace(subscriptionStatus)) return false;
         return InvokeEligibleStatuses.Contains(subscriptionStatus.Trim().ToUpperInvariant());

@@ -34,15 +34,15 @@ public class VerifierTests
         Assert.NotNull(ctx);
         Assert.Equal("prod-1", ctx!.ServiceProductId);
         Assert.Equal("ACTIVE", ctx.SubscriptionStatus);
-        Assert.True(Verifier.GrantsAccess(ctx.SubscriptionStatus));
+        Assert.True(Verifier.GrantAccess(ctx.SubscriptionStatus));
     }
 
     [Fact]
-    public void GrantsAccess_ReturnsFalseForNonEligibleStatus()
+    public void GrantAccess_ReturnsFalseForNonEligibleStatus()
     {
-        Assert.False(Verifier.GrantsAccess("EXPIRED"));
-        Assert.False(Verifier.GrantsAccess(null));
-        Assert.True(Verifier.GrantsAccess("CANCELLING_PENDING"));
+        Assert.False(Verifier.GrantAccess("EXPIRED"));
+        Assert.False(Verifier.GrantAccess(null));
+        Assert.True(Verifier.GrantAccess("CANCELLING_PENDING"));
     }
 
     [Fact]

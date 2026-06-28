@@ -6,7 +6,7 @@ from tollara_service_sdk import (
     SignedUserContext,
     calculate_hmac,
     get_user_context,
-    grants_access,
+    grant_access,
     verify_inbound_context,
     verify_inbound_hmac,
     verify_signature,
@@ -52,13 +52,13 @@ def test_verify_inbound_hmac_accepts_gateway_hmac_v3_when_signing_version_header
     assert ctx is not None
     assert ctx.service_product_id == "prod-1"
     assert ctx.subscription_status == "ACTIVE"
-    assert grants_access(ctx.subscription_status) is True
+    assert grant_access(ctx.subscription_status) is True
 
 
-def test_grants_access_returns_false_for_non_eligible_status():
-    assert grants_access("EXPIRED") is False
-    assert grants_access(None) is False
-    assert grants_access("CANCELLING_PENDING") is True
+def test_grant_access_returns_false_for_non_eligible_status():
+    assert grant_access("EXPIRED") is False
+    assert grant_access(None) is False
+    assert grant_access("CANCELLING_PENDING") is True
 
 
 def test_verify_inbound_hmac_accepts_gateway_hmac_v2_when_signing_version_header_is_2():

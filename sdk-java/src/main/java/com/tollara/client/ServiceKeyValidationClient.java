@@ -344,13 +344,13 @@ public class ServiceKeyValidationClient {
         /**
          * Returns {@code true} when {@link #subscriptionStatus} is invoke-eligible.
          */
-        public boolean grantsAccess() {
-            return TollaraRequestVerifier.grantsAccess(subscriptionStatus);
+        public boolean grantAccess() {
+            return TollaraRequestVerifier.grantAccess(subscriptionStatus);
         }
 
-        /** Same rule as {@link #grantsAccess()}. */
-        public static boolean grantsAccess(String subscriptionStatus) {
-            return TollaraRequestVerifier.grantsAccess(subscriptionStatus);
+        /** Same rule as {@link #grantAccess()}. */
+        public static boolean grantAccess(String subscriptionStatus) {
+            return TollaraRequestVerifier.grantAccess(subscriptionStatus);
         }
     }
 

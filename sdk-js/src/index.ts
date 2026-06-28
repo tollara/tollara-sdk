@@ -9,7 +9,7 @@ export {
   buildGatewayUserContextString,
   buildGatewayUserContextStringV2,
   buildGatewayUserContextStringV3,
-  grantsAccess,
+  grantAccess,
   type UserContext,
   type VerifySignatureInput,
   type SignedUserContext,

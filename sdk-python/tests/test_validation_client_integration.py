@@ -69,7 +69,7 @@ def test_validate_service_key_returns_result_when_core_returns_200_with_valid_hm
     assert result.subscription_status == "ACTIVE"
     assert result.validation_schema_version == 3
     assert result.roles == ["user"]
-    assert result.grants_access() is True
+    assert result.grant_access() is True
     assert result.billing_model_type == "SUBSCRIPTION"
 
 
@@ -159,7 +159,7 @@ def test_validate_service_key_returns_none_when_valid_false_in_body():
 
 
 @responses.activate
-def test_validate_service_key_grants_access_false_for_expired_status():
+def test_validate_service_key_grant_access_false_for_expired_status():
     response_body = {
         "valid": True,
         "serviceKeyId": SERVICE_KEY_ID,
@@ -194,8 +194,8 @@ def test_validate_service_key_grants_access_false_for_expired_status():
     result = validate_service_key(CORE_BASE, "expired-key", SERVICE_SECRET, service_id=SERVICE_ID)
 
     assert result is not None
-    assert result.grants_access() is False
-    assert ServiceKeyValidationResult.grants_access_for_status("EXPIRED") is False
+    assert result.grant_access() is False
+    assert ServiceKeyValidationResult.grant_access_for_status("EXPIRED") is False
 
 
 @responses.activate

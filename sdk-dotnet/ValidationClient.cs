@@ -17,9 +17,9 @@ public record ServiceKeyValidationResult(
     string? UnitLabel,
     Guid? ServiceKeyId)
 {
-    public bool GrantsAccess() => Verifier.GrantsAccess(SubscriptionStatus);
+    public bool GrantAccess() => Verifier.GrantAccess(SubscriptionStatus);
 
-    public static bool GrantsAccess(string? subscriptionStatus) => Verifier.GrantsAccess(subscriptionStatus);
+    public static bool GrantAccess(string? subscriptionStatus) => Verifier.GrantAccess(subscriptionStatus);
 }
 
 /// <summary>Wire result for Core usage estimate endpoints (see docs-sdk/MAIN-SDK-API-SPEC.md §2.3).</summary>

@@ -6,7 +6,7 @@ Coordinated breaking release with platform (core, gateway, usage).
 
 ### Breaking changes
 
-- **Validate v3:** Remove `plan`, `quotaRemaining`, `subscriptionActive`. Add `serviceProductId`, `subscriptionStatus`, `validationSchemaVersion: 3`. Use `grantsAccess(subscriptionStatus)` for `ACTIVE`, `TRIAL`, `CANCELLING`, `CANCELLING_PENDING`.
+- **Validate v3:** Remove `plan`, `quotaRemaining`, `subscriptionActive`. Add `serviceProductId`, `subscriptionStatus`, `validationSchemaVersion: 3`. Use `grantAccess(subscriptionStatus)` for `ACTIVE`, `TRIAL`, `CANCELLING`, `CANCELLING_PENDING`.
 - **Gateway HMAC v3:** `buildV3` / `buildGatewayUserContextStringV3`; headers `X-Tollara-Service-Product-ID`, `X-Tollara-Subscription-Status`; signing version `3`. Remove reliance on `X-Tollara-Plan`, `X-Tollara-Subscription-Active`.
 - **Estimate v3:** `estimateSchemaVersion: 3`; remove top-level `remainingCredits` and `remainingSpendingCap`; read from `breakdown` (including `breakdown.remainingCredits` for PREPAID).
 - **Report v2:** `reportSchemaVersion: 2` with `userId`, `serviceId`, billing identity, and `breakdown` only.

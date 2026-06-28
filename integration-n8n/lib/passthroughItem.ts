@@ -1,6 +1,6 @@
 import type { IDataObject, INodeExecutionData } from 'n8n-workflow';
 import type { ServiceKeyValidationResult, UserContext } from '@tollara/service-sdk';
-import { grantsAccess } from '@tollara/service-sdk';
+import { grantAccess } from '@tollara/service-sdk';
 
 /** Merge extra fields onto an item while preserving binary and pairedItem (Verify Request / Validate Key). */
 export function passthroughItemWithJson(
@@ -22,7 +22,7 @@ export function headerUserContextToPassthrough(ctx: UserContext): IDataObject {
     serviceProductId: ctx.serviceProductId,
     roles: ctx.roles,
     subscriptionStatus: ctx.subscriptionStatus,
-    grantsAccess: grantsAccess(ctx.subscriptionStatus),
+    grantAccess: grantAccess(ctx.subscriptionStatus),
     billingModelType: ctx.billingModelType,
     measurementType: ctx.measurementType,
     unitLabel: ctx.unitLabel,
@@ -36,7 +36,7 @@ export function validationResultToUserContext(result: ServiceKeyValidationResult
     serviceProductId: result.serviceProductId,
     roles: result.roles,
     subscriptionStatus: result.subscriptionStatus,
-    grantsAccess: result.grantsAccess,
+    grantAccess: result.grantAccess,
     billingModelType: result.billingModelType,
     measurementType: result.measurementType,
     unitLabel: result.unitLabel,

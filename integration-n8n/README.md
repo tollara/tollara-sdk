@@ -19,7 +19,7 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 - **Tollara Job Result** – Fetch async job result by request ID.
 - **Tollara Progress** – Send a progress update (use the `progressUrl` from an async invoke response).
 - **Tollara Complete** – Send completion (use the `callbackUrl` from an async invoke response).
-- **Tollara Validate Key** – Validate a service key and return user context (`serviceProductId`, `subscriptionStatus`, `grantsAccess`). Place after the n8n **Webhook** node; reads `Authorization: Bearer` automatically. Set **Service Secret** and **Service ID** on the node.
+- **Tollara Validate Key** – Validate a service key and return user context (`serviceProductId`, `subscriptionStatus`, `grantAccess`). Place after the n8n **Webhook** node; reads `Authorization: Bearer` automatically. Set **Service Secret** and **Service ID** on the node.
 - **Tollara Report Usage** – Report usage units for a user and service.
 - **Tollara Estimate Usage** – Estimate usage cost and quota for a service key.
 

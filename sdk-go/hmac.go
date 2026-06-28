@@ -45,8 +45,8 @@ var invokeEligibleStatuses = map[string]struct{}{
 	"CANCELLING_PENDING":  {},
 }
 
-// GrantsAccess returns true when subscriptionStatus is invoke-eligible.
-func GrantsAccess(subscriptionStatus string) bool {
+// GrantAccess returns true when subscriptionStatus is invoke-eligible.
+func GrantAccess(subscriptionStatus string) bool {
 	s := strings.ToUpper(strings.TrimSpace(subscriptionStatus))
 	if s == "" {
 		return false

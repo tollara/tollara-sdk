@@ -134,8 +134,8 @@ func TestValidateServiceKey_ReturnsV3ResultWhenHmacValid(t *testing.T) {
 	if result.ValidationSchemaVersion != 3 {
 		t.Fatalf("validationSchemaVersion: %d", result.ValidationSchemaVersion)
 	}
-	if !result.GrantsAccess() {
-		t.Fatal("expected GrantsAccess true")
+	if !result.GrantAccess() {
+		t.Fatal("expected GrantAccess true")
 	}
 }
 

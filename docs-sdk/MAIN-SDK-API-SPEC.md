@@ -166,7 +166,7 @@ Used by both callers and backends to validate a service key and get user/entitle
 | `serviceProductId` | string (UUID) | Subscribed product id; `"owner"` path may omit or use empty when not applicable. |
 | `roles` | string[] | User roles (may be empty). |
 | `validationSchemaVersion` | number | **`3`** on success. |
-| `subscriptionStatus` | string | Uppercase status (e.g. `ACTIVE`, `TRIAL`, `CANCELLING`, `CANCELLING_PENDING`, `EXPIRED`). SDKs use `grantsAccess(subscriptionStatus)` for invoke-eligible statuses. |
+| `subscriptionStatus` | string | Uppercase status (e.g. `ACTIVE`, `TRIAL`, `CANCELLING`, `CANCELLING_PENDING`, `EXPIRED`). SDKs use `grantAccess(subscriptionStatus)` for invoke-eligible statuses. |
 | `billingModelType` | string | Optional. `SUBSCRIPTION`, `USAGE_POSTPAID`, `USAGE_INSTANT`, `PREPAID`; omitted/null for owner path. |
 | `measurementType` | string | Optional. e.g. `PER_REQUEST`, `PER_TIME_UNIT`, `PER_TOKEN`, `PER_BYTE`; omitted/null when not applicable. |
 | `unitLabel` | string | Optional config label (e.g. `request`, `token`). |
@@ -389,7 +389,7 @@ Do **not** expect `X-Tollara-Plan`, `X-Tollara-Subscription-Active`, or `service
 
 Then `canonical = payloadString + timestamp + userContextString`. `signature = Base64(HMAC-SHA256(canonical, serviceSecret))`. Compare with constant-time equality to `X-Tollara-Signature`.
 
-**SDK access:** Use `grantsAccess(subscriptionStatus)` for invoke-eligible statuses: `ACTIVE`, `TRIAL`, `CANCELLING`, `CANCELLING_PENDING`.
+**SDK access:** Use `grantAccess(subscriptionStatus)` for invoke-eligible statuses: `ACTIVE`, `TRIAL`, `CANCELLING`, `CANCELLING_PENDING`.
 
 **Legacy v2:** Leading `"2"` + `plan` + `Boolean.toString(subscriptionActive)` (no quota). **Legacy v1:** no version prefix; optional quota segment. SDKs should verify v3 in production; v1/v2 may remain for backward-compat tests only.
 
@@ -419,7 +419,7 @@ For **async** invokes, the gateway signs the JSON serialization of the async bod
 ## 6. HMAC summary (outbound from SDK)
 
 - **Algorithm:** HMAC-SHA256; key = service secret (UTF-8); output = Base64.
-- **Validate response (core → SDK):** Verify `X-Tollara-Signature` = Base64(HMAC-SHA256(responseBody + X-Tollara-Timestamp, serviceSecret)). Constant-time compare. Success bodies include `validationSchemaVersion: 3` with `serviceProductId` and `subscriptionStatus`; success bodies may include **`serviceKeyId`** (see §2.1). Use `grantsAccess(subscriptionStatus)` for access checks.
+- **Validate response (core → SDK):** Verify `X-Tollara-Signature` = Base64(HMAC-SHA256(responseBody + X-Tollara-Timestamp, serviceSecret)). Constant-time compare. Success bodies include `validationSchemaVersion: 3` with `serviceProductId` and `subscriptionStatus`; success bodies may include **`serviceKeyId`** (see §2.1). Use `grantAccess(subscriptionStatus)` for access checks.
 - **JWT usage estimate (§2.2):** Response is **not** HMAC-signed; do not expect `X-Tollara-*` signature headers. Balances/caps only on `breakdown` (no top-level `remainingCredits` / `remainingSpendingCap`).
 - **Service-key estimate response (core → SDK):** Same verification pattern as validate: `responseBody + timestamp` with `serviceSecret`. Success bodies use `estimateSchemaVersion: 3`.
 - **Gateway → service (inbound):** `payload + timestamp + GatewayHmacUserContext` **v3** (leading `"3"`, `serviceProductId`, `subscriptionStatus`).
@@ -452,7 +452,7 @@ Public marketplace and workspace list/detail responses that serialize **`Service
 
 | Date | Summary |
 |------|---------|
-| 2026-06-28 | **Validation/gateway v3 + unified usage:** Validate `validationSchemaVersion: 3` with `serviceProductId`, `subscriptionStatus`; remove `plan`, `quotaRemaining`, `subscriptionActive`. Gateway HMAC v3 (`X-Tollara-Signing-Version: 3`, `X-Tollara-Service-Product-ID`, `X-Tollara-Subscription-Status`). Estimate `estimateSchemaVersion: 3` — balances/caps on `breakdown` only (`breakdown.remainingCredits` for PREPAID). Report `reportSchemaVersion: 2` with identity + `breakdown`. SDK `grantsAccess(subscriptionStatus)`. §2.1–§2.3, §3.1, §4, §6. |
+| 2026-06-28 | **Validation/gateway v3 + unified usage:** Validate `validationSchemaVersion: 3` with `serviceProductId`, `subscriptionStatus`; remove `plan`, `quotaRemaining`, `subscriptionActive`. Gateway HMAC v3 (`X-Tollara-Signing-Version: 3`, `X-Tollara-Service-Product-ID`, `X-Tollara-Subscription-Status`). Estimate `estimateSchemaVersion: 3` — balances/caps on `breakdown` only (`breakdown.remainingCredits` for PREPAID). Report `reportSchemaVersion: 2` with identity + `breakdown`. SDK `grantAccess(subscriptionStatus)`. §2.1–§2.3, §3.1, §4, §6. |
 | 2026-06-23 | **§3 / §6 HMAC verification:** Documented that usage service **progress** and **completion** endpoints verify HMAC against the **raw HTTP request body**, not re-serialized JSON after parse. SDKs must sign the exact bytes they send. |
 | 2026-05-05 | **Discovery + accuracy:** Documented **`TOLLARA-SDK-ENDPOINT`** Javadoc tag for finding platform implementations of this spec. **§2.1** `serviceKeyId` description now references DB table **`service_keys`** (replaces stale `agent_keys`). |
 | 2026-05-04 | **Rename plan (agent-hub / platform):** SDK HTTP surface uses paths under **`/services`**, **`/developers`**, **`/service-keys`**, **`/service/{serviceId}/endpoint/{endpointId}/invoke`** (and related gateway/usage paths in §1–§5). Request/response JSON uses **`serviceKey`**, **`serviceId`**, **`serviceSecret`**, **`serviceKeyId`**, **`serviceProductId`**, and developer-oriented IDs/metadata aligned with DB migrations (e.g. **`developers`**, **`service_keys`**, **`service_products`**). Validate success bodies use **`validationSchemaVersion: 2`** (no `quotaRemaining`). Brand **`Tollara`**, **`X-Tollara-*`** headers, **`TOLLARA_*`** env vars, and SDK type names such as **`TollaraClient`** / **`TollaraRequestVerifier`** are unchanged. Marketplace publisher Cognito role is **`DEVELOPER`**; end-user role **`USER`**. Coordinate standalone **tollara-sdk** releases with this file when contract fields or paths change. |

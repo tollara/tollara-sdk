@@ -30,16 +30,16 @@ RSpec.describe TollaraSdk do
     end
   end
 
-  describe ".grants_access" do
+  describe ".grant_access" do
     it "returns true for eligible statuses" do
-      expect(described_class.grants_access("ACTIVE")).to be true
-      expect(described_class.grants_access("trial")).to be true
-      expect(described_class.grants_access("CANCELLING_PENDING")).to be true
+      expect(described_class.grant_access("ACTIVE")).to be true
+      expect(described_class.grant_access("trial")).to be true
+      expect(described_class.grant_access("CANCELLING_PENDING")).to be true
     end
 
     it "returns false for ineligible statuses" do
-      expect(described_class.grants_access("EXPIRED")).to be false
-      expect(described_class.grants_access(nil)).to be false
+      expect(described_class.grant_access("EXPIRED")).to be false
+      expect(described_class.grant_access(nil)).to be false
     end
   end
 

@@ -14,7 +14,7 @@ RSpec.describe "contract models" do
     )
     expect(result.service_product_id).to eq("prod-1")
     expect(result.validation_schema_version).to eq(3)
-    expect(result.grants_access).to be true
+    expect(result.grant_access).to be true
   end
 
   it "parses estimate v3 with breakdown" do

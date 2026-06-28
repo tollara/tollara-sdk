@@ -9,7 +9,7 @@ SIGNING_VERSION_V3 = "3"
 _INVOKE_ELIGIBLE_STATUSES = frozenset({"ACTIVE", "TRIAL", "CANCELLING", "CANCELLING_PENDING"})
 
 
-def grants_access(subscription_status: Optional[str]) -> bool:
+def grant_access(subscription_status: Optional[str]) -> bool:
     """True when subscription_status is invoke-eligible (ACTIVE, TRIAL, CANCELLING, CANCELLING_PENDING)."""
     if subscription_status is None or not str(subscription_status).strip():
         return False

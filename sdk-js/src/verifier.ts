@@ -1,8 +1,8 @@
 import { TollaraHeaders } from './tollaraHeaders';
 import { calculateHmac, constantTimeEquals } from './hmac';
-import { grantsAccess } from './grantsAccess';
+import { grantAccess } from './grantAccess';
 
-export { grantsAccess };
+export { grantAccess };
 
 export interface UserContext {
   userId: string | null;
