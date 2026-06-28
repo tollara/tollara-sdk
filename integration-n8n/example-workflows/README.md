@@ -15,7 +15,7 @@ Requires **`n8n-nodes-tollara@0.0.21+`** installed. Use **`npm run deploy:local`
    - **Validate Key / Estimate Usage** — Core API URL (e.g. `http://host.docker.internal:8081`)
    - **Invoke / Job Status / Job Result** — Gateway API URL (e.g. `http://host.docker.internal:8083`)
 
-3. Replace **`YOUR_SERVICE_SECRET`** on each Tollara backend node. Set **`YOUR_SERVICE_ID`** on Validate Key.
+3. Replace **`YOUR_SERVICE_SECRET`** on each Tollara backend node. **Service ID** on Validate Key is optional (inferred from the service key when blank).
 
 4. **Backend** workflows: set each Webhook **Production URL** on the Tollara listing `realUrl`.
 

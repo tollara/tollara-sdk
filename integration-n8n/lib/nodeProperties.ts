@@ -16,13 +16,21 @@ export const serviceIdNodeProperty: INodeProperties = {
   type: 'string',
   default: '',
   placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-  description: 'Your service UUID from the Tollara Service Workspace (service settings).',
+  description: 'Your service UUID from the Tollara Service Workspace.',
 };
 
-const localDevNotice: INodeProperties = {
+export const optionalServiceIdNotice: INodeProperties = {
   displayName:
-    'Production uses default Tollara URLs automatically. For local Docker or staging, enable **Set API Endpoints** below.',
-  name: 'localDevNotice',
+    'Service ID is recommended but optional. Leave blank to infer from the service key, or set to pin validation to a specific service.',
+  name: 'optionalServiceIdNotice',
+  type: 'notice',
+  default: '',
+};
+
+const productionUrlsNotice: INodeProperties = {
+  displayName:
+    'Optionally set API Endpoints to override default Tollara URLs. Default production Tollara URLs are used automatically.',
+  name: 'productionUrlsNotice',
   type: 'notice',
   default: '',
 };
@@ -32,8 +40,7 @@ const setApiEndpointsNodeProperty: INodeProperties = {
   name: 'setApiEndpoints',
   type: 'boolean',
   default: false,
-  description:
-    'Leave disabled for production Tollara URLs. Enable only for staging, self-hosted, or local development.',
+  description: 'Override default Tollara API URLs when enabled.',
 };
 
 function urlNodeProperty(
@@ -65,7 +72,7 @@ const coreApiUrlNodeProperty = urlNodeProperty(
 const usageApiUrlNodeProperty = urlNodeProperty(
   'Usage API URL',
   'usageApiUrl',
-  'Optional. Used by Report Usage and to rewrite progress/complete URLs for local usage services.',
+  'Used by Report Usage and to rewrite progress/complete URLs when gateway returns production hosts.',
 );
 
 const gatewayApiUrlNodeProperty = urlNodeProperty(
@@ -76,21 +83,21 @@ const gatewayApiUrlNodeProperty = urlNodeProperty(
 
 /** Nodes that call core (Validate Key, Estimate Usage). */
 export const tollaraCoreEndpointProperties: INodeProperties[] = [
-  localDevNotice,
+  productionUrlsNotice,
   setApiEndpointsNodeProperty,
   coreApiUrlNodeProperty,
 ];
 
 /** Nodes that call usage / rewrite progress-complete URLs (Progress, Complete, Report Usage). */
 export const tollaraUsageEndpointProperties: INodeProperties[] = [
-  localDevNotice,
+  productionUrlsNotice,
   setApiEndpointsNodeProperty,
   usageApiUrlNodeProperty,
 ];
 
 /** Nodes that call gateway (Invoke, Job Status, Job Result). */
 export const tollaraGatewayEndpointProperties: INodeProperties[] = [
-  localDevNotice,
+  productionUrlsNotice,
   setApiEndpointsNodeProperty,
   gatewayApiUrlNodeProperty,
 ];

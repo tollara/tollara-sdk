@@ -64,3 +64,14 @@ export function requireServiceId(nodeServiceId: string | undefined): string {
   }
   return serviceId;
 }
+
+const IMPORT_PLACEHOLDER_SERVICE_ID = 'YOUR_SERVICE_ID';
+
+/** Empty, whitespace, or import placeholder → null so Core can infer service ID from the service key. */
+export function optionalServiceId(nodeServiceId: string | undefined): string | null {
+  const serviceId = nodeServiceId?.trim() ?? '';
+  if (!serviceId || serviceId === IMPORT_PLACEHOLDER_SERVICE_ID) {
+    return null;
+  }
+  return serviceId;
+}

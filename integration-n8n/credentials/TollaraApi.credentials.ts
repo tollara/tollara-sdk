@@ -15,7 +15,7 @@ export class TollaraApi implements ICredentialType {
   properties: INodeProperties[] = [
     {
       displayName:
-        'Tollara nodes no longer use n8n credentials. Set **Service Secret** on each node. For local Docker URLs, enable **Set API Endpoints** on the node instead. You can delete this credential after re-importing workflows.',
+        'Tollara nodes no longer use n8n credentials. Set **Service Secret** on each node. You can delete this credential after re-importing workflows.',
       name: 'legacyNotice',
       type: 'notice',
       default: '',

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   getTollaraCredentials,
+  optionalServiceId,
   requireServiceId,
   requireServiceSecret,
   resolveCoreApiUrl,
@@ -49,6 +50,14 @@ describe('tollaraCredentials', () => {
     assert.throws(() => requireServiceSecret(undefined), /Service secret is required/);
     assert.equal(requireServiceId('uuid'), 'uuid');
     assert.throws(() => requireServiceId(''), /Service ID is required/);
+  });
+
+  it('optionalServiceId returns null when blank or import placeholder', () => {
+    assert.equal(optionalServiceId(undefined), null);
+    assert.equal(optionalServiceId(''), null);
+    assert.equal(optionalServiceId('   '), null);
+    assert.equal(optionalServiceId('YOUR_SERVICE_ID'), null);
+    assert.equal(optionalServiceId('a1b2c3d4-e5f6-7890-abcd-ef1234567890'), 'a1b2c3d4-e5f6-7890-abcd-ef1234567890');
   });
 
   it('tollaraCredentialsFromNodeParameters returns empty overrides when toggle is off', () => {

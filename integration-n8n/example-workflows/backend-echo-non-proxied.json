@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Backend — Echo API (non-proxied)\n\n**Tollara:** non-proxied service (seller) — direct webhook URL\n\n**Webhook path:** `subscriber-echo`\n\n**Caller invokes:** POST webhook with `Authorization: Bearer <serviceKey>`\n\n**After import:** set **Service Secret** and **Service ID** on **Validate Key**; **Service Secret** on **Report Usage** (`YOUR_SERVICE_SECRET`, `YOUR_SERVICE_ID`). For local Docker, enable **Set API Endpoints** on those nodes (Core + Usage URLs).",
+        "content": "## Backend — Echo API (non-proxied)\n\n**Tollara:** non-proxied service (seller) — direct webhook URL\n\n**Webhook path:** `subscriber-echo`\n\n**Caller invokes:** POST webhook with `Authorization: Bearer <serviceKey>`\n\n**After import:** set **Service Secret** on **Validate Key** and **Report Usage**. **Service ID** on Validate Key is optional (inferred from the Bearer key). For local Docker, enable **Set API Endpoints** on those nodes (Core + Usage URLs).",
         "height": 260,
         "width": 440
       },
@@ -30,7 +30,6 @@
     {
       "parameters": {
         "serviceSecret": "YOUR_SERVICE_SECRET",
-        "serviceId": "YOUR_SERVICE_ID",
         "serviceKeySource": "webhookAuthorization"
       },
       "id": "c3d4e5f6-0003-4000-8000-000000000011",

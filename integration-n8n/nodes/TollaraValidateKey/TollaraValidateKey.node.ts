@@ -1,7 +1,7 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { validateServiceKey } from '@tollara/service-sdk';
-import { requireServiceId, requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
-import { serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
+import { optionalServiceId, requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
 import { bearerTokenFromWebhookItem } from '../../lib/webhookPayload';
 import { passthroughItemWithJson, validationResultToUserContext } from '../../lib/passthroughItem';
 
@@ -39,6 +39,7 @@ export class TollaraValidateKey implements INodeType {
         required: true,
         displayOptions: { show: { serviceKeySource: ['manual'] } },
       },
+      optionalServiceIdNotice,
       serviceIdNodeProperty,
       ...tollaraCoreEndpointProperties,
     ],
@@ -47,7 +48,7 @@ export class TollaraValidateKey implements INodeType {
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
     const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
-    const serviceId = requireServiceId(this.getNodeParameter('serviceId', 0) as string);
+    const serviceId = optionalServiceId(this.getNodeParameter('serviceId', 0) as string);
     const coreApiUrl = resolveCoreApiUrl(credentialsParsed);
     const serviceKeySource = this.getNodeParameter('serviceKeySource', 0) as string;
     const manualServiceKey = this.getNodeParameter('serviceKey', 0, '') as string;
