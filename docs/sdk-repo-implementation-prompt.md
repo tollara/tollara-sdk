@@ -1,24 +1,28 @@
 # Tollara SDK — implementation prompt
 
+> **Historical note:** This prompt describes the **HMAC v2 / estimate v1** rollout. The current contract is **validation v3**, **gateway HMAC v3**, **estimate v3**, and **report v2** — see [docs-sdk/MAIN-SDK-API-SPEC.md](../docs-sdk/MAIN-SDK-API-SPEC.md) and [docs-sdk/fixtures/](../docs-sdk/fixtures/). Sections below are retained for context only.
+
 Use this document as the single copy-paste brief when updating the **tollara-sdk** repository. It was extracted from an internal platform plan (HMAC v2 / estimate docs).
 
 ---
 
-**Task:** Implement **estimateUsage** (agent-key pre-flight) across all SDK languages (Java, JS/TS, .NET, Python, etc.) for Tollara, plus **HMAC v2** and **validate schema v2** updates.
+**Task (superseded):** Implement **estimateUsage** (service-key pre-flight) across all SDK languages (Java, JS/TS, .NET, Python, etc.) for Tollara, plus **HMAC v2** and **validate schema v2** updates.
+
+**Current contract (v3):** **`serviceProductId`**, **`subscriptionStatus`**, **`validationSchemaVersion: 3`**, **`grantsAccess`**, gateway **`buildV3`** / signing version `"3"`, estimate **`estimateSchemaVersion: 3`** with balances on **`breakdown`** only, report **`reportSchemaVersion: 2`**.
 
 ### estimateUsage (agent backend, same trust as validate)
 
 **URL:**
 
-- `POST {tollaraBaseUrl}/core/api/v1/agent-keys/estimate-usage`
+- `POST {tollaraBaseUrl}/core/api/v1/service-keys/estimate-usage`
 
-**Auth:** **None** (no Bearer). Trust is **agentKey** + **agentSecret** in the JSON body, identical rules to `POST .../agent-keys/validate` (optional `agentId` when key alone resolves the agent; if `agentSecret` is sent non-empty it must match the agent).
+**Auth:** **None** (no Bearer). Trust is **serviceKey** + **serviceSecret** in the JSON body, identical rules to `POST .../service-keys/validate` (optional `serviceId` when key alone resolves the service; if `serviceSecret` is sent non-empty it must match the service).
 
 **Request JSON** (shape implemented in platform core as `EstimateUsageAgentKeyRequest`; SDK only needs the contract below):
 
-- `agentKey`: string (required).
-- `agentId`: string UUID (optional; omit to resolve from key like validate).
-- `agentSecret`: string (optional when only key is used; if present non-empty, must match server-side secret).
+- `serviceKey`: string (required).
+- `serviceId`: string UUID (optional; omit to resolve from key like validate).
+- `serviceSecret`: string (optional when only key is used; if present non-empty, must match server-side secret).
 - `estimatedUnits`: number (required; must be **> 0**; decimal values allowed where the product’s unit model allows fractions).
 
 **Response JSON (200)** — explicit fields (do **not** depend on Tollara Java types; this is the wire contract):

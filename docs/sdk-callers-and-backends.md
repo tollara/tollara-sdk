@@ -80,7 +80,7 @@ sequenceDiagram
 
 **SDK value for callers (sync)**
 
-- Mainly to get quota info by calling validate key and to validate the response HMAC using SDK.
+- Mainly to check **entitlement** by calling validate key and to verify the response HMAC using the SDK.
 - Correct URL shape and path prefixes (local vs ECS-style bases) — see [sdk-api-spec.md](./sdk-api-spec.md) §1.
 - Typed helpers and shared conventions (e.g. parsing async body into object - requestId, progressUrlm callbackUrl); invoke alone can also be done with any HTTP client.
 
@@ -159,7 +159,7 @@ sequenceDiagram
 
 ### 3.2 Inbound: non-proxied agents (direct Bearer key)
 
-Callers send **`Authorization: Bearer <serviceKey>`** to **your** server. There is **no** gateway HMAC. To obtain **user id, plan, quota, subscription** and to reject bad keys, the backend calls **core** **`POST .../agent-keys/validate`** and **must verify** the response HMAC with the **service secret** ([sdk-api-spec.md](./sdk-api-spec.md) §2). A reference pattern lives under `agents/non-proxied-agent` in this repo.
+Callers send **`Authorization: Bearer <serviceKey>`** to **your** server. There is **no** gateway HMAC. To obtain **user id, service product id, subscription status, roles**, and to reject bad keys, the backend calls **core** **`POST .../service-keys/validate`** and **must verify** the response HMAC with the **service secret** ([docs-sdk/MAIN-SDK-API-SPEC.md](../docs-sdk/MAIN-SDK-API-SPEC.md) §2). Success bodies use **`validationSchemaVersion: 3`**; use **`grantsAccess(subscriptionStatus)`** for invoke eligibility. A reference pattern lives under `agents/non-proxied-agent` in this repo.
 
 ```mermaid
 sequenceDiagram
