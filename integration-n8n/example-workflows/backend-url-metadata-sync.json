@@ -42,7 +42,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = typeof $json.body === 'string' ? JSON.parse($json.body || '{}') : ($json.body ?? {});\nconst url = (body.url ?? '').trim();\nconst valid = /^https?:\\/\\//i.test(url);\nreturn [{ json: { ...$json, url, valid } }];"
+        "jsCode": "const item = $input.first();\nlet body;\nconst bin = item.binary?.data;\nif (bin?.data) {\n  body = JSON.parse(Buffer.from(bin.data, 'base64').toString('utf8'));\n} else if (typeof $json.body === 'string') {\n  body = JSON.parse($json.body || '{}');\n} else {\n  body = $json.body ?? {};\n}\nconst url = (body.url ?? '').trim();\nconst valid = /^https?:\\/\\//i.test(url);\nreturn [{ json: { ...$json, url, valid } }];"
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000012",
       "name": "Parse Input",
