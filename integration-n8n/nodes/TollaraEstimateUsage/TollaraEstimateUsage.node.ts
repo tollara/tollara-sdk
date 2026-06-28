@@ -1,7 +1,7 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { estimateUsage } from '@tollara/service-sdk';
-import { requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
-import { serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
+import { optionalServiceId, requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
 
 export class TollaraEstimateUsage implements INodeType {
   description: INodeTypeDescription = {
@@ -17,7 +17,8 @@ export class TollaraEstimateUsage implements INodeType {
     properties: [
       serviceSecretNodeProperty,
       { displayName: 'Service Key', name: 'serviceKey', type: 'string', typeOptions: { password: true }, default: '', required: true },
-      { displayName: 'Service ID', name: 'serviceId', type: 'string', default: '' },
+      optionalServiceIdNotice,
+      serviceIdNodeProperty,
       { displayName: 'Estimated Units', name: 'estimatedUnits', type: 'number', default: 1, required: true },
       ...tollaraCoreEndpointProperties,
     ],
@@ -28,7 +29,7 @@ export class TollaraEstimateUsage implements INodeType {
     const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
     const coreApiUrl = resolveCoreApiUrl(credentialsParsed);
     const serviceKey = this.getNodeParameter('serviceKey', 0) as string;
-    const serviceId = (this.getNodeParameter('serviceId', 0) as string) || null;
+    const serviceId = optionalServiceId(this.getNodeParameter('serviceId', 0) as string);
     const estimatedUnits = this.getNodeParameter('estimatedUnits', 0) as number;
 
     const result = await estimateUsage({

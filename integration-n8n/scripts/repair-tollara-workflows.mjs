@@ -43,6 +43,7 @@ const TOLLARA_DEFAULTS = {
     serviceKeySource: 'webhookAuthorization',
     serviceKey: '',
     serviceId: '',
+    optionalServiceIdNotice: '',
     setApiEndpoints: false,
   },
   'n8n-nodes-tollara.tollaraInvoke': {
@@ -75,6 +76,7 @@ const TOLLARA_DEFAULTS = {
     serviceSecret: '',
     serviceKey: '',
     serviceId: '',
+    optionalServiceIdNotice: '',
     estimatedUnits: 1,
     setApiEndpoints: false,
   },
