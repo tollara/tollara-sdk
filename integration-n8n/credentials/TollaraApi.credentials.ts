@@ -1,53 +1,31 @@
 import type { ICredentialType, INodeProperties } from 'n8n-workflow';
 
+/**
+ * Legacy credential type kept so workflows saved with credentials.tollaraApi do not show
+ * "Unnamed credential". Tollara nodes no longer declare or require this credential —
+ * use Service Secret on each node and Set API Endpoints for local URL overrides.
+ */
 export class TollaraApi implements ICredentialType {
   name = 'tollaraApi';
 
-  displayName = 'Tollara API';
+  displayName = 'Tollara Environment';
 
   documentationUrl = 'https://github.com/tollara/tollara-sdk';
 
   properties: INodeProperties[] = [
     {
-      displayName: 'Service Secret',
-      name: 'serviceSecret',
-      type: 'string',
-      typeOptions: { password: true },
-      default: '',
-      required: true,
-      description: 'Service secret for HMAC signing and verification',
-    },
-    {
-      displayName: 'Service ID',
-      name: 'serviceId',
-      type: 'string',
-      default: '',
-      placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-      description:
-        'Optional. Your service UUID from the Tollara Service Workspace (open your service → Settings). Used by Validate Key when not overridden on the node.',
-    },
-    {
-      displayName: 'API URL',
-      name: 'apiUrl',
-      type: 'string',
-      default: '',
-      placeholder: 'https://api.tollara.ai',
-      description: 'Leave blank for production. Default base URL for all Tollara services.',
-    },
-    {
       displayName:
-        'Optional service URL overrides fall back to API URL when blank, then to the production default.',
-      name: 'urlOverrideHint',
+        'Tollara nodes no longer use n8n credentials. Set **Service Secret** on each node. For local Docker URLs, enable **Set API Endpoints** on the node instead. You can delete this credential after re-importing workflows.',
+      name: 'legacyNotice',
       type: 'notice',
       default: '',
     },
     {
-      displayName: 'Core API URL',
-      name: 'coreApiUrl',
-      type: 'string',
-      default: '',
-      placeholder: 'http://host.docker.internal:8081',
-      description: 'Optional. Used by Validate Key and Estimate Usage.',
+      displayName: 'Set API Endpoints (legacy — prefer node setting)',
+      name: 'setApiEndpoints',
+      type: 'boolean',
+      default: false,
+      description: 'Deprecated. Enable **Set API Endpoints** on Tollara nodes instead.',
     },
     {
       displayName: 'Usage API URL',
@@ -55,7 +33,15 @@ export class TollaraApi implements ICredentialType {
       type: 'string',
       default: '',
       placeholder: 'http://host.docker.internal:8084',
-      description: 'Optional. Used by Report Usage. Also rewrites progress/complete URLs from the gateway when they point at production hosts (local Docker).',
+      displayOptions: { show: { setApiEndpoints: [true] } },
+    },
+    {
+      displayName: 'Core API URL',
+      name: 'coreApiUrl',
+      type: 'string',
+      default: '',
+      placeholder: 'http://host.docker.internal:8081',
+      displayOptions: { show: { setApiEndpoints: [true] } },
     },
     {
       displayName: 'Gateway API URL',
@@ -63,7 +49,7 @@ export class TollaraApi implements ICredentialType {
       type: 'string',
       default: '',
       placeholder: 'http://host.docker.internal:8083',
-      description: 'Optional. Used by Invoke, Job Status, and Job Result.',
+      displayOptions: { show: { setApiEndpoints: [true] } },
     },
   ];
 }

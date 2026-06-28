@@ -1,6 +1,7 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { invokeService, type GatewayHttpMethod } from '@tollara/service-sdk';
-import { getTollaraCredentials, resolveGatewayApiUrl } from '../../lib/tollaraCredentials';
+import { resolveGatewayApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { tollaraGatewayEndpointProperties } from '../../lib/nodeProperties';
 import { parseJsonBody } from '../../lib/parseJsonBody';
 
 export class TollaraInvoke implements INodeType {
@@ -14,7 +15,6 @@ export class TollaraInvoke implements INodeType {
     defaults: { name: 'Tollara Invoke' },
     inputs: ['main'],
     outputs: ['main'],
-    credentials: [{ name: 'tollaraApi', required: true }],
     properties: [
       {
         displayName: 'HTTP Method',
@@ -39,12 +39,12 @@ export class TollaraInvoke implements INodeType {
       { displayName: 'Service ID', name: 'serviceId', type: 'string', default: '', required: true },
       { displayName: 'Endpoint ID', name: 'endpointId', type: 'string', default: '', required: true },
       { displayName: 'Body', name: 'body', type: 'string', default: '', placeholder: '{}' },
+      ...tollaraGatewayEndpointProperties,
     ],
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-    const credentials = await this.getCredentials('tollaraApi');
-    const credentialsParsed = getTollaraCredentials(credentials);
+    const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
     const gatewayApiUrl = resolveGatewayApiUrl(credentialsParsed);
     const method = this.getNodeParameter('httpMethod', 0) as GatewayHttpMethod;
     const isAsync = this.getNodeParameter('async', 0) as boolean;

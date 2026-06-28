@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-tollara",
-  "version": "0.0.6",
+  "version": "0.0.22",
   "description": "n8n community nodes for Tollara: Verify Request, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
   "keywords": [
     "n8n-community-node-package",
@@ -18,10 +18,13 @@
   "scripts": {
     "build": "node scripts/clean-dist.mjs && tsc && node scripts/copy-icons.mjs",
     "dev": "tsc --watch",
-    "test": "npm run build && node --test dist/lib/tollaraCredentials.test.js dist/lib/webhookPayload.test.js dist/lib/usageUrls.test.js"
+    "test": "npm run build && node --test dist/lib/tollaraCredentials.test.js dist/lib/webhookPayload.test.js dist/lib/usageUrls.test.js",
+    "deploy:local": "powershell -ExecutionPolicy Bypass -File ./deploy-local.ps1",
+    "repair:workflows": "powershell -ExecutionPolicy Bypass -File ./docker/strip-stale-credentials.ps1"
   },
   "files": [
-    "dist"
+    "dist",
+    "index.js"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,

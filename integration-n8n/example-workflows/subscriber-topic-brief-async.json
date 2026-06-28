@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Subscriber — Topic Brief (async invoke + poll)\n\nCalls **backend-topic-brief-async** via gateway.\n\nPolls **Job Status** every 10s (matches backend progress waits) then fetches **Job Result**.\n\nEdit **Set Config** — service key, service/endpoint IDs for Topic Brief listing.\n\n**Credential:** Tollara Subscriber API\n\n**Requires:** backend-topic-brief-async active.",
+        "content": "## Subscriber — Topic Brief (async invoke + poll)\n\nCalls **backend-topic-brief-async** via gateway.\n\nPolls **Job Status** every 10s (matches backend progress waits) then fetches **Job Result**.\n\nEdit **Set Config** — service key, service/endpoint IDs for Topic Brief listing. For local Docker, enable **Set API Endpoints** on Invoke / Job Status / Job Result (Gateway URL).\n\n**Requires:** backend-topic-brief-async active.",
         "height": 280,
         "width": 480
       },
@@ -44,13 +44,7 @@
       "name": "Tollara Invoke",
       "type": "n8n-nodes-tollara.tollaraInvoke",
       "typeVersion": 1,
-      "position": [480, 320],
-      "credentials": {
-        "tollaraApi": {
-          "name": "Tollara Subscriber API"
-        }
-      }
-    },
+      "position": [480, 320]    },
     {
       "parameters": {
         "amount": 10
@@ -71,13 +65,7 @@
       "name": "Tollara Job Status",
       "type": "n8n-nodes-tollara.tollaraJobStatus",
       "typeVersion": 1,
-      "position": [960, 320],
-      "credentials": {
-        "tollaraApi": {
-          "name": "Tollara Subscriber API"
-        }
-      }
-    },
+      "position": [960, 320]    },
     {
       "parameters": {
         "jsCode": "const row = $input.first().json;\nconst status = (row.data?.status ?? '').toString().toUpperCase();\nconst terminal = status === 'COMPLETED' || status === 'FAILED';\nreturn [{ json: { ...row, jobStatus: status, jobTerminal: terminal } }];"
@@ -139,13 +127,7 @@
       "name": "Tollara Job Status1",
       "type": "n8n-nodes-tollara.tollaraJobStatus",
       "typeVersion": 1,
-      "position": [1920, 420],
-      "credentials": {
-        "tollaraApi": {
-          "name": "Tollara Subscriber API"
-        }
-      }
-    },
+      "position": [1920, 420]    },
     {
       "parameters": {
         "jsCode": "const row = $input.first().json;\nconst status = (row.data?.status ?? '').toString().toUpperCase();\nconst terminal = status === 'COMPLETED' || status === 'FAILED';\nreturn [{ json: { ...row, jobStatus: status, jobTerminal: terminal } }];"
@@ -207,13 +189,7 @@
       "name": "Tollara Job Status2",
       "type": "n8n-nodes-tollara.tollaraJobStatus",
       "typeVersion": 1,
-      "position": [2880, 520],
-      "credentials": {
-        "tollaraApi": {
-          "name": "Tollara Subscriber API"
-        }
-      }
-    },
+      "position": [2880, 520]    },
     {
       "parameters": {
         "serviceKey": "={{ $('Set Config').item.json.serviceKey }}",
@@ -223,13 +199,7 @@
       "name": "Tollara Job Result",
       "type": "n8n-nodes-tollara.tollaraJobResult",
       "typeVersion": 1,
-      "position": [3120, 320],
-      "credentials": {
-        "tollaraApi": {
-          "name": "Tollara Subscriber API"
-        }
-      }
-    },
+      "position": [3120, 320]    },
     {
       "parameters": {
         "jsCode": "const result = $input.first().json;\nreturn [{ json: { requestId: $('Tollara Invoke').first().json.requestId, result: result.data ?? result.body, statusCode: result.statusCode } }];"

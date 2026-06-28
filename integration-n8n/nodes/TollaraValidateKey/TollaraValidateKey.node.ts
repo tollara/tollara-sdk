@@ -1,6 +1,7 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { validateServiceKey } from '@tollara/service-sdk';
-import { getTollaraCredentials, resolveCoreApiUrl, resolveServiceId } from '../../lib/tollaraCredentials';
+import { requireServiceId, requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
 import { bearerTokenFromWebhookItem } from '../../lib/webhookPayload';
 import { passthroughItemWithJson, validationResultToUserContext } from '../../lib/passthroughItem';
 
@@ -15,8 +16,8 @@ export class TollaraValidateKey implements INodeType {
     defaults: { name: 'Tollara Validate Key' },
     inputs: ['main'],
     outputs: ['main'],
-    credentials: [{ name: 'tollaraApi', required: true }],
     properties: [
+      serviceSecretNodeProperty,
       {
         displayName: 'Service Key Source',
         name: 'serviceKeySource',
@@ -38,27 +39,18 @@ export class TollaraValidateKey implements INodeType {
         required: true,
         displayOptions: { show: { serviceKeySource: ['manual'] } },
       },
-      {
-        displayName: 'Service ID Override',
-        name: 'serviceId',
-        type: 'string',
-        default: '',
-        placeholder: 'Leave blank to use Service ID from credentials',
-        description:
-          'Optional. Overrides the Service ID in your Tollara API credentials. Find the UUID in the Tollara Service Workspace under your service settings.',
-      },
+      serviceIdNodeProperty,
+      ...tollaraCoreEndpointProperties,
     ],
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-    const credentials = await this.getCredentials('tollaraApi');
-    const credentialsParsed = getTollaraCredentials(credentials);
-    const { serviceSecret, serviceId: credentialServiceId } = credentialsParsed;
+    const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
+    const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
+    const serviceId = requireServiceId(this.getNodeParameter('serviceId', 0) as string);
     const coreApiUrl = resolveCoreApiUrl(credentialsParsed);
     const serviceKeySource = this.getNodeParameter('serviceKeySource', 0) as string;
     const manualServiceKey = this.getNodeParameter('serviceKey', 0, '') as string;
-    const nodeServiceId = (this.getNodeParameter('serviceId', 0) as string) || undefined;
-    const serviceId = resolveServiceId(credentialServiceId, nodeServiceId);
 
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
