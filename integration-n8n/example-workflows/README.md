@@ -2,7 +2,7 @@
 
 Import via n8n: **Workflow menu → Import from File**.
 
-Requires **`n8n-nodes-tollara@0.0.21+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
+Requires **`n8n-nodes-tollara@3.0.0+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
 
 **n8n import quirk:** **Tollara Verify Request** may import with empty parameters and a broken/generic icon. This is an n8n editor bug (other Tollara nodes are unaffected). After every workflow import, run **`npm run repair:workflows`**, then close and reopen the workflow tab (hard refresh if needed).
 
@@ -19,7 +19,7 @@ Requires **`n8n-nodes-tollara@0.0.21+`** installed. Use **`npm run deploy:local`
 
 4. **Backend** workflows: set each Webhook **Production URL** on the Tollara listing `realUrl`.
 
-5. **Subscriber** workflows: edit **Set Config** with your service key, `serviceId`, and `endpointId` from the listing.
+5. **Subscriber** workflows: edit **Set Config** with your service key, `serviceId`, and `endpointId` from the listing. For **`subscriber-url-metadata-estimate`**, you also need the **service secret** (same as the seller backend) — estimate uses the core pre-flight API, not buyer-only invoke auth.
 
 6. Enable **Raw Body** on proxied backend webhooks (already set in exports).
 
@@ -33,14 +33,14 @@ Requires **`n8n-nodes-tollara@0.0.21+`** installed. Use **`npm run deploy:local`
 | `backend-topic-brief-async.json` | Proxied async | `topic-brief` | `subscriber-topic-brief-async.json` |
 | `backend-echo-non-proxied.json` | Non-proxied | `subscriber-echo` | (HTTP Request + Bearer — no Invoke node) |
 
-**Topic Brief** uses **10s** waits between progress steps (~30s total) so the Activity UI shows visible polling.
+**Topic Brief** backend uses **10s** waits between progress steps (~30s total). The paired **subscriber** workflow polls up to **four** times (10s apart, ~40s) before fetching the job result.
 
 ## Subscriber workflows (buyer — n8n calls gateway)
 
 | File | Nodes | Targets backend |
 |------|-------|-----------------|
 | `subscriber-url-metadata-sync.json` | Invoke (sync) | URL Metadata |
-| `subscriber-url-metadata-estimate.json` | Estimate Usage → Invoke (sync) | URL Metadata |
+| `subscriber-url-metadata-estimate.json` | Estimate Usage → Invoke (sync) | URL Metadata — **requires service secret** (seller); for owner self-test, not buyer-only |
 | `subscriber-topic-brief-async.json` | Invoke (async) → Job Status (poll) → Job Result | Topic Brief |
 
 ## Tollara listing checklist
