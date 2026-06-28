@@ -8,12 +8,15 @@ export {
   getUserContext,
   buildGatewayUserContextString,
   buildGatewayUserContextStringV2,
+  buildGatewayUserContextStringV3,
+  grantsAccess,
   type UserContext,
   type VerifySignatureInput,
   type SignedUserContext,
   type InboundHmacRequest,
   type HeaderBag,
 } from './verifier';
+export { type UsageBreakdown, parseUsageBreakdown } from './usageBreakdown';
 export {
   validateServiceKey,
   estimateUsage,

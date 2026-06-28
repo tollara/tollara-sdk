@@ -2,6 +2,7 @@
 
 use crate::headers;
 use crate::hmac::calculate_hmac_with_timestamp;
+use crate::validation_client::UsageBreakdown;
 use serde::Deserialize;
 
 /// Completion status for async completion POST (sdk-api-spec §3.3).
@@ -21,12 +22,18 @@ impl CompletionStatus {
     }
 }
 
-/// Response from the report-usage endpoint.
+/// Response from the report-usage endpoint (reportSchemaVersion 2).
 #[derive(Debug, Clone)]
 pub struct UsageReportResponse {
+    pub report_schema_version: Option<i32>,
     pub status: Option<String>,
-    pub is_over_limit: bool,
-    pub remaining_requests_per_period: i64,
+    pub warning: Option<String>,
+    pub user_id: Option<String>,
+    pub service_id: Option<String>,
+    pub billing_model_type: Option<String>,
+    pub measurement_type: Option<String>,
+    pub unit_label: Option<String>,
+    pub breakdown: Option<UsageBreakdown>,
 }
 
 /// Result of a progress or completion callback POST to the usage service.
@@ -43,9 +50,15 @@ pub struct UsageCallbackResult {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct UsageReportResponseJson {
+    report_schema_version: Option<i32>,
     status: Option<String>,
-    is_over_limit: Option<bool>,
-    remaining_requests_per_period: Option<i64>,
+    warning: Option<String>,
+    user_id: Option<String>,
+    service_id: Option<String>,
+    billing_model_type: Option<String>,
+    measurement_type: Option<String>,
+    unit_label: Option<String>,
+    breakdown: Option<UsageBreakdown>,
 }
 
 /// Default path segment before `/report` (matches Java `TollaraUrls.DEFAULT_USAGE_PATH_PREFIX`).
@@ -280,9 +293,15 @@ pub async fn report_usage_at(
     resp.error_for_status_ref()?;
     let data: UsageReportResponseJson = resp.json().await?;
     Ok(UsageReportResponse {
+        report_schema_version: data.report_schema_version,
         status: data.status,
-        is_over_limit: data.is_over_limit.unwrap_or(false),
-        remaining_requests_per_period: data.remaining_requests_per_period.unwrap_or(0),
+        warning: data.warning,
+        user_id: data.user_id,
+        service_id: data.service_id,
+        billing_model_type: data.billing_model_type,
+        measurement_type: data.measurement_type,
+        unit_label: data.unit_label,
+        breakdown: data.breakdown,
     })
 }
 

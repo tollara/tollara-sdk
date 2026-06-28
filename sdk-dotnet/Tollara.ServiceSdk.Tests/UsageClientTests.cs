@@ -13,7 +13,7 @@ public class UsageClientTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastRequestUri = request.RequestUri;
-            var json = """{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}""";
+            var json = """{"reportSchemaVersion":2,"status":"ok","warning":null,"userId":"u1","serviceId":"a1","billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":{"unitsUsed":1,"unitsRemaining":99,"remainingSpendingCap":20,"totalUnitsUsedThisCycle":1,"isOverLimit":false,"isOverage":false,"isOverageAllowed":true}}""";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json"),
@@ -38,6 +38,22 @@ public class UsageClientTests
         Assert.Equal(
             "https://usage.example.com/usage/api/v1/report",
             UsageClient.BuildUsageReportUrl("https://usage.example.com", "/usage/api/v1"));
+    }
+
+    [Fact]
+    public void ParseUsageReportResponse_ReadsReportV2Breakdown()
+    {
+        const string json = """
+            {"reportSchemaVersion":2,"status":"ok","warning":null,"userId":"user-1","serviceId":"svc-1","billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":{"unitsUsed":1,"unitsRemaining":99,"remainingSpendingCap":20,"totalUnitsUsedThisCycle":1,"isOverLimit":false,"isOverage":false,"isOverageAllowed":true}}
+            """;
+        var response = UsageClient.ParseUsageReportResponse(json);
+        Assert.Equal(2, response.ReportSchemaVersion);
+        Assert.Equal("ok", response.Status);
+        Assert.Equal("user-1", response.UserId);
+        Assert.Equal("svc-1", response.ServiceId);
+        Assert.NotNull(response.Breakdown);
+        Assert.Equal(99m, response.Breakdown!.UnitsRemaining);
+        Assert.False(response.Breakdown.OverLimit);
     }
 
     [Fact]

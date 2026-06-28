@@ -37,9 +37,12 @@ describe('usageClient', () => {
       );
       return new Response(
         JSON.stringify({
+          reportSchemaVersion: 2,
           status: 'ok',
-          isOverLimit: false,
-          remainingRequestsPerPeriod: 1,
+          userId: 'u1',
+          serviceId: 'a1',
+          billingModelType: 'SUBSCRIPTION',
+          breakdown: { unitsRemaining: 1, isOverLimit: false },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
@@ -74,7 +77,11 @@ describe('usageClient', () => {
       expect(parsed.unitsUsed).toBe(3);
       expect(parsed.timestamp).toBe(new Date(1700000000 * 1000).toISOString());
       return new Response(
-        JSON.stringify({ status: 'ok', isOverLimit: false, remainingRequestsPerPeriod: 10 }),
+        JSON.stringify({
+          reportSchemaVersion: 2,
+          status: 'ok',
+          breakdown: { unitsRemaining: 10, isOverLimit: false },
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     });

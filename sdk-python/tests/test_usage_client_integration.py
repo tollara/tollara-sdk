@@ -38,9 +38,23 @@ def test_report_usage_sends_signed_request_and_returns_response():
         responses.POST,
         f"{USAGE_BASE}/api/usage/report",
         json={
+            "reportSchemaVersion": 2,
             "status": "ok",
-            "isOverLimit": False,
-            "remainingRequestsPerPeriod": 99,
+            "warning": None,
+            "userId": "user-1",
+            "serviceId": "service-1",
+            "billingModelType": "SUBSCRIPTION",
+            "measurementType": "PER_REQUEST",
+            "unitLabel": "request",
+            "breakdown": {
+                "unitsUsed": 1,
+                "unitsRemaining": 99,
+                "remainingSpendingCap": 20,
+                "totalUnitsUsedThisCycle": 1,
+                "isOverLimit": False,
+                "isOverage": False,
+                "isOverageAllowed": True,
+            },
         },
         status=200,
     )
@@ -51,8 +65,12 @@ def test_report_usage_sends_signed_request_and_returns_response():
 
     assert isinstance(result, UsageReportResponse)
     assert result.status == "ok"
-    assert result.is_over_limit is False
-    assert result.remaining_requests_per_period == 99
+    assert result.report_schema_version == 2
+    assert result.user_id == "user-1"
+    assert result.service_id == "service-1"
+    assert result.breakdown is not None
+    assert result.breakdown.units_remaining == 99
+    assert result.breakdown.over_limit is False
 
     assert len(responses.calls) == 1
     req = responses.calls[0].request
@@ -78,9 +96,11 @@ def test_report_usage_custom_usage_path_prefix():
         responses.POST,
         f"{USAGE_BASE}/usage/api/v1/report",
         json={
+            "reportSchemaVersion": 2,
             "status": "ok",
-            "isOverLimit": False,
-            "remainingRequestsPerPeriod": 1,
+            "userId": "user-1",
+            "serviceId": "service-1",
+            "breakdown": {"unitsRemaining": 1, "isOverLimit": False},
         },
         status=200,
     )

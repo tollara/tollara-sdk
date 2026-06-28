@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Union
 
 from .validation_client import DEFAULT_CORE_PATH_PREFIX, UsageEstimateResult
+from .usage_breakdown import parse_usage_breakdown
 
 if TYPE_CHECKING:
     import requests
@@ -59,16 +60,13 @@ def estimate_usage_with_jwt(
     if not text.strip():
         return None
     data = resp.json()
-    breakdown = data.get("breakdown")
-    if breakdown is not None and not isinstance(breakdown, dict):
-        breakdown = None
+    breakdown_raw = data.get("breakdown")
+    breakdown = parse_usage_breakdown(breakdown_raw) if isinstance(breakdown_raw, dict) else None
     return UsageEstimateResult(
         sufficient_credits=bool(data.get("sufficientCredits")),
         would_exceed_cap=bool(data.get("wouldExceedCap")),
         would_allow=bool(data.get("wouldAllow")),
         estimated_cost=data.get("estimatedCost"),
-        remaining_credits=data.get("remainingCredits"),
-        remaining_spending_cap=data.get("remainingSpendingCap"),
         billing_model_type=data.get("billingModelType"),
         measurement_type=data.get("measurementType"),
         unit_label=data.get("unitLabel"),

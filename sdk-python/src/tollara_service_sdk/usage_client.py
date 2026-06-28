@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 from .tollara_headers import TollaraHeaders
 from .completion_status import CompletionStatus
 from .hmac_utils import calculate_hmac_with_timestamp
+from .usage_breakdown import UsageBreakdown, parse_usage_breakdown
 
 DEFAULT_USAGE_PATH_PREFIX = "/api/usage"
 
@@ -35,13 +36,15 @@ def _usage_report_url(base_url: str, usage_path_prefix: Optional[str]) -> str:
 
 @dataclass
 class UsageReportResponse:
+    report_schema_version: int
     status: Optional[str]
     warning: Optional[str]
-    is_over_limit: bool
-    remaining_requests_per_period: int
-    remaining_time_units_per_period: Optional[float]
-    remaining_spending_cap: Optional[float]
-    overage_rate: Optional[float]
+    user_id: Optional[str]
+    service_id: Optional[str]
+    billing_model_type: Optional[str]
+    measurement_type: Optional[str]
+    unit_label: Optional[str]
+    breakdown: Optional[UsageBreakdown]
 
 
 @dataclass
@@ -231,20 +234,16 @@ def report_usage_at(
     )
     resp.raise_for_status()
     data = resp.json()
+    breakdown_raw = data.get("breakdown")
+    breakdown = parse_usage_breakdown(breakdown_raw) if isinstance(breakdown_raw, dict) else None
     return UsageReportResponse(
+        report_schema_version=int(data.get("reportSchemaVersion", 0)),
         status=data.get("status"),
         warning=data.get("warning"),
-        is_over_limit=bool(data.get("isOverLimit")),
-        remaining_requests_per_period=int(data.get("remainingRequestsPerPeriod", 0)),
-        remaining_time_units_per_period=_opt_float(data.get("remainingTimeUnitsPerPeriod")),
-        remaining_spending_cap=_opt_float(data.get("remainingSpendingCap")),
-        overage_rate=_opt_float(data.get("overageRate")),
+        user_id=data.get("userId"),
+        service_id=data.get("serviceId"),
+        billing_model_type=data.get("billingModelType"),
+        measurement_type=data.get("measurementType"),
+        unit_label=data.get("unitLabel"),
+        breakdown=breakdown,
     )
-
-
-def _opt_float(v: Any) -> Optional[float]:
-    if v is None:
-        return None
-    if isinstance(v, (int, float)):
-        return float(v)
-    return None

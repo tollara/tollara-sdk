@@ -95,10 +95,10 @@ public class ServiceKeyValidationClient {
                             .userId(validationResponse.getUserId())
                             .serviceId(resultServiceId)
                             .serviceKeyId(validationResponse.getServiceKeyId())
-                            .plan(validationResponse.getPlan())
+                            .serviceProductId(validationResponse.getServiceProductId())
                             .roles(validationResponse.getRoles() != null ? validationResponse.getRoles() : Collections.emptyList())
-                            .quotaRemaining(validationResponse.getQuotaRemaining())
-                            .subscriptionActive(validationResponse.isSubscriptionActive())
+                            .subscriptionStatus(validationResponse.getSubscriptionStatus())
+                            .validationSchemaVersion(validationResponse.getValidationSchemaVersion())
                             .billingModelType(validationResponse.getBillingModelType())
                             .measurementType(validationResponse.getMeasurementType())
                             .unitLabel(validationResponse.getUnitLabel())
@@ -314,17 +314,14 @@ public class ServiceKeyValidationClient {
         private UUID serviceKeyId;
         private String userId;
         private String serviceId;
-        private String plan;
+        private String serviceProductId;
         private List<String> roles;
-        /** Absent when {@code validationSchemaVersion} is 2 (see MAIN-SDK-API-SPEC §2.1). */
-        private BigDecimal quotaRemaining;
-        private boolean subscriptionActive;
+        private String subscriptionStatus;
         private String billingModelType;
         private String measurementType;
         private String unitLabel;
         private long timestamp;
         private String error;
-        /** When {@code 2}, signed body omits {@code quotaRemaining}. */
         private Integer validationSchemaVersion;
     }
 
@@ -336,13 +333,25 @@ public class ServiceKeyValidationClient {
         private String userId;
         private String serviceId;
         private UUID serviceKeyId;
-        private String plan;
+        private String serviceProductId;
         private List<String> roles;
-        private BigDecimal quotaRemaining;
-        private boolean subscriptionActive;
+        private String subscriptionStatus;
+        private Integer validationSchemaVersion;
         private String billingModelType;
         private String measurementType;
         private String unitLabel;
+
+        /**
+         * Returns {@code true} when {@link #subscriptionStatus} is invoke-eligible.
+         */
+        public boolean grantsAccess() {
+            return TollaraRequestVerifier.grantsAccess(subscriptionStatus);
+        }
+
+        /** Same rule as {@link #grantsAccess()}. */
+        public static boolean grantsAccess(String subscriptionStatus) {
+            return TollaraRequestVerifier.grantsAccess(subscriptionStatus);
+        }
     }
 
     private static class CachedValidationResult {

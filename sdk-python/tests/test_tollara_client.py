@@ -54,9 +54,11 @@ def test_report_usage_uses_default_usage_prefix():
         responses.POST,
         f"{base}/api/usage/report",
         json={
+            "reportSchemaVersion": 2,
             "status": "ok",
-            "isOverLimit": False,
-            "remainingRequestsPerPeriod": 1,
+            "userId": "user-1",
+            "serviceId": SERVICE_ID,
+            "breakdown": {"unitsRemaining": 1, "isOverLimit": False},
         },
         status=200,
     )
@@ -75,9 +77,11 @@ def test_custom_usage_path_prefix_on_client():
         responses.POST,
         f"{base}/usage/api/v1/report",
         json={
+            "reportSchemaVersion": 2,
             "status": "ok",
-            "isOverLimit": False,
-            "remainingRequestsPerPeriod": 1,
+            "userId": "user-1",
+            "serviceId": SERVICE_ID,
+            "breakdown": {"unitsRemaining": 1, "isOverLimit": False},
         },
         status=200,
     )

@@ -23,7 +23,7 @@ async fn validate_service_key_returns_result_when_core_returns_200_with_valid_hm
     let core_base = format!("{}/api/v1", server.url());
 
     // Use exact string so HMAC matches (no serialization reorder)
-    let body_str = r#"{"valid":true,"userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","plan":"basic","roles":["user"],"quotaRemaining":100,"subscriptionActive":true,"timestamp":1700000000,"error":null}"#;
+    let body_str = r#"{"valid":true,"serviceKeyId":"6ba7b810-9dad-11d1-80b4-00c04fd430c8","userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","serviceProductId":"7c9e6679-7425-40de-944b-e07fc1f90ae7","roles":["user"],"subscriptionStatus":"ACTIVE","billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","timestamp":1700000000,"error":null,"validationSchemaVersion":3}"#;
     let timestamp = "1700000000";
     let canonical = format!("{}{}", body_str, timestamp);
     let signature = calculate_hmac(&canonical, AGENT_SECRET);
@@ -51,10 +51,11 @@ async fn validate_service_key_returns_result_when_core_returns_200_with_valid_hm
     let r = result.unwrap();
     assert_eq!(r.user_id.as_deref(), Some("user-123"));
     assert_eq!(r.service_id.as_deref(), Some(AGENT_ID));
-    assert_eq!(r.plan.as_deref(), Some("basic"));
+    assert_eq!(r.service_product_id.as_deref(), Some("7c9e6679-7425-40de-944b-e07fc1f90ae7"));
+    assert_eq!(r.subscription_status.as_deref(), Some("ACTIVE"));
+    assert_eq!(r.validation_schema_version, Some(3));
     assert_eq!(r.roles, &["user"]);
-    assert_eq!(r.quota_remaining, Some(100.0));
-    assert!(r.subscription_active);
+    assert!(r.grants_access());
 }
 
 #[tokio::test]
@@ -87,7 +88,7 @@ async fn validate_service_key_returns_none_when_hmac_invalid() {
     let mut server = mockito::Server::new();
     let core_base = format!("{}/api/v1", server.url());
 
-    let body_str = r#"{"valid":true,"userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","plan":"basic","roles":[],"quotaRemaining":100,"subscriptionActive":true,"timestamp":1700000000,"error":null}"#;
+    let body_str = r#"{"valid":true,"userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","serviceProductId":"7c9e6679-7425-40de-944b-e07fc1f90ae7","roles":[],"subscriptionStatus":"ACTIVE","timestamp":1700000000,"error":null,"validationSchemaVersion":3}"#;
 
     let _mock = server
         .mock("POST", "/api/v1/service-keys/validate")
@@ -123,7 +124,7 @@ async fn report_usage_sends_signed_request_and_returns_response() {
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
-            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":99}"#,
+            r#"{"reportSchemaVersion":2,"status":"ok","warning":null,"userId":"user-1","serviceId":"agent-1","billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":{"unitsUsed":1,"unitsRemaining":99,"remainingSpendingCap":20,"totalUnitsUsedThisCycle":1,"isOverLimit":false,"isOverage":false,"isOverageAllowed":true}}"#,
         )
         .create();
 
@@ -143,8 +144,8 @@ async fn report_usage_sends_signed_request_and_returns_response() {
     assert!(result.is_ok());
     let r = result.unwrap();
     assert_eq!(r.status.as_deref(), Some("ok"));
-    assert!(!r.is_over_limit);
-    assert_eq!(r.remaining_requests_per_period, 99);
+    assert_eq!(r.report_schema_version, Some(2));
+    assert_eq!(r.breakdown.as_ref().and_then(|b| b.units_remaining), Some(99.0));
 }
 
 #[tokio::test]
@@ -157,7 +158,7 @@ async fn report_usage_respects_custom_usage_path_prefix() {
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
-            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}"#,
+            r#"{"reportSchemaVersion":2,"status":"ok","breakdown":{"unitsRemaining":1}}"#,
         )
         .create();
 
@@ -252,7 +253,7 @@ async fn tollara_client_report_usage_uses_default_usage_prefix() {
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
-            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}"#,
+            r#"{"reportSchemaVersion":2,"status":"ok","breakdown":{"unitsRemaining":1}}"#,
         )
         .create();
 
@@ -280,7 +281,7 @@ async fn tollara_client_custom_usage_path_prefix() {
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
-            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}"#,
+            r#"{"reportSchemaVersion":2,"status":"ok","breakdown":{"unitsRemaining":1}}"#,
         )
         .create();
 

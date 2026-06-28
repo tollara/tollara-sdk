@@ -1,21 +1,21 @@
 package com.tollara.client.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
-import java.math.BigDecimal;
-
 /**
- * Response model from the usage service after reporting usage.
+ * Response model from the usage service after reporting usage (reportSchemaVersion 2).
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UsageReportResponse {
+    private int reportSchemaVersion;
     private String status;
     private String warning;
-    @JsonProperty("isOverLimit")
-    private boolean overLimit;
-    private long remainingRequestsPerPeriod;
-    private BigDecimal remainingTimeUnitsPerPeriod;
-    private BigDecimal remainingSpendingCap;
-    private BigDecimal overageRate;
+    private String userId;
+    private String serviceId;
+    private String billingModelType;
+    private String measurementType;
+    private String unitLabel;
+    private UsageBreakdown breakdown;
 }

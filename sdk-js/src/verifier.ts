@@ -1,11 +1,21 @@
 import { TollaraHeaders } from './tollaraHeaders';
 import { calculateHmac, constantTimeEquals } from './hmac';
+import { grantsAccess } from './grantsAccess';
+
+export { grantsAccess };
 
 export interface UserContext {
   userId: string | null;
+  /** v3: service product id; v1/v2 legacy: plan name in {@link plan}. */
+  serviceProductId: string | null;
+  /** @deprecated v1/v2 only */
   plan: string | null;
   roles: string[];
+  /** @deprecated v1 only */
   quotaRemaining: number | null;
+  /** v3: uppercase subscription status. */
+  subscriptionStatus: string | null;
+  /** @deprecated v1/v2 only */
   subscriptionActive: boolean;
   billingModelType: string | null;
   measurementType: string | null;
@@ -17,25 +27,33 @@ export interface VerifySignatureInput {
   timestamp: string;
   payload: string | object | null;
   userId: string | null;
-  plan: string | null;
+  /** v3 */
+  serviceProductId?: string | null;
+  /** v1/v2 */
+  plan?: string | null;
   roles: string[];
-  quotaRemaining: number | string | null;
-  /** Must match X-Tollara-Subscription-Active for verification. */
-  subscriptionActive: boolean;
+  /** v1 only */
+  quotaRemaining?: number | string | null;
+  /** v3 */
+  subscriptionStatus?: string | null;
+  /** v1/v2 */
+  subscriptionActive?: boolean;
   billingModelType?: string | null;
   measurementType?: string | null;
   unitLabel?: string | null;
-  /** When `2`, uses HMAC user-context v2 (see TollaraHeaders.SIGNING_VERSION). */
+  /** `3` = v3; `2` = v2; absent = v1 */
   signingVersion?: string | null;
 }
 
-/** User fields that participate in inbound HMAC userContextString (docs/hmac-spec.md). */
+/** User fields that participate in inbound HMAC userContextString. */
 export interface SignedUserContext {
   userId: string | null;
-  plan: string | null;
+  serviceProductId?: string | null;
+  plan?: string | null;
   roles: string[];
-  quotaRemaining: number | string | null;
-  subscriptionActive: boolean;
+  quotaRemaining?: number | string | null;
+  subscriptionStatus?: string | null;
+  subscriptionActive?: boolean;
   billingModelType?: string | null;
   measurementType?: string | null;
   unitLabel?: string | null;
@@ -70,7 +88,7 @@ function parseSubscriptionActive(raw: string | null): boolean {
 }
 
 /**
- * Gateway inbound HMAC suffix: userId + plan + rolesCsv + quota + subscriptionActive + billing + measurement + unit.
+ * Gateway inbound HMAC suffix v1: userId + plan + rolesCsv + quota + subscriptionActive + billing fields.
  */
 export function buildGatewayUserContextString(
   userId: string | null,
@@ -113,50 +131,85 @@ export function buildGatewayUserContextStringV2(
   return '2' + u + p + r + sub + b + m + ul;
 }
 
-/**
- * Verifies HMAC on an inbound gateway request.
- * Canonical string: payload + timestamp + userContextString (see docs/hmac-spec.md).
- */
-export function verifySignature(serviceSecret: string, input: VerifySignatureInput): boolean {
+/** Gateway HMAC user-context v3: leading `3`, serviceProductId, subscriptionStatus (see MAIN-SDK-API-SPEC §4). */
+export function buildGatewayUserContextStringV3(
+  userId: string | null,
+  serviceProductId: string | null,
+  roles: string[],
+  subscriptionStatus: string | null,
+  billingModelType: string | null,
+  measurementType: string | null,
+  unitLabel: string | null
+): string {
+  const u = userId ?? '';
+  const sp = serviceProductId ?? '';
+  const r = roles?.length ? roles.join(',') : '';
+  const st = subscriptionStatus ?? '';
+  const b = billingModelType ?? '';
+  const m = measurementType ?? '';
+  const ul = unitLabel ?? '';
+  return '3' + u + sp + r + st + b + m + ul;
+}
+
+function buildUserContextString(input: VerifySignatureInput): string {
   const {
-    signature,
-    timestamp,
-    payload,
     userId,
+    serviceProductId,
     plan,
     roles,
     quotaRemaining,
+    subscriptionStatus,
     subscriptionActive,
     billingModelType,
     measurementType,
     unitLabel,
     signingVersion,
   } = input;
+  if (signingVersion === '3') {
+    return buildGatewayUserContextStringV3(
+      userId,
+      serviceProductId ?? null,
+      roles ?? [],
+      subscriptionStatus ?? null,
+      billingModelType ?? null,
+      measurementType ?? null,
+      unitLabel ?? null
+    );
+  }
+  if (signingVersion === '2') {
+    return buildGatewayUserContextStringV2(
+      userId,
+      plan ?? null,
+      roles ?? [],
+      subscriptionActive ?? false,
+      billingModelType ?? null,
+      measurementType ?? null,
+      unitLabel ?? null
+    );
+  }
+  return buildGatewayUserContextString(
+    userId,
+    plan ?? null,
+    roles ?? [],
+    quotaRemaining ?? null,
+    subscriptionActive ?? false,
+    billingModelType ?? null,
+    measurementType ?? null,
+    unitLabel ?? null
+  );
+}
+
+/**
+ * Verifies HMAC on an inbound gateway request.
+ * Canonical string: payload + timestamp + userContextString (see docs-sdk/MAIN-SDK-API-SPEC.md §4).
+ */
+export function verifySignature(serviceSecret: string, input: VerifySignatureInput): boolean {
+  const { signature, timestamp, payload } = input;
   if (!signature || !timestamp || !serviceSecret) return false;
   try {
     const payloadString =
       payload == null ? '' : typeof payload === 'string' ? payload : JSON.stringify(payload);
-    const userContextString =
-      signingVersion === '2'
-        ? buildGatewayUserContextStringV2(
-            userId,
-            plan,
-            roles ?? [],
-            subscriptionActive,
-            billingModelType ?? null,
-            measurementType ?? null,
-            unitLabel ?? null
-          )
-        : buildGatewayUserContextString(
-            userId,
-            plan,
-            roles ?? [],
-            quotaRemaining,
-            subscriptionActive,
-            billingModelType ?? null,
-            measurementType ?? null,
-            unitLabel ?? null
-          );
+    const userContextString = buildUserContextString(input);
     const dataToSign = payloadString + timestamp + userContextString;
     const expectedSignature = calculateHmac(dataToSign, serviceSecret);
     return constantTimeEquals(expectedSignature, signature);
@@ -175,9 +228,11 @@ export function verifyInboundHmac(serviceSecret: string, request: InboundHmacReq
     timestamp: request.timestamp,
     payload: request.payload,
     userId: s.userId,
+    serviceProductId: s.serviceProductId,
     plan: s.plan,
     roles: s.roles ?? [],
     quotaRemaining: s.quotaRemaining,
+    subscriptionStatus: s.subscriptionStatus,
     subscriptionActive: s.subscriptionActive,
     billingModelType: s.billingModelType,
     measurementType: s.measurementType,
@@ -186,17 +241,7 @@ export function verifyInboundHmac(serviceSecret: string, request: InboundHmacReq
   });
 }
 
-/**
- * Verifies inbound HMAC from a case-insensitive header bag and payload.
- */
-export function verifySignatureFromHeaders(
-  serviceSecret: string,
-  headers: HeaderBag,
-  payload: string | object | null
-): boolean {
-  const signature = headerGet(headers, TollaraHeaders.SIGNATURE);
-  const timestamp = headerGet(headers, TollaraHeaders.TIMESTAMP);
-  if (!signature || !timestamp) return false;
+function parseSignedUserContextFromHeaders(headers: HeaderBag): SignedUserContext {
   const rolesHeader = headerGet(headers, TollaraHeaders.ROLES);
   const roles = rolesHeader ? rolesHeader.split(',').map((x) => x.trim()).filter(Boolean) : [];
   let quotaRemaining: number | string | null = headerGet(headers, TollaraHeaders.QUOTA_REMAINING);
@@ -211,16 +256,32 @@ export function verifySignatureFromHeaders(
   const billing = headerGet(headers, TollaraHeaders.BILLING_MODEL);
   const measurement = headerGet(headers, TollaraHeaders.MEASUREMENT_TYPE);
   const unit = headerGet(headers, TollaraHeaders.UNIT_LABEL);
-  const signedUserContext: SignedUserContext = {
+  return {
     userId: headerGet(headers, TollaraHeaders.USER_ID),
+    serviceProductId: headerGet(headers, TollaraHeaders.SERVICE_PRODUCT_ID),
     plan: headerGet(headers, TollaraHeaders.PLAN),
     roles,
     quotaRemaining,
+    subscriptionStatus: headerGet(headers, TollaraHeaders.SUBSCRIPTION_STATUS),
     subscriptionActive,
     billingModelType: billing && billing !== '' ? billing : null,
     measurementType: measurement && measurement !== '' ? measurement : null,
     unitLabel: unit && unit !== '' ? unit : null,
   };
+}
+
+/**
+ * Verifies inbound HMAC from a case-insensitive header bag and payload.
+ */
+export function verifySignatureFromHeaders(
+  serviceSecret: string,
+  headers: HeaderBag,
+  payload: string | object | null
+): boolean {
+  const signature = headerGet(headers, TollaraHeaders.SIGNATURE);
+  const timestamp = headerGet(headers, TollaraHeaders.TIMESTAMP);
+  if (!signature || !timestamp) return false;
+  const signedUserContext = parseSignedUserContextFromHeaders(headers);
   const signingVersion = headerGet(headers, TollaraHeaders.SIGNING_VERSION);
   return verifyInboundHmac(serviceSecret, {
     signature,
@@ -233,7 +294,6 @@ export function verifySignatureFromHeaders(
 
 /**
  * Verifies inbound HMAC; if valid returns user context, else `null` (do not trust headers).
- * Parses `X-Tollara-*` headers into {@link UserContext} (case-insensitive header names).
  */
 export function verifySignatureFromHeadersAndGetUserContext(
   serviceSecret: string,
@@ -245,27 +305,22 @@ export function verifySignatureFromHeadersAndGetUserContext(
 }
 
 export function getUserContext(headers: HeaderBag): UserContext {
-  const rolesHeader = headerGet(headers, TollaraHeaders.ROLES);
-  const roles = rolesHeader ? rolesHeader.split(',').map((s) => s.trim()).filter(Boolean) : [];
-  let quotaRemaining: number | null = null;
-  const q = headerGet(headers, TollaraHeaders.QUOTA_REMAINING);
-  if (q != null && q !== '') {
-    const n = Number(q);
-    if (!Number.isNaN(n)) quotaRemaining = n;
-  }
-  const sub = headerGet(headers, TollaraHeaders.SUBSCRIPTION_ACTIVE);
-  const subscriptionActive = parseSubscriptionActive(sub);
-  const bm = headerGet(headers, TollaraHeaders.BILLING_MODEL);
-  const mt = headerGet(headers, TollaraHeaders.MEASUREMENT_TYPE);
-  const ul = headerGet(headers, TollaraHeaders.UNIT_LABEL);
+  const s = parseSignedUserContextFromHeaders(headers);
   return {
-    userId: headerGet(headers, TollaraHeaders.USER_ID),
-    plan: headerGet(headers, TollaraHeaders.PLAN),
-    roles,
-    quotaRemaining,
-    subscriptionActive,
-    billingModelType: bm && bm !== '' ? bm : null,
-    measurementType: mt && mt !== '' ? mt : null,
-    unitLabel: ul && ul !== '' ? ul : null,
+    userId: s.userId,
+    serviceProductId: s.serviceProductId ?? null,
+    plan: s.plan ?? null,
+    roles: s.roles ?? [],
+    quotaRemaining:
+      typeof s.quotaRemaining === 'number'
+        ? s.quotaRemaining
+        : s.quotaRemaining != null && s.quotaRemaining !== ''
+          ? Number(s.quotaRemaining)
+          : null,
+    subscriptionStatus: s.subscriptionStatus ?? null,
+    subscriptionActive: s.subscriptionActive ?? false,
+    billingModelType: s.billingModelType ?? null,
+    measurementType: s.measurementType ?? null,
+    unitLabel: s.unitLabel ?? null,
   };
 }

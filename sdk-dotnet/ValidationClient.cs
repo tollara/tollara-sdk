@@ -8,33 +8,41 @@ namespace Tollara;
 public record ServiceKeyValidationResult(
     string? UserId,
     string? ServiceId,
-    string? Plan,
+    string? ServiceProductId,
     IReadOnlyList<string> Roles,
-    decimal? QuotaRemaining,
-    bool SubscriptionActive,
+    string? SubscriptionStatus,
+    int? ValidationSchemaVersion,
     string? BillingModelType,
     string? MeasurementType,
     string? UnitLabel,
-    Guid? ServiceKeyId);
+    Guid? ServiceKeyId)
+{
+    public bool GrantsAccess() => Verifier.GrantsAccess(SubscriptionStatus);
 
-/// <summary>Wire result for Core service-key usage estimate (signed JSON).</summary>
+    public static bool GrantsAccess(string? subscriptionStatus) => Verifier.GrantsAccess(subscriptionStatus);
+}
+
+/// <summary>Wire result for Core usage estimate endpoints (see docs-sdk/MAIN-SDK-API-SPEC.md §2.3).</summary>
 public record UsageEstimateResult(
     bool SufficientCredits,
     bool WouldExceedCap,
     bool WouldAllow,
     decimal? EstimatedCost,
-    decimal? RemainingCredits,
-    decimal? RemainingSpendingCap,
     string? BillingModelType,
     string? MeasurementType,
     string? UnitLabel,
-    System.Text.Json.JsonElement? Breakdown,
+    UsageBreakdown? Breakdown,
     int EstimateSchemaVersion,
     long Timestamp,
     int HttpStatus);
 
 public static class ValidationClient
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     /// <summary>Validate using the SDK default API origin and Core path prefix (same as <see cref="TollaraClient"/>).</summary>
     public static Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string serviceKey, string? serviceId,
         string serviceSecret, CancellationToken ct = default) =>
@@ -66,13 +74,13 @@ public static class ValidationClient
         return new ServiceKeyValidationResult(
             root.TryGetProperty("userId", out var uid) ? uid.GetString() : null,
             root.TryGetProperty("serviceId", out var sid) ? sid.GetString() : serviceId,
-            root.TryGetProperty("plan", out var p) ? p.GetString() : null,
+            ReadString(root, "serviceProductId"),
             roles,
-            root.TryGetProperty("quotaRemaining", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetDecimal() : (decimal?)null,
-            root.TryGetProperty("subscriptionActive", out var sa) && sa.GetBoolean(),
-            root.TryGetProperty("billingModelType", out var bm) && bm.ValueKind == JsonValueKind.String ? bm.GetString() : null,
-            root.TryGetProperty("measurementType", out var mt) && mt.ValueKind == JsonValueKind.String ? mt.GetString() : null,
-            root.TryGetProperty("unitLabel", out var ul) && ul.ValueKind == JsonValueKind.String ? ul.GetString() : null,
+            ReadString(root, "subscriptionStatus"),
+            root.TryGetProperty("validationSchemaVersion", out var vsv) && vsv.TryGetInt32(out var vv) ? vv : null,
+            ReadString(root, "billingModelType"),
+            ReadString(root, "measurementType"),
+            ReadString(root, "unitLabel"),
             serviceKeyId
         );
     }
@@ -102,26 +110,7 @@ public static class ValidationClient
         var timestamp = res.Headers.TryGetValues(TollaraHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
         if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret)) return null;
-        using var doc = JsonDocument.Parse(responseText);
-        var root = doc.RootElement;
-        JsonElement? breakdown = null;
-        if (root.TryGetProperty("breakdown", out var br) && br.ValueKind == JsonValueKind.Object)
-            breakdown = br.Clone();
-        return new UsageEstimateResult(
-            root.TryGetProperty("sufficientCredits", out var sc) && sc.GetBoolean(),
-            root.TryGetProperty("wouldExceedCap", out var wec) && wec.GetBoolean(),
-            root.TryGetProperty("wouldAllow", out var wa) && wa.GetBoolean(),
-            ReadDecimal(root, "estimatedCost"),
-            ReadDecimal(root, "remainingCredits"),
-            ReadDecimal(root, "remainingSpendingCap"),
-            ReadString(root, "billingModelType"),
-            ReadString(root, "measurementType"),
-            ReadString(root, "unitLabel"),
-            breakdown,
-            root.TryGetProperty("estimateSchemaVersion", out var esv) && esv.TryGetInt32(out var ev) ? ev : 0,
-            root.TryGetProperty("timestamp", out var tsv) && tsv.TryGetInt64(out var tl) ? tl : 0L,
-            code
-        );
+        return ParseEstimateResult(responseText, code);
     }
 
     /// <summary>Core JWT usage estimate (§2.2). Response is not HMAC-signed.</summary>
@@ -147,25 +136,28 @@ public static class ValidationClient
             code != (int)HttpStatusCode.TooManyRequests) return null;
         var responseText = await res.Content.ReadAsStringAsync(ct);
         if (string.IsNullOrWhiteSpace(responseText)) return null;
+        return ParseEstimateResult(responseText, code);
+    }
+
+    private static UsageEstimateResult? ParseEstimateResult(string responseText, int httpStatus)
+    {
         using var doc = JsonDocument.Parse(responseText);
         var root = doc.RootElement;
-        JsonElement? breakdown = null;
+        UsageBreakdown? breakdown = null;
         if (root.TryGetProperty("breakdown", out var br) && br.ValueKind == JsonValueKind.Object)
-            breakdown = br.Clone();
+            breakdown = JsonSerializer.Deserialize<UsageBreakdown>(br.GetRawText(), JsonOptions);
         return new UsageEstimateResult(
             root.TryGetProperty("sufficientCredits", out var sc) && sc.GetBoolean(),
             root.TryGetProperty("wouldExceedCap", out var wec) && wec.GetBoolean(),
             root.TryGetProperty("wouldAllow", out var wa) && wa.GetBoolean(),
             ReadDecimal(root, "estimatedCost"),
-            ReadDecimal(root, "remainingCredits"),
-            ReadDecimal(root, "remainingSpendingCap"),
             ReadString(root, "billingModelType"),
             ReadString(root, "measurementType"),
             ReadString(root, "unitLabel"),
             breakdown,
             root.TryGetProperty("estimateSchemaVersion", out var esv) && esv.TryGetInt32(out var ev) ? ev : 0,
             root.TryGetProperty("timestamp", out var tsv) && tsv.TryGetInt64(out var tl) ? tl : 0L,
-            code
+            httpStatus
         );
     }
 

@@ -2,17 +2,22 @@ from .tollara_headers import TollaraHeaders
 from .hmac_utils import calculate_hmac, calculate_hmac_with_timestamp, constant_time_equals, validate_hmac_signature
 from .verifier import (
     verify_signature,
+    verify_signature_v3,
     verify_inbound_hmac,
     verify_signature_from_headers,
     verify_inbound_context,
     verify_signature_from_headers_and_get_user_context,
     get_user_context,
+    grants_access,
     build_gateway_user_context_string,
     build_gateway_user_context_string_v2,
+    build_gateway_user_context_string_v3,
+    SIGNING_VERSION_V3,
     UserContext,
     SignedUserContext,
     InboundHmacRequest,
 )
+from .usage_breakdown import UsageBreakdown, parse_usage_breakdown
 from .billing_client import estimate_usage_with_jwt
 from .gateway_invoke import GatewayInvokeAsyncEnvelope, GatewayInvokeResult, invoke_service
 from .validation_client import (
@@ -49,16 +54,22 @@ __all__ = [
     "constant_time_equals",
     "validate_hmac_signature",
     "verify_signature",
+    "verify_signature_v3",
     "verify_inbound_hmac",
     "verify_signature_from_headers",
     "verify_inbound_context",
     "verify_signature_from_headers_and_get_user_context",
     "get_user_context",
+    "grants_access",
     "build_gateway_user_context_string",
     "build_gateway_user_context_string_v2",
+    "build_gateway_user_context_string_v3",
+    "SIGNING_VERSION_V3",
     "UserContext",
     "SignedUserContext",
     "InboundHmacRequest",
+    "UsageBreakdown",
+    "parse_usage_breakdown",
     "validate_service_key",
     "estimate_usage",
     "estimate_usage_with_jwt",
