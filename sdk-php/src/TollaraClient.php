@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tollara\AgentSdk;
+namespace Tollara\ServiceSdk;
 
 final class TollaraClient
 {
@@ -46,8 +46,8 @@ final class TollaraClient
         }
     }
 
-    /** @return array<string,mixed>|null */
-    public function validateServiceKey(string $serviceKey): ?array
+    /** @return ServiceKeyValidationResult|null */
+    public function validateServiceKey(string $serviceKey): ?ServiceKeyValidationResult
     {
         $body = ['serviceKey' => $serviceKey, 'serviceSecret' => $this->serviceSecret];
         if ($this->serviceId !== '') {
@@ -66,11 +66,11 @@ final class TollaraClient
         if (!is_array($json) || empty($json['valid'])) {
             return null;
         }
-        return $json;
+        return ServiceKeyValidationResult::fromArray($json);
     }
 
-    /** @return array<string,mixed>|null */
-    public function estimateUsage(string $serviceKey, float $estimatedUnits): ?array
+    /** @return UsageEstimateResult|null */
+    public function estimateUsage(string $serviceKey, float $estimatedUnits): ?UsageEstimateResult
     {
         $body = ['serviceKey' => $serviceKey, 'serviceSecret' => $this->serviceSecret, 'estimatedUnits' => $estimatedUnits];
         if ($this->serviceId !== '') {
@@ -89,12 +89,11 @@ final class TollaraClient
         if (!is_array($json)) {
             return null;
         }
-        $json['httpStatus'] = $res['status'];
-        return $json;
+        return UsageEstimateResult::fromArray($json, $res['status']);
     }
 
-    /** @return array<string,mixed>|null */
-    public function estimateUsageWithJwt(string $bearerToken, string $userId, string $serviceId, float $estimatedUnits): ?array
+    /** @return UsageEstimateResult|null */
+    public function estimateUsageWithJwt(string $bearerToken, string $userId, string $serviceId, float $estimatedUnits): ?UsageEstimateResult
     {
         $res = $this->requestJson('POST', $this->coreApiUrl . $this->corePathPrefix . '/billing/usage/estimate', [
             'userId' => $userId,
@@ -110,8 +109,7 @@ final class TollaraClient
         if (!is_array($json)) {
             return null;
         }
-        $json['httpStatus'] = $res['status'];
-        return $json;
+        return UsageEstimateResult::fromArray($json, $res['status']);
     }
 
     /** @return array{statusCode:int,body:string,asyncEnvelope:?array<string,mixed>}|null */
@@ -136,14 +134,14 @@ final class TollaraClient
         return $out;
     }
 
-    /** @return array<string,mixed>|null */
-    public function reportUsage(string $userId, string $serviceId, float $unitsUsed): ?array
+    /** @return UsageReportResponse|null */
+    public function reportUsage(string $userId, string $serviceId, float $unitsUsed): ?UsageReportResponse
     {
         return $this->reportUsageAt($userId, $serviceId, $unitsUsed, null);
     }
 
-    /** @return array<string,mixed>|null */
-    public function reportUsageAt(string $userId, string $serviceId, float $unitsUsed, ?\DateTimeInterface $timestamp): ?array
+    /** @return UsageReportResponse|null */
+    public function reportUsageAt(string $userId, string $serviceId, float $unitsUsed, ?\DateTimeInterface $timestamp): ?UsageReportResponse
     {
         $t = $timestamp ?: new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $headerTs = (string) $t->getTimestamp();
@@ -162,7 +160,7 @@ final class TollaraClient
             return null;
         }
         $json = json_decode($res['body'], true);
-        return is_array($json) ? $json : null;
+        return is_array($json) ? UsageReportResponse::fromArray($json) : null;
     }
 
     public function sendProgressUpdate(string $progressUrl, string $requestId, string $stage, int $percentageComplete, ?string $errorMessage = null): UsageCallbackResult

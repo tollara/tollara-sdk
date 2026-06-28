@@ -52,7 +52,7 @@ public static class Verifier
     public static bool GrantsAccess(string? subscriptionStatus)
     {
         if (string.IsNullOrWhiteSpace(subscriptionStatus)) return false;
-        return InvokeEligibleStatuses.Contains(subscriptionStatus.Trim());
+        return InvokeEligibleStatuses.Contains(subscriptionStatus.Trim().ToUpperInvariant());
     }
 
     /// <summary>

@@ -43,7 +43,7 @@ Use the same version as `version` in [`build.gradle`](build.gradle) (below match
 **Gradle:**
 
 ```kotlin
-implementation("com.tollara:service-sdk:0.0.1")
+implementation("com.tollara:service-sdk:3.0.0")
 ```
 
 **Maven:**
@@ -52,7 +52,7 @@ implementation("com.tollara:service-sdk:0.0.1")
 <dependency>
   <groupId>com.tollara</groupId>
   <artifactId>service-sdk</artifactId>
-  <version>0.0.1</version>
+  <version>3.0.0</version>
 </dependency>
 ```
 

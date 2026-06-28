@@ -7,8 +7,8 @@ require_once __DIR__ . '/../src/TollaraHeaders.php';
 require_once __DIR__ . '/../src/UsageCallbackResult.php';
 require_once __DIR__ . '/../src/TollaraClient.php';
 
-use Tollara\AgentSdk\TollaraClient;
-use Tollara\AgentSdk\UsageCallbackResult;
+use Tollara\ServiceSdk\TollaraClient;
+use Tollara\ServiceSdk\UsageCallbackResult;
 
 function assertTrue(bool $condition, string $message): void
 {

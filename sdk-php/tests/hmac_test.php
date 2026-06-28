@@ -6,7 +6,7 @@ require_once __DIR__ . '/../src/Hmac.php';
 require_once __DIR__ . '/../src/TollaraHeaders.php';
 require_once __DIR__ . '/../src/Verifier.php';
 
-use Tollara\AgentSdk\Verifier;
+use Tollara\ServiceSdk\Verifier;
 
 function assertTrue(bool $condition, string $message): void
 {
@@ -49,6 +49,7 @@ $ctx = Verifier::buildGatewayUserContextStringV3('user-x', 'prod-x', ['r1'], 'EX
 assertSame('3user-xprod-xr1EXPIREDPREPAIDPER_REQUESTrequest', $ctx, 'buildV3 non access');
 
 assertTrue(Verifier::grantsAccess('ACTIVE'), 'grants ACTIVE');
+assertTrue(Verifier::grantsAccess('trial'), 'grants trial case-insensitive');
 assertTrue(Verifier::grantsAccess('CANCELLING_PENDING'), 'grants CANCELLING_PENDING');
 assertTrue(!Verifier::grantsAccess('EXPIRED'), 'denies EXPIRED');
 assertTrue(!Verifier::grantsAccess(null), 'denies null');

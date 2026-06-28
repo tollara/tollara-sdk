@@ -13,7 +13,7 @@ def grants_access(subscription_status: Optional[str]) -> bool:
     """True when subscription_status is invoke-eligible (ACTIVE, TRIAL, CANCELLING, CANCELLING_PENDING)."""
     if subscription_status is None or not str(subscription_status).strip():
         return False
-    return str(subscription_status).strip() in _INVOKE_ELIGIBLE_STATUSES
+    return str(subscription_status).strip().upper() in _INVOKE_ELIGIBLE_STATUSES
 
 
 @dataclass

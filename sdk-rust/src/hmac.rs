@@ -38,7 +38,7 @@ const INVOKE_ELIGIBLE: &[&str] = &["ACTIVE", "TRIAL", "CANCELLING", "CANCELLING_
 pub fn grants_access(subscription_status: Option<&str>) -> bool {
     match subscription_status.map(str::trim).filter(|s| !s.is_empty()) {
         None => false,
-        Some(s) => INVOKE_ELIGIBLE.contains(&s),
+        Some(s) => INVOKE_ELIGIBLE.contains(&s.to_ascii_uppercase()),
     }
 }
 

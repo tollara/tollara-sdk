@@ -1,6 +1,6 @@
 # Tollara Service SDK (Python)
 
-**Package:** `tollara-service-sdk` (PyPI). **Import:** `import tollara_service_sdk`.
+**Package:** `tollara-service-sdk` (PyPI), version **3.0.0**. **Import:** `import tollara_service_sdk`.
 
 Verify HMAC on incoming gateway requests, validate service keys, run usage pre-flight (service-key **and** JWT paths), **gateway invoke**, report usage, progress/completion, and poll async job status on the gateway.
 
@@ -56,16 +56,16 @@ pip install tollara-service-sdk[http]
 
 ### Verify inbound HMAC (agent backend)
 
-Pass a **header map** (keys matched case-insensitively) and the **raw body** the gateway signed (same bytes as in the canonical string). Header names follow `TollaraHeaders` (`X-Tollara-*`). Verification defaults to signing version **v2** (newer user-context suffix, no quota segment in the signed material).
+Pass a **header map** (keys matched case-insensitively) and the **raw body** the gateway signed (same bytes as in the canonical string). Header names follow `TollaraHeaders` (`X-Tollara-*`). Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `"3"` (`serviceProductId`, `subscriptionStatus`); **v2** when `"2"`; legacy v1 when the header is absent.
 
 **Preferred:** verify and read user context in one step (`None` if the HMAC is invalid):
 
 ```python
-from tollara_service_sdk import verify_inbound_context
+from tollara_service_sdk import verify_inbound_context, grants_access
 
 ctx = verify_inbound_context(service_secret, headers, raw_body)
-if ctx is not None:
-    # ctx.user_id, ctx.plan, ...
+if ctx is not None and grants_access(ctx.subscription_status):
+    # ctx.user_id, ctx.service_product_id, ctx.subscription_status, ...
     ...
 ```
 
@@ -95,11 +95,12 @@ client = TollaraClient(
 )
 
 validation = client.validate_service_key("bearer-token")
-# validation.service_key_id — Core key id when present
+# validation.service_product_id, validation.subscription_status, validation.grants_access()
 
 estimate = client.estimate_usage("bearer-token", 1.0)
 if estimate is not None:
     allowed = estimate.would_allow
+    # estimate.breakdown.remaining_credits / remaining_spending_cap when applicable
     status = estimate.http_status
 
 # JWT usage estimate (unsigned): bearer JWT + internal Core user id + service id

@@ -1,6 +1,6 @@
 # Tollara SDK (.NET)
 
-**Package:** `Tollara.ServiceSdk` (NuGet), **version** `0.0.1`.
+**Package:** `Tollara.ServiceSdk` (NuGet), **version** `3.0.0`.
 
 Verify HMAC, validate service keys, run usage pre-flight (service-key **and** JWT), **gateway invoke**, report usage, progress, completion, and poll job status on the gateway.
 
@@ -19,7 +19,7 @@ On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve
 - **Usage service** (report / progress / completion) and **signed Core JSON responses** (validate, service-key usage estimate): canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; **`timestamp`** in **`X-Tollara-Timestamp`** is **Unix epoch seconds**). For **report**, the JSON body’s **`timestamp`** field is an **ISO-8601** instant. Then **`Base64(HMAC-SHA256(canonical, serviceSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp`.
 - **Progress / completion:** sign exactly the bytes you POST. The usage service verifies HMAC against the **raw HTTP request body** (spec §3).
 - **JWT usage estimate**: **not** HMAC-signed; do not expect signature headers.
-- **Gateway → service inbound:** canonical = `payload + timestamp + userContextString`. Verification defaults to v2 via **`BuildGatewayUserContextStringV2`** (leading `2`, no quota segment). `Verifier.BuildGatewayUserContextString` remains the legacy suffix.
+- **Gateway → service inbound:** canonical = `payload + timestamp + userContextString`. Production uses **v3** via **`BuildGatewayUserContextStringV3`** when `X-Tollara-Signing-Version` is `"3"`. **v2** and legacy v1 remain for backward-compat tests only.
 
 Progress and completion return **`UsageCallbackResult`** (`Success`, `HttpStatus`, `HttpStatusText`, `RequestUrl`, optional `ResponseBody` / `NetworkError`).
 
@@ -49,7 +49,7 @@ var (ok, code, body) = await client.GetRequestStatusAsync(requestId, serviceKey)
 
 ```csharp
 var ctx = Verifier.VerifyInboundHmacAndGetUserContext(serviceSecret, headers, payload);
-if (ctx is not null) { /* trusted */ }
+if (ctx is not null && Verifier.GrantsAccess(ctx.SubscriptionStatus)) { /* trusted + invoke-eligible */ }
 ```
 
 ## Install
@@ -75,11 +75,13 @@ bool valid = Verifier.VerifySignatureFromHeaders(serviceSecret, headers, payload
 var ctx = Verifier.GetUserContext(headers);
 ```
 
-### Inbound DTO
+### Inbound DTO (v3)
 
 ```csharp
-var signed = new SignedUserContext("user1", "plan1", new[] { "r1" }, 10m, subscriptionActive: false);
-var req = new InboundHmacRequest(sig, ts, payload, signed, SigningVersion: "2"); // v2 default/recommended
+var signed = new SignedUserContext(
+    "user1", "prod-uuid-1", new[] { "r1" }, "ACTIVE",
+    BillingModelType: "SUBSCRIPTION", MeasurementType: "PER_REQUEST", UnitLabel: "request");
+var req = new InboundHmacRequest(sig, ts, payload, signed, SigningVersion: Verifier.SigningVersionV3);
 bool ok = Verifier.VerifyInboundHmac(serviceSecret, req);
 ```
 

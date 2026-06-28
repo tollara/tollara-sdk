@@ -19,8 +19,8 @@ Use this README as the public usage reference.
 
 ```toml
 [dependencies]
-tollara-service-sdk = "1.0"
-# tollara-service-sdk = { version = "1.0", features = ["http"] }
+tollara-service-sdk = "3.0"
+# tollara-service-sdk = { version = "3.0", features = ["http"] }
 ```
 
 ## Build

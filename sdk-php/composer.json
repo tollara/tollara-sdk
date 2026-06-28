@@ -1,7 +1,7 @@
 {
   "name": "tollara/service-sdk",
   "description": "Tollara SDK - verify HMAC, validate keys, report usage",
-  "type": "library",
+  "version": "3.0.0",
   "license": "MIT",
   "autoload": {
     "psr-4": {
@@ -11,7 +11,8 @@
   "scripts": {
     "test": [
       "@php tests/hmac_test.php",
-      "@php tests/usage_client_test.php"
+      "@php tests/usage_client_test.php",
+      "@php tests/contract_test.php"
     ]
-  },
+  }
 }

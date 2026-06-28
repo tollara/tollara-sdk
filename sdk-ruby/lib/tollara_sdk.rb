@@ -70,7 +70,7 @@ module TollaraSdk
       return nil unless TollaraSdk.validate_hmac_signature(sig, raw + ts, @service_secret)
       json = JSON.parse(raw) rescue nil
       return nil unless json.is_a?(Hash) && json["valid"]
-      json
+      ServiceKeyValidationResult.from_hash(json)
     end
 
     def estimate_usage(service_key, estimated_units)
@@ -87,8 +87,7 @@ module TollaraSdk
       return nil unless TollaraSdk.validate_hmac_signature(sig, raw + ts, @service_secret)
       json = JSON.parse(raw) rescue nil
       return nil unless json.is_a?(Hash)
-      json["httpStatus"] = res.code.to_i
-      json
+      UsageEstimateResult.from_hash(json, res.code.to_i)
     end
 
     def estimate_usage_with_jwt(bearer_token, user_id, service_id, estimated_units)
@@ -100,8 +99,7 @@ module TollaraSdk
       return nil if raw.strip.empty?
       json = JSON.parse(raw) rescue nil
       return nil unless json.is_a?(Hash)
-      json["httpStatus"] = res.code.to_i
-      json
+      UsageEstimateResult.from_hash(json, res.code.to_i)
     end
 
     def invoke_service(method, service_id, endpoint_id, service_key, body: nil, async: false)
@@ -136,7 +134,9 @@ module TollaraSdk
         HEADERS[:timestamp] => header_ts
       })
       raise "Usage report failed: #{res.code}" unless res.is_a?(Net::HTTPSuccess)
-      JSON.parse(res.body.to_s)
+      json = JSON.parse(res.body.to_s) rescue nil
+      return nil unless json.is_a?(Hash)
+      UsageReportResponse.from_hash(json)
     end
 
     def send_progress_update(progress_url, request_id, stage, percentage_complete, error_message = nil)
@@ -269,7 +269,7 @@ module TollaraSdk
   def self.grants_access(subscription_status)
     s = subscription_status.to_s.strip
     return false if s.empty?
-    INVOKE_ELIGIBLE_STATUSES.include?(s)
+    INVOKE_ELIGIBLE_STATUSES.include?(s.upcase)
   end
 
   def self.build_gateway_user_context_string_v3(user_id, service_product_id, roles, subscription_status, billing, measurement, unit)
@@ -400,5 +400,107 @@ module TollaraSdk
 
   def self.empty_to_nil(s)
     s.nil? || s.to_s.empty? ? nil : s.to_s
+  end
+
+  class UsageBreakdown
+    attr_reader :units_used, :base_units_used, :overage_units, :chargeable_overage_units,
+                :surplus_overage_units, :overage_cost, :total_overage_cost, :units_remaining,
+                :remaining_credits, :remaining_spending_cap, :total_units_used_this_cycle,
+                :over_limit, :overage, :overage_allowed
+
+    def initialize(data)
+      data = data || {}
+      @units_used = data["unitsUsed"]&.to_f
+      @base_units_used = data["baseUnitsUsed"]&.to_f
+      @overage_units = data["overageUnits"]&.to_f
+      @chargeable_overage_units = data["chargeableOverageUnits"]&.to_f
+      @surplus_overage_units = data["surplusOverageUnits"]&.to_f
+      @overage_cost = data["overageCost"]&.to_f
+      @total_overage_cost = data["totalOverageCost"]&.to_f
+      @units_remaining = data["unitsRemaining"]&.to_f
+      @remaining_credits = data["remainingCredits"]&.to_f
+      @remaining_spending_cap = data["remainingSpendingCap"]&.to_f
+      @total_units_used_this_cycle = data["totalUnitsUsedThisCycle"]&.to_f
+      @over_limit = data.key?("isOverLimit") ? !!data["isOverLimit"] : nil
+      @overage = data.key?("isOverage") ? !!data["isOverage"] : nil
+      @overage_allowed = data.key?("isOverageAllowed") ? !!data["isOverageAllowed"] : nil
+    end
+
+    def self.from_hash(data)
+      return nil if data.nil?
+      new(data)
+    end
+  end
+
+  class ServiceKeyValidationResult
+    attr_reader :user_id, :service_id, :service_key_id, :service_product_id, :roles,
+                :subscription_status, :validation_schema_version, :billing_model_type,
+                :measurement_type, :unit_label
+
+    def initialize(data)
+      @user_id = data["userId"]
+      @service_id = data["serviceId"]
+      @service_key_id = data["serviceKeyId"]
+      @service_product_id = data["serviceProductId"]
+      @roles = Array(data["roles"]).map(&:to_s)
+      @subscription_status = data["subscriptionStatus"]
+      @validation_schema_version = data["validationSchemaVersion"].to_i
+      @billing_model_type = data["billingModelType"]
+      @measurement_type = data["measurementType"]
+      @unit_label = data["unitLabel"]
+    end
+
+    def self.from_hash(data)
+      new(data)
+    end
+
+    def grants_access
+      TollaraSdk.grants_access(@subscription_status)
+    end
+  end
+
+  class UsageEstimateResult
+    attr_reader :sufficient_credits, :would_exceed_cap, :would_allow, :estimated_cost,
+                :billing_model_type, :measurement_type, :unit_label, :breakdown,
+                :estimate_schema_version, :timestamp, :http_status
+
+    def initialize(data, http_status)
+      @sufficient_credits = !!data["sufficientCredits"]
+      @would_exceed_cap = !!data["wouldExceedCap"]
+      @would_allow = !!data["wouldAllow"]
+      @estimated_cost = data["estimatedCost"]&.to_f
+      @billing_model_type = data["billingModelType"]
+      @measurement_type = data["measurementType"]
+      @unit_label = data["unitLabel"]
+      @breakdown = UsageBreakdown.from_hash(data["breakdown"])
+      @estimate_schema_version = data["estimateSchemaVersion"].to_i
+      @timestamp = data["timestamp"].to_i
+      @http_status = http_status
+    end
+
+    def self.from_hash(data, http_status)
+      new(data, http_status)
+    end
+  end
+
+  class UsageReportResponse
+    attr_reader :report_schema_version, :status, :warning, :user_id, :service_id,
+                :billing_model_type, :measurement_type, :unit_label, :breakdown
+
+    def initialize(data)
+      @report_schema_version = data["reportSchemaVersion"].to_i
+      @status = data["status"]
+      @warning = data["warning"]
+      @user_id = data["userId"]
+      @service_id = data["serviceId"]
+      @billing_model_type = data["billingModelType"]
+      @measurement_type = data["measurementType"]
+      @unit_label = data["unitLabel"]
+      @breakdown = UsageBreakdown.from_hash(data["breakdown"])
+    end
+
+    def self.from_hash(data)
+      new(data)
+    end
   end
 end

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tollara\AgentSdk;
+namespace Tollara\ServiceSdk;
 
 final class InboundHmacRequest
 {
@@ -37,7 +37,7 @@ final class Verifier
         if ($subscriptionStatus === null || trim($subscriptionStatus) === '') {
             return false;
         }
-        return in_array(trim($subscriptionStatus), self::INVOKE_ELIGIBLE, true);
+        return in_array(strtoupper(trim($subscriptionStatus)), self::INVOKE_ELIGIBLE, true);
     }
 
     public static function buildGatewayUserContextString(
@@ -329,5 +329,10 @@ final class UserContext
         public ?float $quotaRemaining = null,
         public bool $subscriptionActive = false,
     ) {
+    }
+
+    public function grantsAccess(): bool
+    {
+        return Verifier::grantsAccess($this->subscriptionStatus !== '' ? $this->subscriptionStatus : null);
     }
 }
