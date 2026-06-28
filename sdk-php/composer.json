@@ -8,7 +8,10 @@
       "Tollara\\ServiceSdk\\": "src/"
     }
   },
-  "require": {
-    "php": ">=8.1"
-  }
+  "scripts": {
+    "test": [
+      "@php tests/hmac_test.php",
+      "@php tests/usage_client_test.php"
+    ]
+  },
 }

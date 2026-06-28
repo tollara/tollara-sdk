@@ -1,26 +1,57 @@
 //! Client for validating service keys via the Core API (see docs/sdk-api-spec.md §2).
 
 use crate::headers;
-use crate::hmac::validate_hmac_signature;
+use crate::hmac::{grants_access, validate_hmac_signature};
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 
-/// Result of a successful service key validation.
+/// Shared usage breakdown for estimate and report responses.
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageBreakdown {
+    pub units_used: Option<f64>,
+    pub base_units_used: Option<f64>,
+    pub overage_units: Option<f64>,
+    pub chargeable_overage_units: Option<f64>,
+    pub surplus_overage_units: Option<f64>,
+    pub overage_cost: Option<f64>,
+    pub total_overage_cost: Option<f64>,
+    pub units_remaining: Option<f64>,
+    pub remaining_credits: Option<f64>,
+    pub remaining_spending_cap: Option<f64>,
+    pub total_units_used_this_cycle: Option<f64>,
+    #[serde(rename = "isOverLimit")]
+    pub over_limit: Option<bool>,
+    #[serde(rename = "isOverage")]
+    pub overage: Option<bool>,
+    #[serde(rename = "isOverageAllowed")]
+    pub overage_allowed: Option<bool>,
+}
+
+/// Result of a successful service key validation (validationSchemaVersion 3).
 #[derive(Debug, Clone)]
 pub struct ServiceKeyValidationResult {
     pub user_id: Option<String>,
     pub service_id: Option<String>,
-    pub plan: Option<String>,
+    pub service_key_id: Option<String>,
+    pub service_product_id: Option<String>,
     pub roles: Vec<String>,
-    pub quota_remaining: Option<f64>,
-    pub subscription_active: bool,
+    pub subscription_status: Option<String>,
+    pub validation_schema_version: Option<i32>,
     pub billing_model_type: Option<String>,
     pub measurement_type: Option<String>,
     pub unit_label: Option<String>,
 }
 
-/// Result of a usage estimate call.
+impl ServiceKeyValidationResult {
+    #[must_use]
+    pub fn grants_access(&self) -> bool {
+        grants_access(self.subscription_status.as_deref())
+    }
+}
+
+/// Result of a usage estimate call (estimateSchemaVersion 3).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageEstimateResult {
@@ -28,12 +59,10 @@ pub struct UsageEstimateResult {
     pub would_exceed_cap: bool,
     pub would_allow: bool,
     pub estimated_cost: Option<f64>,
-    pub remaining_credits: Option<f64>,
-    pub remaining_spending_cap: Option<f64>,
     pub billing_model_type: Option<String>,
     pub measurement_type: Option<String>,
     pub unit_label: Option<String>,
-    pub breakdown: Option<HashMap<String, serde_json::Value>>,
+    pub breakdown: Option<UsageBreakdown>,
     pub estimate_schema_version: Option<i64>,
     pub timestamp: Option<i64>,
     #[serde(skip)]
@@ -71,18 +100,19 @@ struct JwtEstimateRequest<'a> {
 #[serde(rename_all = "camelCase")]
 struct ValidationResponse {
     valid: bool,
+    service_key_id: Option<String>,
     user_id: Option<String>,
     service_id: Option<String>,
-    plan: Option<String>,
+    service_product_id: Option<String>,
     roles: Option<Vec<String>>,
-    quota_remaining: Option<f64>,
-    subscription_active: bool,
+    subscription_status: Option<String>,
     billing_model_type: Option<String>,
     measurement_type: Option<String>,
     unit_label: Option<String>,
     #[allow(dead_code)]
     timestamp: Option<i64>,
     error: Option<String>,
+    validation_schema_version: Option<i32>,
 }
 
 /// Validates a service key via the Core service. Returns `None` on 4xx/5xx, missing HMAC headers,
@@ -133,10 +163,11 @@ pub async fn validate_service_key(
     Some(ServiceKeyValidationResult {
         user_id: data.user_id,
         service_id: data.service_id.or(service_id.map(String::from)),
-        plan: data.plan,
+        service_key_id: data.service_key_id,
+        service_product_id: data.service_product_id,
         roles,
-        quota_remaining: data.quota_remaining,
-        subscription_active: data.subscription_active,
+        subscription_status: data.subscription_status,
+        validation_schema_version: data.validation_schema_version,
         billing_model_type: data.billing_model_type,
         measurement_type: data.measurement_type,
         unit_label: data.unit_label,

@@ -13,13 +13,15 @@ public record UsageCallbackResult(
     string? NetworkError = null);
 
 public record UsageReportResponse(
+    int ReportSchemaVersion,
     string? Status,
     string? Warning,
-    bool IsOverLimit,
-    long RemainingRequestsPerPeriod,
-    decimal? RemainingTimeUnitsPerPeriod,
-    decimal? RemainingSpendingCap,
-    decimal? OverageRate);
+    string? UserId,
+    string? ServiceId,
+    string? BillingModelType,
+    string? MeasurementType,
+    string? UnitLabel,
+    UsageBreakdown? Breakdown);
 
 public static class UsageClient
 {
@@ -142,24 +144,39 @@ public static class UsageClient
         var res = await http.SendAsync(req, ct);
         res.EnsureSuccessStatusCode();
         var json = await res.Content.ReadAsStringAsync(ct);
+        return ParseUsageReportResponse(json);
+    }
+
+    internal static UsageReportResponse ParseUsageReportResponse(string json)
+    {
         var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
+        UsageBreakdown? breakdown = null;
+        if (root.TryGetProperty("breakdown", out var br) && br.ValueKind == JsonValueKind.Object)
+        {
+            breakdown = JsonSerializer.Deserialize<UsageBreakdown>(br.GetRawText(), new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+            });
+        }
         return new UsageReportResponse(
+            root.TryGetProperty("reportSchemaVersion", out var rsv) && rsv.TryGetInt32(out var rv) ? rv : 0,
             root.TryGetProperty("status", out var s) ? s.GetString() : null,
             root.TryGetProperty("warning", out var w) && w.ValueKind == JsonValueKind.String ? w.GetString() : null,
-            root.TryGetProperty("isOverLimit", out var o) && o.GetBoolean(),
-            root.TryGetProperty("remainingRequestsPerPeriod", out var r) ? r.GetInt64() : 0,
-            ReadDecimal(root, "remainingTimeUnitsPerPeriod"),
-            ReadDecimal(root, "remainingSpendingCap"),
-            ReadDecimal(root, "overageRate")
+            ReadString(root, "userId"),
+            ReadString(root, "serviceId"),
+            ReadString(root, "billingModelType"),
+            ReadString(root, "measurementType"),
+            ReadString(root, "unitLabel"),
+            breakdown
         );
     }
 
-    private static decimal? ReadDecimal(JsonElement root, string name)
+    private static string? ReadString(JsonElement root, string name)
     {
         if (!root.TryGetProperty(name, out var p)) return null;
         if (p.ValueKind == JsonValueKind.Null) return null;
-        return p.ValueKind == JsonValueKind.Number && p.TryGetDecimal(out var d) ? d : null;
+        return p.ValueKind == JsonValueKind.String ? p.GetString() : null;
     }
 
     private static (string baseUrl, string? timestamp) ParseUrlParams(string? url)

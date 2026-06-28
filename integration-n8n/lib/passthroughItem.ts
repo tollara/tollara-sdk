@@ -14,18 +14,19 @@ export function passthroughItemWithJson(
   };
 }
 
-/** Map validateServiceKey result to the same userContext shape as Verify Request. */
+/** Map validateServiceKey result to the same userContext shape as Verify Request (v3). */
 export function validationResultToUserContext(result: ServiceKeyValidationResult): IDataObject {
   return {
     userId: result.userId,
-    plan: result.plan,
+    serviceProductId: result.serviceProductId,
     roles: result.roles,
-    quotaRemaining: result.quotaRemaining,
-    subscriptionActive: result.subscriptionActive,
+    subscriptionStatus: result.subscriptionStatus,
+    grantsAccess: result.grantsAccess,
     billingModelType: result.billingModelType,
     measurementType: result.measurementType,
     unitLabel: result.unitLabel,
     serviceId: result.serviceId,
     serviceKeyId: result.serviceKeyId,
+    validationSchemaVersion: result.validationSchemaVersion,
   };
 }

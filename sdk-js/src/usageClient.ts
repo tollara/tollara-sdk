@@ -2,6 +2,7 @@ import { TollaraHeaders } from './tollaraHeaders';
 import { CompletionStatus } from './completionStatus';
 import { DEFAULT_API_URL, DEFAULT_USAGE_PATH_PREFIX } from './constants';
 import { calculateHmacWithTimestamp } from './hmac';
+import { parseUsageBreakdown, type UsageBreakdown } from './usageBreakdown';
 import { resolveBaseUrl } from './urls';
 
 function usageReportInstantAndEpochSeconds(timestamp?: number | Date | null): { iso: string; epochSec: string } {
@@ -158,13 +159,15 @@ export async function reportCompletion(params: ReportCompletionParams): Promise<
 }
 
 export interface UsageReportResponse {
+  reportSchemaVersion?: number;
   status?: string;
-  warning?: string;
-  isOverLimit?: boolean;
-  remainingRequestsPerPeriod?: number;
-  remainingTimeUnitsPerPeriod?: number;
-  remainingSpendingCap?: number;
-  overageRate?: number;
+  warning?: string | null;
+  userId?: string;
+  serviceId?: string;
+  billingModelType?: string | null;
+  measurementType?: string | null;
+  unitLabel?: string | null;
+  breakdown?: UsageBreakdown | null;
 }
 
 /**
@@ -212,5 +215,16 @@ export async function reportUsage(
   if (!res.ok) {
     throw new Error(`Usage report failed: ${res.status} ${res.statusText}`);
   }
-  return (await res.json()) as UsageReportResponse;
+  const json = (await res.json()) as Record<string, unknown>;
+  return {
+    reportSchemaVersion: typeof json.reportSchemaVersion === 'number' ? json.reportSchemaVersion : undefined,
+    status: typeof json.status === 'string' ? json.status : undefined,
+    warning: typeof json.warning === 'string' ? json.warning : json.warning === null ? null : undefined,
+    userId: typeof json.userId === 'string' ? json.userId : undefined,
+    serviceId: typeof json.serviceId === 'string' ? json.serviceId : undefined,
+    billingModelType: typeof json.billingModelType === 'string' ? json.billingModelType : null,
+    measurementType: typeof json.measurementType === 'string' ? json.measurementType : null,
+    unitLabel: typeof json.unitLabel === 'string' ? json.unitLabel : null,
+    breakdown: parseUsageBreakdown(json.breakdown),
+  };
 }

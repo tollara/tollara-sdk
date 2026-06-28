@@ -53,7 +53,7 @@ class UsageServiceClientIntegrationTest {
                                 .withStatus(200)
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("""
-                                    {"status":"ok","warning":null,"isOverLimit":false,"remainingRequestsPerPeriod":99,"remainingTimeUnitsPerPeriod":null,"remainingSpendingCap":null,"overageRate":null}
+                                    {"reportSchemaVersion":2,"status":"ok","warning":null,"userId":"user-1","serviceId":"svc-1","billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":{"unitsUsed":1,"unitsRemaining":99,"remainingSpendingCap":20,"totalUnitsUsedThisCycle":1,"isOverLimit":false,"isOverage":false,"isOverageAllowed":true}}
                                     """))
         );
 
@@ -61,8 +61,12 @@ class UsageServiceClientIntegrationTest {
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo("ok");
-        assertThat(response.isOverLimit()).isFalse();
-        assertThat(response.getRemainingRequestsPerPeriod()).isEqualTo(99L);
+        assertThat(response.getReportSchemaVersion()).isEqualTo(2);
+        assertThat(response.getUserId()).isEqualTo("user-1");
+        assertThat(response.getServiceId()).isEqualTo("svc-1");
+        assertThat(response.getBreakdown()).isNotNull();
+        assertThat(response.getBreakdown().getUnitsRemaining()).isEqualByComparingTo(new BigDecimal("99"));
+        assertThat(response.getBreakdown().getOverLimit()).isFalse();
     }
 
     @Test

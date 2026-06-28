@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -23,6 +24,9 @@ import java.util.function.Function;
  */
 @Slf4j
 public class TollaraRequestVerifier {
+
+    private static final Set<String> INVOKE_ELIGIBLE_STATUSES = Set.of(
+            "ACTIVE", "TRIAL", "CANCELLING", "CANCELLING_PENDING");
 
     private final String serviceSecret;
     private final ObjectMapper objectMapper;
@@ -34,12 +38,37 @@ public class TollaraRequestVerifier {
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
+    /**
+     * Returns {@code true} when {@code subscriptionStatus} is invoke-eligible
+     * ({@code ACTIVE}, {@code TRIAL}, {@code CANCELLING}, {@code CANCELLING_PENDING}).
+     */
+    public static boolean grantsAccess(String subscriptionStatus) {
+        if (subscriptionStatus == null || subscriptionStatus.isBlank()) {
+            return false;
+        }
+        return INVOKE_ELIGIBLE_STATUSES.contains(subscriptionStatus.trim());
+    }
+
     public boolean verifyInboundHmac(InboundHmacRequest request) {
         if (request == null || request.getSignedUserContext() == null) {
             log.warn("Missing inbound HMAC request or signed user context");
             return false;
         }
         SignedUserContext s = request.getSignedUserContext();
+        String signingVersion = request.getSigningVersion();
+        if (GatewayHmacUserContext.SIGNING_VERSION_V3.equals(signingVersion)) {
+            return verifyHmacSignatureV3(
+                    request.getSignature(),
+                    request.getTimestamp(),
+                    request.getPayload(),
+                    s.getUserId(),
+                    s.getServiceProductId(),
+                    s.getRoles(),
+                    s.getSubscriptionStatus(),
+                    s.getBillingModelType(),
+                    s.getMeasurementType(),
+                    s.getUnitLabel());
+        }
         return verifyHmacSignature(
                 request.getSignature(),
                 request.getTimestamp(),
@@ -52,29 +81,32 @@ public class TollaraRequestVerifier {
                 s.getBillingModelType(),
                 s.getMeasurementType(),
                 s.getUnitLabel(),
-                request.getSigningVersion());
+                signingVersion);
     }
 
     public boolean verifyInboundHmac(Function<String, String> getHeader, String payload) {
         if (getHeader == null) {
             return false;
         }
-        SignedUserContext signed =
-                parseSignedUserContext(
-                        headerFrom(getHeader, TollaraHeaders.USER_ID),
-                        headerFrom(getHeader, TollaraHeaders.PLAN),
-                        headerFrom(getHeader, TollaraHeaders.ROLES),
-                        headerFrom(getHeader, TollaraHeaders.QUOTA_REMAINING),
-                        headerFrom(getHeader, TollaraHeaders.SUBSCRIPTION_ACTIVE),
-                        headerFrom(getHeader, TollaraHeaders.BILLING_MODEL),
-                        headerFrom(getHeader, TollaraHeaders.MEASUREMENT_TYPE),
-                        headerFrom(getHeader, TollaraHeaders.UNIT_LABEL));
+        String signingVersion = headerFrom(getHeader, TollaraHeaders.SIGNING_VERSION);
+        SignedUserContext signed = parseSignedUserContext(
+                headerFrom(getHeader, TollaraHeaders.USER_ID),
+                headerFrom(getHeader, TollaraHeaders.SERVICE_PRODUCT_ID),
+                headerFrom(getHeader, TollaraHeaders.ROLES),
+                headerFrom(getHeader, TollaraHeaders.SUBSCRIPTION_STATUS),
+                headerFrom(getHeader, TollaraHeaders.BILLING_MODEL),
+                headerFrom(getHeader, TollaraHeaders.MEASUREMENT_TYPE),
+                headerFrom(getHeader, TollaraHeaders.UNIT_LABEL),
+                headerFrom(getHeader, TollaraHeaders.PLAN),
+                headerFrom(getHeader, TollaraHeaders.QUOTA_REMAINING),
+                headerFrom(getHeader, TollaraHeaders.SUBSCRIPTION_ACTIVE),
+                signingVersion);
         return verifyInboundHmac(InboundHmacRequest.builder()
                 .signature(headerFrom(getHeader, TollaraHeaders.SIGNATURE))
                 .timestamp(headerFrom(getHeader, TollaraHeaders.TIMESTAMP))
                 .payload(payload)
                 .signedUserContext(signed)
-                .signingVersion(headerFrom(getHeader, TollaraHeaders.SIGNING_VERSION))
+                .signingVersion(signingVersion)
                 .build());
     }
 
@@ -98,24 +130,29 @@ public class TollaraRequestVerifier {
 
     private static SignedUserContext parseSignedUserContext(
             String userId,
-            String plan,
+            String serviceProductId,
             String rolesHeader,
-            String quotaHeader,
-            String subscriptionActiveHeader,
+            String subscriptionStatusHeader,
             String billingModelHeader,
             String measurementTypeHeader,
-            String unitLabelHeader) {
+            String unitLabelHeader,
+            String planHeader,
+            String quotaHeader,
+            String subscriptionActiveHeader,
+            String signingVersion) {
         List<String> roles = parseRolesList(rolesHeader);
         BigDecimal quota = parseQuota(quotaHeader);
         return SignedUserContext.builder()
                 .userId(userId)
-                .plan(plan)
+                .serviceProductId(emptyToNull(serviceProductId))
                 .roles(roles)
-                .quotaRemaining(quota)
-                .subscriptionActive(parseSubscriptionActiveFlag(subscriptionActiveHeader))
+                .subscriptionStatus(emptyToNull(subscriptionStatusHeader))
                 .billingModelType(emptyToNull(billingModelHeader))
                 .measurementType(emptyToNull(measurementTypeHeader))
                 .unitLabel(emptyToNull(unitLabelHeader))
+                .plan(planHeader)
+                .quotaRemaining(quota)
+                .subscriptionActive(parseSubscriptionActiveFlag(subscriptionActiveHeader))
                 .build();
     }
 
@@ -139,13 +176,15 @@ public class TollaraRequestVerifier {
         }
         return extractUserContext(
                 headerFrom(getHeader, TollaraHeaders.USER_ID),
-                headerFrom(getHeader, TollaraHeaders.PLAN),
+                headerFrom(getHeader, TollaraHeaders.SERVICE_PRODUCT_ID),
                 headerFrom(getHeader, TollaraHeaders.ROLES),
-                headerFrom(getHeader, TollaraHeaders.QUOTA_REMAINING),
-                headerFrom(getHeader, TollaraHeaders.SUBSCRIPTION_ACTIVE),
+                headerFrom(getHeader, TollaraHeaders.SUBSCRIPTION_STATUS),
                 headerFrom(getHeader, TollaraHeaders.BILLING_MODEL),
                 headerFrom(getHeader, TollaraHeaders.MEASUREMENT_TYPE),
-                headerFrom(getHeader, TollaraHeaders.UNIT_LABEL));
+                headerFrom(getHeader, TollaraHeaders.UNIT_LABEL),
+                headerFrom(getHeader, TollaraHeaders.PLAN),
+                headerFrom(getHeader, TollaraHeaders.QUOTA_REMAINING),
+                headerFrom(getHeader, TollaraHeaders.SUBSCRIPTION_ACTIVE));
     }
 
     public UserContext userContextFromHeaders(Map<String, String> headers) {
@@ -154,13 +193,15 @@ public class TollaraRequestVerifier {
         }
         return extractUserContext(
                 getHeaderIgnoreCase(headers, TollaraHeaders.USER_ID),
-                getHeaderIgnoreCase(headers, TollaraHeaders.PLAN),
+                getHeaderIgnoreCase(headers, TollaraHeaders.SERVICE_PRODUCT_ID),
                 getHeaderIgnoreCase(headers, TollaraHeaders.ROLES),
-                getHeaderIgnoreCase(headers, TollaraHeaders.QUOTA_REMAINING),
-                getHeaderIgnoreCase(headers, TollaraHeaders.SUBSCRIPTION_ACTIVE),
+                getHeaderIgnoreCase(headers, TollaraHeaders.SUBSCRIPTION_STATUS),
                 getHeaderIgnoreCase(headers, TollaraHeaders.BILLING_MODEL),
                 getHeaderIgnoreCase(headers, TollaraHeaders.MEASUREMENT_TYPE),
-                getHeaderIgnoreCase(headers, TollaraHeaders.UNIT_LABEL));
+                getHeaderIgnoreCase(headers, TollaraHeaders.UNIT_LABEL),
+                getHeaderIgnoreCase(headers, TollaraHeaders.PLAN),
+                getHeaderIgnoreCase(headers, TollaraHeaders.QUOTA_REMAINING),
+                getHeaderIgnoreCase(headers, TollaraHeaders.SUBSCRIPTION_ACTIVE));
     }
 
     /**
@@ -187,7 +228,6 @@ public class TollaraRequestVerifier {
     private static UserContext emptyUserContext() {
         return UserContext.builder()
                 .roles(Collections.emptyList())
-                .subscriptionActive(false)
                 .build();
     }
 
@@ -209,26 +249,16 @@ public class TollaraRequestVerifier {
     }
 
     /**
-     * Verifies gateway inbound HMAC using either v1 (quota in suffix) or v2 user-context when {@code signingVersion} is {@code "2"}.
-     *
-     * @param signature        observed {@link TollaraHeaders#SIGNATURE}
-     * @param timestamp        observed {@link TollaraHeaders#TIMESTAMP} (decimal seconds)
-     * @param payload          raw body or object serialized like the gateway
-     * @param userId           user id from headers
-     * @param plan             plan from headers
-     * @param roles            roles from headers
-     * @param quotaRemaining   quota from headers (v1 only; ignored for v2)
-     * @param subscriptionActive subscription flag from headers
-     * @param billingModelType billing model from headers
-     * @param measurementType  measurement type from headers
-     * @param unitLabel        unit label from headers
-     * @param signingVersion   {@link TollaraHeaders#SIGNING_VERSION} value; {@code "2"} selects HMAC user-context v2 (no quota segment)
-     * @return {@code true} if the signature matches
+     * Verifies gateway inbound HMAC using v1 (quota in suffix) or v2 user-context when {@code signingVersion} is {@code "2"}.
      */
     public boolean verifyHmacSignature(String signature, String timestamp, Object payload,
             String userId, String plan, List<String> roles, BigDecimal quotaRemaining,
             boolean subscriptionActive, String billingModelType, String measurementType, String unitLabel,
             String signingVersion) {
+        if (GatewayHmacUserContext.SIGNING_VERSION_V3.equals(signingVersion)) {
+            log.warn("verifyHmacSignature called with signingVersion 3; use verifyHmacSignatureV3");
+            return false;
+        }
         if (signature == null || timestamp == null || serviceSecret == null || serviceSecret.isEmpty()) {
             log.warn("Missing required parameters for HMAC verification");
             return false;
@@ -236,7 +266,6 @@ public class TollaraRequestVerifier {
 
         try {
             String payloadString = payloadToString(payload);
-
             long timestampLong = Long.parseLong(timestamp);
             String userContextString;
             if ("2".equals(signingVersion)) {
@@ -248,18 +277,46 @@ public class TollaraRequestVerifier {
                         userId, plan, roles, quotaRemaining, subscriptionActive,
                         billingModelType, measurementType, unitLabel);
             }
-            String dataToSign = payloadString + timestampLong + userContextString;
-
-            String expectedSignature = HmacUtils.calculateHmac(dataToSign, serviceSecret);
-            boolean isValid = HmacUtils.constantTimeEquals(expectedSignature, signature);
-            if (!isValid) {
-                log.warn("HMAC signature verification failed");
-            }
-            return isValid;
+            return verifySignature(signature, payloadString, timestampLong, userContextString);
         } catch (Exception e) {
             log.error("Error verifying HMAC signature: {}", e.getMessage(), e);
             return false;
         }
+    }
+
+    /**
+     * Verifies gateway inbound HMAC using v3 user-context ({@code serviceProductId}, {@code subscriptionStatus}).
+     */
+    public boolean verifyHmacSignatureV3(String signature, String timestamp, Object payload,
+            String userId, String serviceProductId, List<String> roles, String subscriptionStatus,
+            String billingModelType, String measurementType, String unitLabel) {
+        if (signature == null || timestamp == null || serviceSecret == null || serviceSecret.isEmpty()) {
+            log.warn("Missing required parameters for HMAC verification");
+            return false;
+        }
+
+        try {
+            String payloadString = payloadToString(payload);
+            long timestampLong = Long.parseLong(timestamp);
+            String userContextString = GatewayHmacUserContext.buildV3(
+                    userId, serviceProductId, roles, subscriptionStatus,
+                    billingModelType, measurementType, unitLabel);
+            return verifySignature(signature, payloadString, timestampLong, userContextString);
+        } catch (Exception e) {
+            log.error("Error verifying HMAC signature: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    private boolean verifySignature(String signature, String payloadString, long timestampLong, String userContextString)
+            throws Exception {
+        String dataToSign = payloadString + timestampLong + userContextString;
+        String expectedSignature = HmacUtils.calculateHmac(dataToSign, serviceSecret);
+        boolean isValid = HmacUtils.constantTimeEquals(expectedSignature, signature);
+        if (!isValid) {
+            log.warn("HMAC signature verification failed");
+        }
+        return isValid;
     }
 
     private String payloadToString(Object payload) throws com.fasterxml.jackson.core.JsonProcessingException {
@@ -272,14 +329,41 @@ public class TollaraRequestVerifier {
         return objectMapper.writeValueAsString(payload);
     }
 
+    public UserContext extractUserContext(String userIdHeader, String serviceProductIdHeader, String rolesHeader,
+            String subscriptionStatusHeader, String billingModelHeader, String measurementTypeHeader,
+            String unitLabelHeader, String planHeader, String quotaHeader, String subscriptionActiveHeader) {
+        List<String> roles = parseRolesList(rolesHeader);
+
+        return UserContext.builder()
+                .userId(userIdHeader)
+                .serviceProductId(emptyToNull(serviceProductIdHeader))
+                .roles(roles)
+                .subscriptionStatus(emptyToNull(subscriptionStatusHeader))
+                .billingModelType(emptyToNull(billingModelHeader))
+                .measurementType(emptyToNull(measurementTypeHeader))
+                .unitLabel(emptyToNull(unitLabelHeader))
+                .plan(planHeader)
+                .quotaRemaining(parseQuota(quotaHeader))
+                .subscriptionActive(parseSubscriptionActiveFlag(subscriptionActiveHeader))
+                .build();
+    }
+
+    /** @deprecated use {@link #extractUserContext(String, String, String, String, String, String, String, String, String, String)} */
+    @Deprecated
+    public UserContext extractUserContext(String userIdHeader, String serviceProductIdHeader, String rolesHeader,
+            String subscriptionStatusHeader, String billingModelHeader, String measurementTypeHeader,
+            String unitLabelHeader) {
+        return extractUserContext(userIdHeader, serviceProductIdHeader, rolesHeader, subscriptionStatusHeader,
+                billingModelHeader, measurementTypeHeader, unitLabelHeader, null, null, null);
+    }
+
+    /** @deprecated use {@link #extractUserContext(String, String, String, String, String, String, String)} */
     @Deprecated
     public UserContext extractUserContext(String userIdHeader, String planHeader, String rolesHeader,
             String quotaHeader, String subscriptionActiveHeader,
             String billingModelHeader, String measurementTypeHeader, String unitLabelHeader) {
         List<String> roles = parseRolesList(rolesHeader);
-
         BigDecimal quotaRemaining = parseQuota(quotaHeader);
-
         boolean subscriptionActive = parseSubscriptionActiveFlag(subscriptionActiveHeader);
 
         return UserContext.builder()
@@ -319,12 +403,23 @@ public class TollaraRequestVerifier {
     @lombok.Builder
     public static class UserContext {
         private String userId;
-        private String plan;
+        private String serviceProductId;
         private List<String> roles;
-        private BigDecimal quotaRemaining;
-        private boolean subscriptionActive;
+        private String subscriptionStatus;
         private String billingModelType;
         private String measurementType;
         private String unitLabel;
+
+        /** @deprecated v1/v2 only; use {@link #serviceProductId} for signing version 3. */
+        @Deprecated
+        private String plan;
+
+        /** @deprecated v1 only. */
+        @Deprecated
+        private BigDecimal quotaRemaining;
+
+        /** @deprecated v1/v2 only; use {@link #subscriptionStatus} and {@link TollaraRequestVerifier#grantsAccess(String)}. */
+        @Deprecated
+        private boolean subscriptionActive;
     }
 }

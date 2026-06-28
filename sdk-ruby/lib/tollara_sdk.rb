@@ -22,15 +22,20 @@ module TollaraSdk
     signature: "X-Tollara-Signature",
     timestamp: "X-Tollara-Timestamp",
     user_id: "X-Tollara-User-ID",
-    plan: "X-Tollara-Plan",
+    service_product_id: "X-Tollara-Service-Product-ID",
     roles: "X-Tollara-Roles",
-    quota_remaining: "X-Tollara-Quota-Remaining",
-    subscription_active: "X-Tollara-Subscription-Active",
+    subscription_status: "X-Tollara-Subscription-Status",
     billing_model: "X-Tollara-Billing-Model",
     measurement_type: "X-Tollara-Measurement-Type",
     unit_label: "X-Tollara-Unit-Label",
-    signing_version: "X-Tollara-Signing-Version"
+    signing_version: "X-Tollara-Signing-Version",
+    plan: "X-Tollara-Plan",
+    quota_remaining: "X-Tollara-Quota-Remaining",
+    subscription_active: "X-Tollara-Subscription-Active"
   }.freeze
+
+  SIGNING_VERSION_V3 = "3"
+  INVOKE_ELIGIBLE_STATUSES = %w[ACTIVE TRIAL CANCELLING CANCELLING_PENDING].freeze
 
   class TollaraClient
     attr_reader :api_url, :service_id, :service_secret
@@ -261,6 +266,18 @@ module TollaraSdk
     s
   end
 
+  def self.grants_access(subscription_status)
+    s = subscription_status.to_s.strip
+    return false if s.empty?
+    INVOKE_ELIGIBLE_STATUSES.include?(s)
+  end
+
+  def self.build_gateway_user_context_string_v3(user_id, service_product_id, roles, subscription_status, billing, measurement, unit)
+    r = roles || []
+    "3" + (user_id || "").to_s + (service_product_id || "").to_s + r.join(",") +
+      (subscription_status || "").to_s + (billing || "").to_s + (measurement || "").to_s + (unit || "").to_s
+  end
+
   def self.build_gateway_user_context_string(user_id, plan, roles, quota_remaining, subscription_active, billing, measurement, unit)
     r = roles || []
     sub = subscription_active ? "true" : "false"
@@ -273,12 +290,14 @@ module TollaraSdk
     "2" + (user_id || "").to_s + (plan || "").to_s + r.join(",") + sub + (billing || "").to_s + (measurement || "").to_s + (unit || "").to_s
   end
 
-  def self.verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining, subscription_active, billing = nil, measurement = nil, unit = nil, signing_version = nil)
+  def self.verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining, subscription_active, billing = nil, measurement = nil, unit = nil, signing_version = nil, service_product_id: nil, subscription_status: nil)
     return false if signature.to_s.empty? || timestamp.to_s.empty? || agent_secret.to_s.empty?
     r = roles || []
     q = format_quota_for_signing(quota_remaining)
     user_context_string =
-      if signing_version.to_s.strip == "2"
+      if signing_version.to_s.strip == SIGNING_VERSION_V3
+        build_gateway_user_context_string_v3(user_id, service_product_id, r, subscription_status, billing, measurement, unit)
+      elsif signing_version.to_s.strip == "2"
         build_gateway_user_context_string_v2(user_id, plan, r, subscription_active, billing, measurement, unit)
       else
         build_gateway_user_context_string(user_id, plan, r, q, subscription_active, billing, measurement, unit)
@@ -288,7 +307,7 @@ module TollaraSdk
     constant_time_equals(expected, signature)
   end
 
-  # +inbound+ is a Hash with keys :signature, :timestamp, :payload, :user_id, :plan, :roles, optional quota, :subscription_active, billing keys
+  # +inbound+ is a Hash with keys :signature, :timestamp, :payload, :user_id, optional v3/v2 fields
   def self.verify_inbound_hmac(agent_secret, inbound)
     sub = inbound[:subscription_active] == true || inbound[:subscription_active].to_s == "true" || inbound[:subscription_active].to_s == "1"
     verify_signature(
@@ -303,7 +322,10 @@ module TollaraSdk
       sub,
       inbound[:billing_model_type],
       inbound[:measurement_type],
-      inbound[:unit_label]
+      inbound[:unit_label],
+      inbound[:signing_version],
+      service_product_id: inbound[:service_product_id],
+      subscription_status: inbound[:subscription_status]
     )
   end
 
@@ -333,13 +355,15 @@ module TollaraSdk
       timestamp: ts,
       payload: payload,
       user_id: header_get_ci(headers, HEADERS[:user_id]),
-      plan: header_get_ci(headers, HEADERS[:plan]),
+      service_product_id: header_get_ci(headers, HEADERS[:service_product_id]),
       roles: roles,
+      subscription_status: header_get_ci(headers, HEADERS[:subscription_status]),
       quota_remaining: qraw,
       subscription_active: sub_active,
       billing_model_type: bm,
       measurement_type: mt,
       unit_label: ul,
+      plan: header_get_ci(headers, HEADERS[:plan]),
       signing_version: header_get_ci(headers, HEADERS[:signing_version])
     )
   end
@@ -362,13 +386,19 @@ module TollaraSdk
     ul = header_get_ci(headers, HEADERS[:unit_label]).to_s
     {
       user_id: header_get_ci(headers, HEADERS[:user_id]),
-      plan: header_get_ci(headers, HEADERS[:plan]),
+      service_product_id: empty_to_nil(header_get_ci(headers, HEADERS[:service_product_id])),
       roles: roles,
-      quota_remaining: quota,
-      subscription_active: sub_active,
+      subscription_status: empty_to_nil(header_get_ci(headers, HEADERS[:subscription_status])),
       billing_model_type: bm.empty? ? nil : bm,
       measurement_type: mt.empty? ? nil : mt,
-      unit_label: ul.empty? ? nil : ul
+      unit_label: ul.empty? ? nil : ul,
+      plan: header_get_ci(headers, HEADERS[:plan]),
+      quota_remaining: quota,
+      subscription_active: sub_active
     }
+  end
+
+  def self.empty_to_nil(s)
+    s.nil? || s.to_s.empty? ? nil : s.to_s
   end
 end

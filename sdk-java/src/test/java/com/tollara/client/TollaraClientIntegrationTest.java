@@ -65,7 +65,9 @@ class TollaraClientIntegrationTest {
                                 .withStatus(200)
                                 .withHeader("Content-Type", "application/json")
                                 .withBody(
-                                        "{\"status\":\"ok\",\"warning\":null,\"isOverLimit\":false,\"remainingRequestsPerPeriod\":1,\"remainingTimeUnitsPerPeriod\":null,\"remainingSpendingCap\":null,\"overageRate\":null}")));
+                                        "{\"reportSchemaVersion\":2,\"status\":\"ok\",\"warning\":null,\"userId\":\"user-1\",\"serviceId\":\""
+                                                + SERVICE_ID
+                                                + "\",\"billingModelType\":\"SUBSCRIPTION\",\"measurementType\":\"PER_REQUEST\",\"unitLabel\":\"request\",\"breakdown\":{\"unitsRemaining\":1,\"isOverLimit\":false}}")));
 
         UsageReportResponse resp = client.reportUsage("user-1", SERVICE_ID, BigDecimal.ONE);
         assertThat(resp.getStatus()).isEqualTo("ok");
@@ -87,7 +89,9 @@ class TollaraClientIntegrationTest {
                                 .withStatus(200)
                                 .withHeader("Content-Type", "application/json")
                                 .withBody(
-                                        "{\"status\":\"ok\",\"warning\":null,\"isOverLimit\":false,\"remainingRequestsPerPeriod\":1,\"remainingTimeUnitsPerPeriod\":null,\"remainingSpendingCap\":null,\"overageRate\":null}")));
+                                        "{\"reportSchemaVersion\":2,\"status\":\"ok\",\"warning\":null,\"userId\":\"user-1\",\"serviceId\":\""
+                                                + SERVICE_ID
+                                                + "\",\"billingModelType\":\"SUBSCRIPTION\",\"measurementType\":\"PER_REQUEST\",\"unitLabel\":\"request\",\"breakdown\":{\"unitsRemaining\":1,\"isOverLimit\":false}}")));
 
         UsageReportResponse resp = custom.reportUsage("user-1", SERVICE_ID, BigDecimal.ONE);
         assertThat(resp.getStatus()).isEqualTo("ok");

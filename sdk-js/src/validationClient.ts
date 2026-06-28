@@ -2,19 +2,25 @@ import { TollaraHeaders } from './tollaraHeaders';
 import { DEFAULT_API_URL, DEFAULT_CORE_PATH_PREFIX } from './constants';
 import { calculateHmac, constantTimeEquals, validateHmacSignature } from './hmac';
 import { joinUrl, resolveBaseUrl } from './urls';
+import { grantsAccess } from './grantsAccess';
+import { parseUsageBreakdown, type UsageBreakdown } from './usageBreakdown';
+
+export { grantsAccess };
 
 export interface ServiceKeyValidationResult {
   userId: string | null;
   serviceId: string | null;
   /** Core service-key row id when present in the validate JSON body. */
   serviceKeyId: string | null;
-  plan: string | null;
+  serviceProductId: string | null;
   roles: string[];
-  quotaRemaining: number | null;
-  subscriptionActive: boolean;
+  subscriptionStatus: string | null;
+  validationSchemaVersion: number;
   billingModelType: string | null;
   measurementType: string | null;
   unitLabel: string | null;
+  /** Whether {@link subscriptionStatus} grants invoke access. */
+  grantsAccess: boolean;
 }
 
 export interface UsageEstimateResult {
@@ -22,12 +28,10 @@ export interface UsageEstimateResult {
   wouldExceedCap: boolean;
   wouldAllow: boolean;
   estimatedCost: number | null;
-  remainingCredits: number | null;
-  remainingSpendingCap: number | null;
   billingModelType: string | null;
   measurementType: string | null;
   unitLabel: string | null;
-  breakdown: Record<string, unknown> | null;
+  breakdown: UsageBreakdown | null;
   estimateSchemaVersion: number;
   timestamp: number;
   httpStatus: number;
@@ -42,12 +46,9 @@ interface CachedResult {
 
 /**
  * Validates a service key via the Tollara API and verifies response HMAC.
- * Uses `baseUrl` (default production API origin) + `/api/v1/service-keys/validate`.
- * Optional in-memory cache with 60s TTL via {@link createValidationCache}.
  */
 export async function validateServiceKey(
   params: {
-    /** API origin; defaults to `https://api.tollara.ai`. */
     baseUrl?: string | null;
     serviceKey: string;
     serviceId: string | null;
@@ -69,7 +70,7 @@ export async function validateServiceKey(
       headers: { 'Content-Type': 'application/json' },
       body,
     });
-  } catch (e) {
+  } catch {
     return null;
   }
 
@@ -89,10 +90,10 @@ export async function validateServiceKey(
     serviceKeyId?: string;
     userId?: string;
     serviceId?: string;
-    plan?: string;
+    serviceProductId?: string;
     roles?: string[];
-    quotaRemaining?: number;
-    subscriptionActive?: boolean;
+    subscriptionStatus?: string;
+    validationSchemaVersion?: number;
     billingModelType?: string | null;
     measurementType?: string | null;
     unitLabel?: string | null;
@@ -106,23 +107,43 @@ export async function validateServiceKey(
 
   if (!data.valid) return null;
 
+  const subscriptionStatus =
+    typeof data.subscriptionStatus === 'string' ? data.subscriptionStatus : null;
+
   return {
     userId: data.userId ?? null,
     serviceId: data.serviceId ?? serviceId ?? null,
     serviceKeyId: typeof data.serviceKeyId === 'string' && data.serviceKeyId.length > 0 ? data.serviceKeyId : null,
-    plan: data.plan ?? null,
+    serviceProductId: typeof data.serviceProductId === 'string' ? data.serviceProductId : null,
     roles: Array.isArray(data.roles) ? data.roles : [],
-    quotaRemaining: typeof data.quotaRemaining === 'number' ? data.quotaRemaining : null,
-    subscriptionActive: Boolean(data.subscriptionActive),
+    subscriptionStatus,
+    validationSchemaVersion:
+      typeof data.validationSchemaVersion === 'number' ? data.validationSchemaVersion : 0,
     billingModelType: data.billingModelType ?? null,
     measurementType: data.measurementType ?? null,
     unitLabel: data.unitLabel ?? null,
+    grantsAccess: grantsAccess(subscriptionStatus),
+  };
+}
+
+function parseEstimateResult(data: Record<string, unknown>, httpStatus: number): UsageEstimateResult {
+  return {
+    sufficientCredits: Boolean(data.sufficientCredits),
+    wouldExceedCap: Boolean(data.wouldExceedCap),
+    wouldAllow: Boolean(data.wouldAllow),
+    estimatedCost: typeof data.estimatedCost === 'number' ? data.estimatedCost : null,
+    billingModelType: typeof data.billingModelType === 'string' ? data.billingModelType : null,
+    measurementType: typeof data.measurementType === 'string' ? data.measurementType : null,
+    unitLabel: typeof data.unitLabel === 'string' ? data.unitLabel : null,
+    breakdown: parseUsageBreakdown(data.breakdown),
+    estimateSchemaVersion: typeof data.estimateSchemaVersion === 'number' ? data.estimateSchemaVersion : 0,
+    timestamp: typeof data.timestamp === 'number' ? data.timestamp : 0,
+    httpStatus,
   };
 }
 
 /**
- * Usage pre-flight for a service key (Core). Same trust model as {@link validateServiceKey}: JSON body, response HMAC.
- * Verifies signatures on 200 / 403 / 429 when `X-Tollara-Signature` and `X-Tollara-Timestamp` are present.
+ * Usage pre-flight for a service key (Core). Same trust model as {@link validateServiceKey}.
  */
 export async function estimateUsage(params: {
   baseUrl?: string | null;
@@ -169,30 +190,10 @@ export async function estimateUsage(params: {
     return null;
   }
 
-  const br = data.breakdown;
-  const breakdown =
-    br != null && typeof br === 'object' && !Array.isArray(br) ? (br as Record<string, unknown>) : null;
-
-  return {
-    sufficientCredits: Boolean(data.sufficientCredits),
-    wouldExceedCap: Boolean(data.wouldExceedCap),
-    wouldAllow: Boolean(data.wouldAllow),
-    estimatedCost: typeof data.estimatedCost === 'number' ? data.estimatedCost : null,
-    remainingCredits: typeof data.remainingCredits === 'number' ? data.remainingCredits : null,
-    remainingSpendingCap: typeof data.remainingSpendingCap === 'number' ? data.remainingSpendingCap : null,
-    billingModelType: typeof data.billingModelType === 'string' ? data.billingModelType : null,
-    measurementType: typeof data.measurementType === 'string' ? data.measurementType : null,
-    unitLabel: typeof data.unitLabel === 'string' ? data.unitLabel : null,
-    breakdown,
-    estimateSchemaVersion: typeof data.estimateSchemaVersion === 'number' ? data.estimateSchemaVersion : 0,
-    timestamp: typeof data.timestamp === 'number' ? data.timestamp : 0,
-    httpStatus: code,
-  };
+  return parseEstimateResult(data, code);
 }
 
-/**
- * Core JWT usage estimate (`POST …/billing/usage/estimate`). Not HMAC-signed (spec §2.2).
- */
+/** Core JWT usage estimate (`POST …/billing/usage/estimate`). Not HMAC-signed (spec §2.2). */
 export async function estimateUsageWithJwt(params: {
   baseUrl?: string | null;
   corePathPrefix?: string | null;
@@ -245,30 +246,10 @@ export async function estimateUsageWithJwt(params: {
     return null;
   }
 
-  const br = data.breakdown;
-  const breakdown =
-    br != null && typeof br === 'object' && !Array.isArray(br) ? (br as Record<string, unknown>) : null;
-
-  return {
-    sufficientCredits: Boolean(data.sufficientCredits),
-    wouldExceedCap: Boolean(data.wouldExceedCap),
-    wouldAllow: Boolean(data.wouldAllow),
-    estimatedCost: typeof data.estimatedCost === 'number' ? data.estimatedCost : null,
-    remainingCredits: typeof data.remainingCredits === 'number' ? data.remainingCredits : null,
-    remainingSpendingCap: typeof data.remainingSpendingCap === 'number' ? data.remainingSpendingCap : null,
-    billingModelType: typeof data.billingModelType === 'string' ? data.billingModelType : null,
-    measurementType: typeof data.measurementType === 'string' ? data.measurementType : null,
-    unitLabel: typeof data.unitLabel === 'string' ? data.unitLabel : null,
-    breakdown,
-    estimateSchemaVersion: typeof data.estimateSchemaVersion === 'number' ? data.estimateSchemaVersion : 0,
-    timestamp: typeof data.timestamp === 'number' ? data.timestamp : 0,
-    httpStatus: code,
-  };
+  return parseEstimateResult(data, code);
 }
 
-/**
- * Simple cache for validateServiceKey (optional).
- */
+/** Simple cache for validateServiceKey (optional). */
 export function createValidationCache() {
   const cache = new Map<string, CachedResult>();
   return {

@@ -45,42 +45,63 @@ type TollaraClientOptions struct {
 }
 
 type ServiceKeyValidationResult struct {
-	UserID             string   `json:"userId"`
-	ServiceID          string   `json:"serviceId"`
-	ServiceKeyID       string   `json:"serviceKeyId"`
-	Plan               string   `json:"plan"`
-	Roles              []string `json:"roles"`
-	QuotaRemaining     *float64 `json:"quotaRemaining"`
-	SubscriptionActive bool     `json:"subscriptionActive"`
-	BillingModelType   string   `json:"billingModelType"`
-	MeasurementType    string   `json:"measurementType"`
-	UnitLabel          string   `json:"unitLabel"`
+	UserID                   string   `json:"userId"`
+	ServiceID                string   `json:"serviceId"`
+	ServiceKeyID             string   `json:"serviceKeyId"`
+	ServiceProductID         string   `json:"serviceProductId"`
+	Roles                    []string `json:"roles"`
+	SubscriptionStatus       string   `json:"subscriptionStatus"`
+	ValidationSchemaVersion  int      `json:"validationSchemaVersion"`
+	BillingModelType         string   `json:"billingModelType"`
+	MeasurementType          string   `json:"measurementType"`
+	UnitLabel                string   `json:"unitLabel"`
+}
+
+func (r *ServiceKeyValidationResult) GrantsAccess() bool {
+	return GrantsAccess(r.SubscriptionStatus)
+}
+
+type UsageBreakdown struct {
+	UnitsUsed               *float64 `json:"unitsUsed,omitempty"`
+	BaseUnitsUsed           *float64 `json:"baseUnitsUsed,omitempty"`
+	OverageUnits            *float64 `json:"overageUnits,omitempty"`
+	ChargeableOverageUnits  *float64 `json:"chargeableOverageUnits,omitempty"`
+	SurplusOverageUnits     *float64 `json:"surplusOverageUnits,omitempty"`
+	OverageCost             *float64 `json:"overageCost,omitempty"`
+	TotalOverageCost        *float64 `json:"totalOverageCost,omitempty"`
+	UnitsRemaining          *float64 `json:"unitsRemaining,omitempty"`
+	RemainingCredits        *float64 `json:"remainingCredits,omitempty"`
+	RemainingSpendingCap    *float64 `json:"remainingSpendingCap,omitempty"`
+	TotalUnitsUsedThisCycle *float64 `json:"totalUnitsUsedThisCycle,omitempty"`
+	OverLimit               *bool    `json:"isOverLimit,omitempty"`
+	Overage                 *bool    `json:"isOverage,omitempty"`
+	OverageAllowed          *bool    `json:"isOverageAllowed,omitempty"`
 }
 
 type UsageEstimateResult struct {
-	SufficientCredits    bool                   `json:"sufficientCredits"`
-	WouldExceedCap       bool                   `json:"wouldExceedCap"`
-	WouldAllow           bool                   `json:"wouldAllow"`
-	EstimatedCost        *float64               `json:"estimatedCost"`
-	RemainingCredits     *float64               `json:"remainingCredits"`
-	RemainingSpendingCap *float64               `json:"remainingSpendingCap"`
-	BillingModelType     string                 `json:"billingModelType"`
-	MeasurementType      string                 `json:"measurementType"`
-	UnitLabel            string                 `json:"unitLabel"`
-	Breakdown            map[string]interface{} `json:"breakdown"`
-	EstimateSchemaVersion int                   `json:"estimateSchemaVersion"`
-	Timestamp            int64                  `json:"timestamp"`
-	HTTPStatus           int                    `json:"-"`
+	SufficientCredits       bool            `json:"sufficientCredits"`
+	WouldExceedCap          bool            `json:"wouldExceedCap"`
+	WouldAllow              bool            `json:"wouldAllow"`
+	EstimatedCost           *float64        `json:"estimatedCost"`
+	BillingModelType        string          `json:"billingModelType"`
+	MeasurementType         string          `json:"measurementType"`
+	UnitLabel               string          `json:"unitLabel"`
+	Breakdown               *UsageBreakdown `json:"breakdown"`
+	EstimateSchemaVersion   int             `json:"estimateSchemaVersion"`
+	Timestamp               int64           `json:"timestamp"`
+	HTTPStatus              int             `json:"-"`
 }
 
 type UsageReportResponse struct {
-	Status                    string   `json:"status"`
-	Warning                   string   `json:"warning"`
-	IsOverLimit               bool     `json:"isOverLimit"`
-	RemainingRequestsPerPeriod int64   `json:"remainingRequestsPerPeriod"`
-	RemainingTimeUnitsPerPeriod *float64 `json:"remainingTimeUnitsPerPeriod"`
-	RemainingSpendingCap      *float64 `json:"remainingSpendingCap"`
-	OverageRate               *float64 `json:"overageRate"`
+	ReportSchemaVersion int             `json:"reportSchemaVersion"`
+	Status              string          `json:"status"`
+	Warning             string          `json:"warning"`
+	UserID              string          `json:"userId"`
+	ServiceID           string          `json:"serviceId"`
+	BillingModelType    string          `json:"billingModelType"`
+	MeasurementType     string          `json:"measurementType"`
+	UnitLabel           string          `json:"unitLabel"`
+	Breakdown           *UsageBreakdown `json:"breakdown"`
 }
 
 // UsageCallbackResult is the result of a progress or completion callback POST.

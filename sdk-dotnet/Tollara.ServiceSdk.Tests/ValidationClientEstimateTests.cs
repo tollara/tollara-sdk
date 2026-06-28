@@ -22,13 +22,16 @@ public class ValidationClientEstimateTests
                 wouldExceedCap = false,
                 wouldAllow = true,
                 estimatedCost = 0.1m,
-                remainingCredits = (decimal?)null,
-                remainingSpendingCap = (decimal?)null,
                 billingModelType = "SUBSCRIPTION",
                 measurementType = "PER_REQUEST",
                 unitLabel = "request",
-                breakdown = (object?)null,
-                estimateSchemaVersion = 1,
+                breakdown = new
+                {
+                    unitsRemaining = 199,
+                    remainingSpendingCap = 20,
+                    isOverLimit = false,
+                },
+                estimateSchemaVersion = 3,
                 timestamp = 1700000000L,
             };
             var responseText = JsonSerializer.Serialize(bodyObj);
@@ -52,8 +55,12 @@ public class ValidationClientEstimateTests
         Assert.NotNull(result);
         Assert.Equal(200, result!.HttpStatus);
         Assert.True(result.WouldAllow);
-        Assert.Equal(1, result.EstimateSchemaVersion);
+        Assert.Equal(3, result.EstimateSchemaVersion);
         Assert.Equal("SUBSCRIPTION", result.BillingModelType);
+        Assert.NotNull(result.Breakdown);
+        Assert.Equal(199m, result.Breakdown!.UnitsRemaining);
+        Assert.Equal(20m, result.Breakdown.RemainingSpendingCap);
+        Assert.False(result.Breakdown.OverLimit);
     }
 
     [Fact]
@@ -61,7 +68,7 @@ public class ValidationClientEstimateTests
     {
         var handler = new FuncHttpHandler(_ =>
         {
-            const string responseText = """{"wouldAllow":false,"estimateSchemaVersion":1,"timestamp":1700000000}""";
+            const string responseText = """{"wouldAllow":false,"estimateSchemaVersion":3,"timestamp":1700000000}""";
             var msg = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(responseText, Encoding.UTF8, "application/json"),

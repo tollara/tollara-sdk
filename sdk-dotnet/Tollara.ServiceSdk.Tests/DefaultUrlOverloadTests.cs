@@ -34,7 +34,7 @@ public class DefaultUrlOverloadTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastUri = request.RequestUri?.ToString();
-            var json = """{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}""";
+            var json = """{"reportSchemaVersion":2,"status":"ok","userId":"u1","serviceId":"a1","billingModelType":"SUBSCRIPTION","breakdown":{"unitsRemaining":99,"isOverLimit":false}}""";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json"),

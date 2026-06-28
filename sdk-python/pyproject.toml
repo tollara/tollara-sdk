@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tollara-service-sdk"
-version = "0.0.1"
+version = "3.0.0"
 description = "Tollara SDK - verify HMAC, validate keys, report usage, progress, completion"
 authors = [{ name = "Tollara", email = "support@tollara.ai" }]
 readme = "README.md"

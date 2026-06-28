@@ -14,19 +14,32 @@ final class InboundHmacRequest
         public string $timestamp,
         public string $payload,
         public string $userId,
-        public string $plan,
-        public array $roles,
-        public string $quotaRemaining,
-        public bool $subscriptionActive = false,
+        public string $serviceProductId = '',
+        public array $roles = [],
+        public string $subscriptionStatus = '',
         public string $billingModelType = '',
         public string $measurementType = '',
         public string $unitLabel = '',
+        public ?string $signingVersion = null,
+        public string $plan = '',
+        public string $quotaRemaining = '',
+        public bool $subscriptionActive = false,
     ) {
     }
 }
 
 final class Verifier
 {
+    private const INVOKE_ELIGIBLE = ['ACTIVE', 'TRIAL', 'CANCELLING', 'CANCELLING_PENDING'];
+
+    public static function grantsAccess(?string $subscriptionStatus): bool
+    {
+        if ($subscriptionStatus === null || trim($subscriptionStatus) === '') {
+            return false;
+        }
+        return in_array(trim($subscriptionStatus), self::INVOKE_ELIGIBLE, true);
+    }
+
     public static function buildGatewayUserContextString(
         string $userId,
         string $plan,
@@ -57,6 +70,22 @@ final class Verifier
         return '2' . $userId . $plan . implode(',', $roles)
             . ($subscriptionActive ? 'true' : 'false')
             . $billingModelType . $measurementType . $unitLabel;
+    }
+
+    /**
+     * @param list<string> $roles
+     */
+    public static function buildGatewayUserContextStringV3(
+        string $userId,
+        string $serviceProductId,
+        array $roles,
+        string $subscriptionStatus,
+        string $billingModelType,
+        string $measurementType,
+        string $unitLabel
+    ): string {
+        return '3' . $userId . $serviceProductId . implode(',', $roles)
+            . $subscriptionStatus . $billingModelType . $measurementType . $unitLabel;
     }
 
     private static function headerGetCi(array $headers, string $canonical): string
@@ -90,6 +119,21 @@ final class Verifier
 
     public static function verifyInboundHmac(string $agentSecret, InboundHmacRequest $req): bool
     {
+        if (trim((string) $req->signingVersion) === TollaraHeaders::SIGNING_VERSION_V3) {
+            return self::verifySignatureV3(
+                $agentSecret,
+                $req->signature,
+                $req->timestamp,
+                $req->payload,
+                $req->userId,
+                $req->serviceProductId,
+                $req->roles,
+                $req->subscriptionStatus,
+                $req->billingModelType,
+                $req->measurementType,
+                $req->unitLabel
+            );
+        }
         return self::verifySignature(
             $agentSecret,
             $req->signature,
@@ -102,7 +146,8 @@ final class Verifier
             $req->subscriptionActive,
             $req->billingModelType,
             $req->measurementType,
-            $req->unitLabel
+            $req->unitLabel,
+            $req->signingVersion
         );
     }
 
@@ -128,29 +173,18 @@ final class Verifier
             $ts,
             $payload,
             self::headerGetCi($headers, TollaraHeaders::USER_ID),
-            self::headerGetCi($headers, TollaraHeaders::PLAN),
+            self::headerGetCi($headers, TollaraHeaders::SERVICE_PRODUCT_ID),
             $roles,
-            self::formatQuota($quotaRaw),
-            self::parseSubscriptionActive($subRaw),
+            self::headerGetCi($headers, TollaraHeaders::SUBSCRIPTION_STATUS),
             $bm,
             $mt,
-            $ul
+            $ul,
+            self::headerGetCi($headers, TollaraHeaders::SIGNING_VERSION) ?: null,
+            self::headerGetCi($headers, TollaraHeaders::PLAN),
+            self::formatQuota($quotaRaw),
+            self::parseSubscriptionActive($subRaw)
         );
-        return self::verifySignature(
-            $agentSecret,
-            $req->signature,
-            $req->timestamp,
-            $req->payload,
-            $req->userId,
-            $req->plan,
-            $req->roles,
-            $req->quotaRemaining,
-            $req->subscriptionActive,
-            $req->billingModelType,
-            $req->measurementType,
-            $req->unitLabel,
-            self::headerGetCi($headers, TollaraHeaders::SIGNING_VERSION)
-        );
+        return self::verifyInboundHmac($agentSecret, $req);
     }
 
     /**
@@ -162,6 +196,39 @@ final class Verifier
             return null;
         }
         return self::parseUserContext($headers);
+    }
+
+    /**
+     * @param list<string> $roles
+     */
+    public static function verifySignatureV3(
+        string $agentSecret,
+        string $signature,
+        string $timestamp,
+        string $payload,
+        string $userId,
+        string $serviceProductId,
+        array $roles,
+        string $subscriptionStatus,
+        string $billingModelType = '',
+        string $measurementType = '',
+        string $unitLabel = ''
+    ): bool {
+        if ($signature === '' || $timestamp === '' || $agentSecret === '') {
+            return false;
+        }
+        $userContextString = self::buildGatewayUserContextStringV3(
+            $userId,
+            $serviceProductId,
+            $roles,
+            $subscriptionStatus,
+            $billingModelType,
+            $measurementType,
+            $unitLabel
+        );
+        $dataToSign = $payload . $timestamp . $userContextString;
+        $expected = Hmac::calculateHmac($dataToSign, $agentSecret);
+        return Hmac::constantTimeEquals($expected, $signature);
     }
 
     /**
@@ -183,6 +250,9 @@ final class Verifier
         ?string $signingVersion = null
     ): bool {
         if ($signature === '' || $timestamp === '' || $agentSecret === '') {
+            return false;
+        }
+        if (trim((string) $signingVersion) === TollaraHeaders::SIGNING_VERSION_V3) {
             return false;
         }
         $isV2 = trim((string) $signingVersion) === '2';
@@ -225,15 +295,19 @@ final class Verifier
         $bm = self::headerGetCi($headers, TollaraHeaders::BILLING_MODEL);
         $mt = self::headerGetCi($headers, TollaraHeaders::MEASUREMENT_TYPE);
         $ul = self::headerGetCi($headers, TollaraHeaders::UNIT_LABEL);
+        $sp = self::headerGetCi($headers, TollaraHeaders::SERVICE_PRODUCT_ID);
+        $ss = self::headerGetCi($headers, TollaraHeaders::SUBSCRIPTION_STATUS);
         return new UserContext(
             self::headerGetCi($headers, TollaraHeaders::USER_ID),
-            self::headerGetCi($headers, TollaraHeaders::PLAN),
+            $sp,
             $roles,
-            $quota,
-            $subActive,
+            $ss,
             $bm,
             $mt,
-            $ul
+            $ul,
+            self::headerGetCi($headers, TollaraHeaders::PLAN),
+            $quota,
+            $subActive
         );
     }
 }
@@ -245,13 +319,15 @@ final class UserContext
      */
     public function __construct(
         public string $userId,
-        public string $plan,
+        public string $serviceProductId,
         public array $roles,
-        public ?float $quotaRemaining,
-        public bool $subscriptionActive,
+        public string $subscriptionStatus,
         public string $billingModelType = '',
         public string $measurementType = '',
         public string $unitLabel = '',
+        public string $plan = '',
+        public ?float $quotaRemaining = null,
+        public bool $subscriptionActive = false,
     ) {
     }
 }

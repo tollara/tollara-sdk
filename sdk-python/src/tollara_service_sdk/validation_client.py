@@ -4,6 +4,8 @@ from uuid import UUID
 
 from .tollara_headers import TollaraHeaders
 from .hmac_utils import validate_hmac_signature
+from .usage_breakdown import UsageBreakdown, parse_usage_breakdown
+from .verifier import grants_access
 
 DEFAULT_CORE_PATH_PREFIX = "/api/v1"
 
@@ -40,13 +42,20 @@ class ServiceKeyValidationResult:
     user_id: Optional[str]
     service_id: Optional[str]
     service_key_id: Optional[UUID]
-    plan: Optional[str]
+    service_product_id: Optional[str]
     roles: List[str]
-    quota_remaining: Optional[float]
-    subscription_active: bool
+    subscription_status: Optional[str]
+    validation_schema_version: int
     billing_model_type: Optional[str]
     measurement_type: Optional[str]
     unit_label: Optional[str]
+
+    def grants_access(self) -> bool:
+        return grants_access(self.subscription_status)
+
+    @staticmethod
+    def grants_access_for_status(subscription_status: Optional[str]) -> bool:
+        return grants_access(subscription_status)
 
 
 @dataclass
@@ -55,12 +64,10 @@ class UsageEstimateResult:
     would_exceed_cap: bool
     would_allow: bool
     estimated_cost: Optional[float]
-    remaining_credits: Optional[float]
-    remaining_spending_cap: Optional[float]
     billing_model_type: Optional[str]
     measurement_type: Optional[str]
     unit_label: Optional[str]
-    breakdown: Optional[Dict[str, Any]]
+    breakdown: Optional[UsageBreakdown]
     estimate_schema_version: int
     timestamp: int
     http_status: int
@@ -101,10 +108,10 @@ def validate_service_key(
         user_id=data.get("userId"),
         service_id=data.get("serviceId") or service_id,
         service_key_id=_optional_uuid(data.get("serviceKeyId")),
-        plan=data.get("plan"),
+        service_product_id=data.get("serviceProductId"),
         roles=roles if isinstance(roles, list) else [],
-        quota_remaining=data.get("quotaRemaining"),
-        subscription_active=bool(data.get("subscriptionActive")),
+        subscription_status=data.get("subscriptionStatus"),
+        validation_schema_version=int(data.get("validationSchemaVersion", 0)),
         billing_model_type=data.get("billingModelType"),
         measurement_type=data.get("measurementType"),
         unit_label=data.get("unitLabel"),
@@ -152,16 +159,13 @@ def estimate_usage(
     if not validate_hmac_signature(signature, response_text + timestamp, service_secret):
         return None
     data = resp.json()
-    breakdown = data.get("breakdown")
-    if breakdown is not None and not isinstance(breakdown, dict):
-        breakdown = None
+    breakdown_raw = data.get("breakdown")
+    breakdown = parse_usage_breakdown(breakdown_raw) if isinstance(breakdown_raw, dict) else None
     return UsageEstimateResult(
         sufficient_credits=bool(data.get("sufficientCredits")),
         would_exceed_cap=bool(data.get("wouldExceedCap")),
         would_allow=bool(data.get("wouldAllow")),
         estimated_cost=data.get("estimatedCost"),
-        remaining_credits=data.get("remainingCredits"),
-        remaining_spending_cap=data.get("remainingSpendingCap"),
         billing_model_type=data.get("billingModelType"),
         measurement_type=data.get("measurementType"),
         unit_label=data.get("unitLabel"),
