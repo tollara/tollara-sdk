@@ -266,7 +266,7 @@ module TollaraSdk
     s
   end
 
-  def self.grants_access(subscription_status)
+  def self.grant_access(subscription_status)
     s = subscription_status.to_s.strip
     return false if s.empty?
     INVOKE_ELIGIBLE_STATUSES.include?(s.upcase)
@@ -454,8 +454,8 @@ module TollaraSdk
       new(data)
     end
 
-    def grants_access
-      TollaraSdk.grants_access(@subscription_status)
+    def grant_access
+      TollaraSdk.grant_access(@subscription_status)
     end
   end
 

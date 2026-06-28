@@ -2,10 +2,10 @@ import { TollaraHeaders } from './tollaraHeaders';
 import { DEFAULT_API_URL, DEFAULT_CORE_PATH_PREFIX } from './constants';
 import { calculateHmac, constantTimeEquals, validateHmacSignature } from './hmac';
 import { joinUrl, resolveBaseUrl } from './urls';
-import { grantsAccess } from './grantsAccess';
+import { grantAccess } from './grantAccess';
 import { parseUsageBreakdown, type UsageBreakdown } from './usageBreakdown';
 
-export { grantsAccess };
+export { grantAccess };
 
 export interface ServiceKeyValidationResult {
   userId: string | null;
@@ -20,7 +20,7 @@ export interface ServiceKeyValidationResult {
   measurementType: string | null;
   unitLabel: string | null;
   /** Whether {@link subscriptionStatus} grants invoke access. */
-  grantsAccess: boolean;
+  grantAccess: boolean;
 }
 
 export interface UsageEstimateResult {
@@ -122,7 +122,7 @@ export async function validateServiceKey(
     billingModelType: data.billingModelType ?? null,
     measurementType: data.measurementType ?? null,
     unitLabel: data.unitLabel ?? null,
-    grantsAccess: grantsAccess(subscriptionStatus),
+    grantAccess: grantAccess(subscriptionStatus),
   };
 }
 

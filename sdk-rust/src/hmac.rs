@@ -35,7 +35,7 @@ pub fn validate_hmac_signature(signature: &str, payload_string: &str, key: &str)
 const INVOKE_ELIGIBLE: &[&str] = &["ACTIVE", "TRIAL", "CANCELLING", "CANCELLING_PENDING"];
 
 /// Returns true when `subscription_status` is invoke-eligible.
-pub fn grants_access(subscription_status: Option<&str>) -> bool {
+pub fn grant_access(subscription_status: Option<&str>) -> bool {
     match subscription_status.map(str::trim).filter(|s| !s.is_empty()) {
         None => false,
         Some(s) => INVOKE_ELIGIBLE.contains(&s.to_ascii_uppercase()),
@@ -321,11 +321,11 @@ mod tests {
     }
 
     #[test]
-    fn grants_access_eligible_and_ineligible() {
-        assert!(grants_access(Some("ACTIVE")));
-        assert!(grants_access(Some("CANCELLING_PENDING")));
-        assert!(!grants_access(Some("EXPIRED")));
-        assert!(!grants_access(None));
+    fn grant_access_eligible_and_ineligible() {
+        assert!(grant_access(Some("ACTIVE")));
+        assert!(grant_access(Some("CANCELLING_PENDING")));
+        assert!(!grant_access(Some("EXPIRED")));
+        assert!(!grant_access(None));
     }
 
     #[test]

@@ -5,7 +5,7 @@ from uuid import UUID
 from .tollara_headers import TollaraHeaders
 from .hmac_utils import validate_hmac_signature
 from .usage_breakdown import UsageBreakdown, parse_usage_breakdown
-from .verifier import grants_access
+from .verifier import grant_access
 
 DEFAULT_CORE_PATH_PREFIX = "/api/v1"
 
@@ -50,12 +50,12 @@ class ServiceKeyValidationResult:
     measurement_type: Optional[str]
     unit_label: Optional[str]
 
-    def grants_access(self) -> bool:
-        return grants_access(self.subscription_status)
+    def grant_access(self) -> bool:
+        return grant_access(self.subscription_status)
 
     @staticmethod
-    def grants_access_for_status(subscription_status: Optional[str]) -> bool:
-        return grants_access(subscription_status)
+    def grant_access_for_status(subscription_status: Optional[str]) -> bool:
+        return grant_access(subscription_status)
 
 
 @dataclass

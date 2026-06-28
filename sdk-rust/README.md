@@ -34,17 +34,17 @@ cargo build --features http
 
 ### Verify HMAC (no HTTP feature)
 
-Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `"3"`; **v2** when `"2"`; legacy v1 otherwise. Use `grants_access(subscription_status)` for invoke eligibility.
+Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `"3"`; **v2** when `"2"`; legacy v1 otherwise. Use `grant_access(subscription_status)` for invoke eligibility.
 
 ```rust
 use std::collections::HashMap;
 use tollara_service_sdk::{
-    verify_inbound_hmac, verify_signature_from_headers, parse_user_context, grants_access,
+    verify_inbound_hmac, verify_signature_from_headers, parse_user_context, grant_access,
     build_gateway_user_context_string_v3, InboundHmacVerify, SignedUserContext,
 };
 
 let ok = verify_signature_from_headers(secret, &headers_map, payload);
-if grants_access(ctx.subscription_status.as_deref()) { /* invoke-eligible */ }
+if grant_access(ctx.subscription_status.as_deref()) { /* invoke-eligible */ }
 ```
 
 ### HTTP clients (`--features http`)

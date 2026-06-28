@@ -49,7 +49,7 @@ var (ok, code, body) = await client.GetRequestStatusAsync(requestId, serviceKey)
 
 ```csharp
 var ctx = Verifier.VerifyInboundHmacAndGetUserContext(serviceSecret, headers, payload);
-if (ctx is not null && Verifier.GrantsAccess(ctx.SubscriptionStatus)) { /* trusted + invoke-eligible */ }
+if (ctx is not null && Verifier.GrantAccess(ctx.SubscriptionStatus)) { /* trusted + invoke-eligible */ }
 ```
 
 ## Install
@@ -97,7 +97,7 @@ dotnet test Tollara.ServiceSdk.Tests/Tollara.ServiceSdk.Tests.csproj
 
 ### 3.0.0 (current)
 
-- **Breaking:** Validation **v3** — `serviceProductId`, `subscriptionStatus`, `validationSchemaVersion: 3`; removed `plan`, `quotaRemaining`, `subscriptionActive`; **`GrantsAccess(subscriptionStatus)`** for invoke eligibility.
+- **Breaking:** Validation **v3** — `serviceProductId`, `subscriptionStatus`, `validationSchemaVersion: 3`; removed `plan`, `quotaRemaining`, `subscriptionActive`; **`GrantAccess(subscriptionStatus)`** for invoke eligibility.
 - **Breaking:** Gateway HMAC **v3** — `BuildGatewayUserContextStringV3`, headers `X-Tollara-Service-Product-ID`, `X-Tollara-Subscription-Status`, signing version `"3"`.
 - **Breaking:** Estimate **v3** — balances/caps on **`breakdown`** only (`estimateSchemaVersion: 3`).
 - **Breaking:** Report **v2** — identity + **`breakdown`** (`reportSchemaVersion: 2`).

@@ -11,7 +11,7 @@ pub use headers::{
 pub use hmac::{
     build_gateway_user_context_string, build_gateway_user_context_string_v2,
     build_gateway_user_context_string_v3, calculate_hmac, calculate_hmac_with_timestamp,
-    constant_time_equals, grants_access, validate_hmac_signature, verify_inbound_hmac,
+    constant_time_equals, grant_access, validate_hmac_signature, verify_inbound_hmac,
     verify_signature_from_headers, verify_signature_from_headers_and_get_user_context,
     parse_user_context, InboundHmacVerify, SignedUserContext, UserContext,
 };

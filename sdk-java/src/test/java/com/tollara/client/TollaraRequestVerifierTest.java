@@ -63,14 +63,14 @@ class TollaraRequestVerifierTest {
         assertThat(ctx).isPresent();
         assertThat(ctx.get().getServiceProductId()).isEqualTo("prod-1");
         assertThat(ctx.get().getSubscriptionStatus()).isEqualTo("ACTIVE");
-        assertThat(TollaraRequestVerifier.grantsAccess(ctx.get().getSubscriptionStatus())).isTrue();
+        assertThat(TollaraRequestVerifier.grantAccess(ctx.get().getSubscriptionStatus())).isTrue();
     }
 
     @Test
-    void grantsAccess_returnsFalseForNonEligibleStatus() {
-        assertThat(TollaraRequestVerifier.grantsAccess("EXPIRED")).isFalse();
-        assertThat(TollaraRequestVerifier.grantsAccess(null)).isFalse();
-        assertThat(TollaraRequestVerifier.grantsAccess("CANCELLING_PENDING")).isTrue();
+    void grantAccess_returnsFalseForNonEligibleStatus() {
+        assertThat(TollaraRequestVerifier.grantAccess("EXPIRED")).isFalse();
+        assertThat(TollaraRequestVerifier.grantAccess(null)).isFalse();
+        assertThat(TollaraRequestVerifier.grantAccess("CANCELLING_PENDING")).isTrue();
     }
 
     @Test

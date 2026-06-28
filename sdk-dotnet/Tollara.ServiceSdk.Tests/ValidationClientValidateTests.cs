@@ -94,17 +94,17 @@ public class ValidationClientValidateTests
         Assert.Equal(3, result.ValidationSchemaVersion);
         Assert.Single(result.Roles);
         Assert.Equal("user", result.Roles[0]);
-        Assert.True(result.GrantsAccess());
+        Assert.True(result.GrantAccess());
         Assert.Equal("SUBSCRIPTION", result.BillingModelType);
     }
 
     [Fact]
-    public async Task ValidateServiceKeyAsync_GrantsAccessFalseForExpiredStatus()
+    public async Task ValidateServiceKeyAsync_GrantAccessFalseForExpiredStatus()
     {
         using var http = new HttpClient(new ValidateExpiredHandler());
         var result = await ValidationClient.ValidateServiceKeyAsync(http, CoreRoot, "expired-key", ServiceId, ServiceSecret);
         Assert.NotNull(result);
-        Assert.False(result!.GrantsAccess());
-        Assert.False(ServiceKeyValidationResult.GrantsAccess("EXPIRED"));
+        Assert.False(result!.GrantAccess());
+        Assert.False(ServiceKeyValidationResult.GrantAccess("EXPIRED"));
     }
 }

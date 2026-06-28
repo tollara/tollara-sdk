@@ -2,7 +2,7 @@ import {
   buildGatewayUserContextString,
   buildGatewayUserContextStringV2,
   buildGatewayUserContextStringV3,
-  grantsAccess,
+  grantAccess,
 } from './verifier';
 
 describe('buildGatewayUserContextStringV3', () => {
@@ -61,17 +61,17 @@ describe('buildGatewayUserContextString v1 (compat)', () => {
   });
 });
 
-describe('grantsAccess', () => {
+describe('grantAccess', () => {
   it('returns true for invoke-eligible statuses', () => {
-    expect(grantsAccess('ACTIVE')).toBe(true);
-    expect(grantsAccess('trial')).toBe(true);
-    expect(grantsAccess('CANCELLING')).toBe(true);
-    expect(grantsAccess('CANCELLING_PENDING')).toBe(true);
+    expect(grantAccess('ACTIVE')).toBe(true);
+    expect(grantAccess('trial')).toBe(true);
+    expect(grantAccess('CANCELLING')).toBe(true);
+    expect(grantAccess('CANCELLING_PENDING')).toBe(true);
   });
 
   it('returns false for other or missing status', () => {
-    expect(grantsAccess('EXPIRED')).toBe(false);
-    expect(grantsAccess(null)).toBe(false);
-    expect(grantsAccess('')).toBe(false);
+    expect(grantAccess('EXPIRED')).toBe(false);
+    expect(grantAccess(null)).toBe(false);
+    expect(grantAccess('')).toBe(false);
   });
 });

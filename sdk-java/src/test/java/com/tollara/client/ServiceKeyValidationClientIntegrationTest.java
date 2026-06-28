@@ -71,7 +71,7 @@ class ServiceKeyValidationClientIntegrationTest {
         assertThat(result.getSubscriptionStatus()).isEqualTo("ACTIVE");
         assertThat(result.getValidationSchemaVersion()).isEqualTo(3);
         assertThat(result.getRoles()).containsExactly("user");
-        assertThat(result.grantsAccess()).isTrue();
+        assertThat(result.grantAccess()).isTrue();
         assertThat(result.getServiceKeyId()).isEqualTo(UUID.fromString(SERVICE_KEY_ID));
         assertThat(result.getBillingModelType()).isEqualTo("SUBSCRIPTION");
     }
@@ -136,7 +136,7 @@ class ServiceKeyValidationClientIntegrationTest {
     }
 
     @Test
-    void validateServiceKey_grantsAccessFalseForExpiredStatus() throws Exception {
+    void validateServiceKey_grantAccessFalseForExpiredStatus() throws Exception {
         String responseBody = """
             {"valid":true,"serviceKeyId":"%s","userId":"user-123","serviceId":"%s","serviceProductId":"%s","roles":[],"subscriptionStatus":"EXPIRED","billingModelType":null,"measurementType":null,"unitLabel":null,"timestamp":1700000000,"error":null,"validationSchemaVersion":3}
             """.formatted(SERVICE_KEY_ID, SERVICE_ID, SERVICE_PRODUCT_ID).trim();
@@ -156,8 +156,8 @@ class ServiceKeyValidationClientIntegrationTest {
         ServiceKeyValidationClient.ServiceKeyValidationResult result = client.validateServiceKey("expired-key");
 
         assertThat(result).isNotNull();
-        assertThat(result.grantsAccess()).isFalse();
-        assertThat(ServiceKeyValidationClient.ServiceKeyValidationResult.grantsAccess("EXPIRED")).isFalse();
+        assertThat(result.grantAccess()).isFalse();
+        assertThat(ServiceKeyValidationClient.ServiceKeyValidationResult.grantAccess("EXPIRED")).isFalse();
     }
 
     @Test

@@ -30,7 +30,7 @@ Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `
 ctx, ok := sdk.VerifyInboundHMACFromHeadersAndGetUserContext(serviceSecret, r.Header, string(bodyBytes))
 if ok {
     _ = ctx.UserID // trusted only when ok is true
-    if sdk.GrantsAccess(ctx.SubscriptionStatus) {
+    if sdk.GrantAccess(ctx.SubscriptionStatus) {
         // invoke-eligible subscription
     }
 }

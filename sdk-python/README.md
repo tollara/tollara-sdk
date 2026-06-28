@@ -61,10 +61,10 @@ Pass a **header map** (keys matched case-insensitively) and the **raw body** the
 **Preferred:** verify and read user context in one step (`None` if the HMAC is invalid):
 
 ```python
-from tollara_service_sdk import verify_inbound_context, grants_access
+from tollara_service_sdk import verify_inbound_context, grant_access
 
 ctx = verify_inbound_context(service_secret, headers, raw_body)
-if ctx is not None and grants_access(ctx.subscription_status):
+if ctx is not None and grant_access(ctx.subscription_status):
     # ctx.user_id, ctx.service_product_id, ctx.subscription_status, ...
     ...
 ```
@@ -95,7 +95,7 @@ client = TollaraClient(
 )
 
 validation = client.validate_service_key("bearer-token")
-# validation.service_product_id, validation.subscription_status, validation.grants_access()
+# validation.service_product_id, validation.subscription_status, validation.grant_access()
 
 estimate = client.estimate_usage("bearer-token", 1.0)
 if estimate is not None:

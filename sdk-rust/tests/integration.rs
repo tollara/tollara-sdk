@@ -55,7 +55,7 @@ async fn validate_service_key_returns_result_when_core_returns_200_with_valid_hm
     assert_eq!(r.subscription_status.as_deref(), Some("ACTIVE"));
     assert_eq!(r.validation_schema_version, Some(3));
     assert_eq!(r.roles, &["user"]);
-    assert!(r.grants_access());
+    assert!(r.grant_access());
 }
 
 #[tokio::test]

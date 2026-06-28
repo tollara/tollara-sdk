@@ -32,7 +32,7 @@ final class Verifier
 {
     private const INVOKE_ELIGIBLE = ['ACTIVE', 'TRIAL', 'CANCELLING', 'CANCELLING_PENDING'];
 
-    public static function grantsAccess(?string $subscriptionStatus): bool
+    public static function grantAccess(?string $subscriptionStatus): bool
     {
         if ($subscriptionStatus === null || trim($subscriptionStatus) === '') {
             return false;
@@ -331,8 +331,8 @@ final class UserContext
     ) {
     }
 
-    public function grantsAccess(): bool
+    public function grantAccess(): bool
     {
-        return Verifier::grantsAccess($this->subscriptionStatus !== '' ? $this->subscriptionStatus : null);
+        return Verifier::grantAccess($this->subscriptionStatus !== '' ? $this->subscriptionStatus : null);
     }
 }

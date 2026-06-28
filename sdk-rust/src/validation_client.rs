@@ -1,7 +1,7 @@
 //! Client for validating service keys via the Core API (see docs/sdk-api-spec.md §2).
 
 use crate::headers;
-use crate::hmac::{grants_access, validate_hmac_signature};
+use crate::hmac::{grant_access, validate_hmac_signature};
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -46,8 +46,8 @@ pub struct ServiceKeyValidationResult {
 
 impl ServiceKeyValidationResult {
     #[must_use]
-    pub fn grants_access(&self) -> bool {
-        grants_access(self.subscription_status.as_deref())
+    pub fn grant_access(&self) -> bool {
+        grant_access(self.subscription_status.as_deref())
     }
 }
 

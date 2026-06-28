@@ -43,7 +43,7 @@ $validate = ServiceKeyValidationResult::fromArray([
 ]);
 assertSame('prod-1', $validate->serviceProductId, 'validate serviceProductId');
 assertSame(3, $validate->validationSchemaVersion, 'validate schema version');
-assertTrue($validate->grantsAccess(), 'validate grantsAccess ACTIVE');
+assertTrue($validate->grantAccess(), 'validate grantAccess ACTIVE');
 
 $estimate = UsageEstimateResult::fromArray([
     'sufficientCredits' => true,

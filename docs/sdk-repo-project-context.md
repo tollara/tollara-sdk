@@ -40,7 +40,7 @@ Use configurable base URLs per service (`gatewayBaseUrl`, `coreServiceUrl`, `usa
 |---------|---------|--------|-----------------------------------|
 | **Invoke (sync)** | Gateway | POST/GET/PUT/DELETE | `{gatewayPath}/agent/{agentId}/endpoint/{endpointId}/invoke` — where `gatewayPath` is `/api` (default) or `/gateway/api/v1` (ECS). |
 | **Invoke (async)** | Gateway | POST/GET | Same as above with `/invoke/async`; response has `requestId`, `progressUrl`, `callbackUrl`. Auth: `Authorization: Bearer <agentKey>`. |
-| **Validate service key** | Core | POST | `{corePath}/service-keys/validate` — where `corePath` is `/api/v1` (default) or `/core/api/v1` (ECS). Body: `{ "serviceKey", "serviceId", "serviceSecret" }`. Response: HMAC in `X-Tollara-Signature`, `X-Tollara-Timestamp`; body has `valid`, `userId`, `serviceId`, `serviceProductId`, `roles`, `subscriptionStatus`, `validationSchemaVersion: 3`. **Verify response HMAC** as `HMAC(responseBody + timestamp, serviceSecret)`. Use **`grantsAccess(subscriptionStatus)`** for invoke eligibility. |
+| **Validate service key** | Core | POST | `{corePath}/service-keys/validate` — where `corePath` is `/api/v1` (default) or `/core/api/v1` (ECS). Body: `{ "serviceKey", "serviceId", "serviceSecret" }`. Response: HMAC in `X-Tollara-Signature`, `X-Tollara-Timestamp`; body has `valid`, `userId`, `serviceId`, `serviceProductId`, `roles`, `subscriptionStatus`, `validationSchemaVersion: 3`. **Verify response HMAC** as `HMAC(responseBody + timestamp, serviceSecret)`. Use **`grantAccess(subscriptionStatus)`** for invoke eligibility. |
 | **Estimate usage (pre-flight)** | Core | POST | `{corePath}/service-keys/estimate-usage` — same trust model as validate. Body includes `serviceKey`, optional `serviceId`/`serviceSecret`, `estimatedUnits`. Response uses **`estimateSchemaVersion: 3`**; balances/caps on **`breakdown`** only. HMAC on response when signature headers present. |
 | **Report usage** | Usage | POST | `{usagePath}/report` — where `usagePath` is `/api/usage` (default) or `/usage/api/v1` (ECS). Body: `{ userId, serviceId, unitsUsed, timestamp }`. Headers: `X-Tollara-Signature`, `X-Tollara-Timestamp` (signature = HMAC(body + timestamp, serviceSecret)). Response uses **`reportSchemaVersion: 2`** with identity + **`breakdown`**. |
 | **Progress (async)** | Usage | POST | `{usagePath}/progress/{requestId}` — same `usagePath` as above; or use the full `progressUrl` from the async response. Body: `{ stage, percentageComplete, errorMessage?, timestamp }`. Sign: HMAC(body + timestamp, agentSecret). |
@@ -73,7 +73,7 @@ The **client** and the **lib** code it depends on (e.g. HMAC utilities) have bee
 
 - **TollaraRequestVerifier** – `verifyInboundHmac` (`InboundHmacRequest`, `Function<String,String>` header accessor, or header map), `userContextFromHeaders`, `UserContext`; deprecated `verifyHmacSignature` / `extractUserContext`  
 - **UsageServiceClient** – `sendProgressUpdate`, `sendCompletion`, `reportUsage`; progress/complete URL parsing and body signing  
-- **ServiceKeyValidationClient** – `validateServiceKey`, request/response DTOs, response HMAC check, optional cache, **`grantsAccess(subscriptionStatus)`**  
+- **ServiceKeyValidationClient** – `validateServiceKey`, request/response DTOs, response HMAC check, optional cache, **`grantAccess(subscriptionStatus)`**  
 - **HmacUtils** (vendored from lib) – `calculateHmac(data, key)`, `calculateHmacWithTimestamp(data, timestamp, key)` (canonical = `data + timestamp`)  
 - **Models:** `UsageReportRequest`, `UsageReportResponse`
 

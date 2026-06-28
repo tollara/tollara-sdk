@@ -21,7 +21,7 @@ Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `
 ```ruby
 ctx = TollaraSdk.verify_signature_from_headers_and_user_context(service_secret, headers_hash, raw_body)
 # ctx is nil if invalid; otherwise includes :service_product_id, :subscription_status
-TollaraSdk.grants_access(ctx[:subscription_status]) if ctx
+TollaraSdk.grant_access(ctx[:subscription_status]) if ctx
 ```
 
 ## Install
@@ -60,7 +60,7 @@ client = TollaraSdk::TollaraClient.new(
 )
 
 validation = client.validate_service_key(service_key) # ServiceKeyValidationResult or nil
-validation.grants_access if validation
+validation.grant_access if validation
 
 estimate = client.estimate_usage(service_key, 1) # UsageEstimateResult or nil
 report = client.report_usage(user_id, service_id, 1) # UsageReportResponse hash with breakdown

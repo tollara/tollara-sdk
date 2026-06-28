@@ -44,10 +44,10 @@ if (estimate) {
 Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `"3"` (`serviceProductId`, `subscriptionStatus`); **v2** when `"2"`; legacy v1 when the header is absent.
 
 ```ts
-import { grantsAccess, verifySignatureFromHeadersAndGetUserContext } from '@tollara/service-sdk';
+import { grantAccess, verifySignatureFromHeadersAndGetUserContext } from '@tollara/service-sdk';
 
 const ctx = verifySignatureFromHeadersAndGetUserContext(serviceSecret, headers, rawBody);
-if (ctx && grantsAccess(ctx.subscriptionStatus)) { /* trusted + invoke-eligible */ }
+if (ctx && grantAccess(ctx.subscriptionStatus)) { /* trusted + invoke-eligible */ }
 ```
 
 ## Install
@@ -60,7 +60,7 @@ npm install @tollara/service-sdk
 
 - `TollaraHeaders` — canonical `X-Tollara-*` names (including signing-version for gateway HMAC v3)
 - `buildGatewayUserContextStringV3` — inbound suffix helper for production gateway forwards
-- `grantsAccess` — invoke eligibility from `subscriptionStatus` (validate/gateway v3)
+- `grantAccess` — invoke eligibility from `subscriptionStatus` (validate/gateway v3)
 - `verifyInboundHmac` / `verifySignatureFromHeaders` — inbound gateway HMAC (v3 when `X-Tollara-Signing-Version` is `"3"`)
 - `getUserContext` — parses headers (case-insensitive keys)
 - `TollaraClient` — validate key, estimates, invoke, usage reporting, gateway polling

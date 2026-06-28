@@ -34,4 +34,4 @@
 
 `X-Tollara-Signature`, `X-Tollara-Timestamp`, `X-Tollara-Signing-Version: 3`, `X-Tollara-User-ID`, `X-Tollara-Service-Product-ID`, `X-Tollara-Roles` (omit when empty), `X-Tollara-Subscription-Status`, optional billing headers (`X-Tollara-Billing-Model`, `X-Tollara-Measurement-Type`, `X-Tollara-Unit-Label`).
 
-Use `grantsAccess(subscriptionStatus)` for invoke-eligible statuses: `ACTIVE`, `TRIAL`, `CANCELLING`, `CANCELLING_PENDING`.
+Use `grantAccess(subscriptionStatus)` for invoke-eligible statuses: `ACTIVE`, `TRIAL`, `CANCELLING`, `CANCELLING_PENDING`.

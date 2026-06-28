@@ -42,7 +42,7 @@ public class TollaraRequestVerifier {
      * Returns {@code true} when {@code subscriptionStatus} is invoke-eligible
      * ({@code ACTIVE}, {@code TRIAL}, {@code CANCELLING}, {@code CANCELLING_PENDING}).
      */
-    public static boolean grantsAccess(String subscriptionStatus) {
+    public static boolean grantAccess(String subscriptionStatus) {
         if (subscriptionStatus == null || subscriptionStatus.isBlank()) {
             return false;
         }
@@ -418,7 +418,7 @@ public class TollaraRequestVerifier {
         @Deprecated
         private BigDecimal quotaRemaining;
 
-        /** @deprecated v1/v2 only; use {@link #subscriptionStatus} and {@link TollaraRequestVerifier#grantsAccess(String)}. */
+        /** @deprecated v1/v2 only; use {@link #subscriptionStatus} and {@link TollaraRequestVerifier#grantAccess(String)}. */
         @Deprecated
         private boolean subscriptionActive;
     }

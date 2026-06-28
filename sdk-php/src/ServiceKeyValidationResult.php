@@ -23,9 +23,9 @@ final class ServiceKeyValidationResult
     ) {
     }
 
-    public function grantsAccess(): bool
+    public function grantAccess(): bool
     {
-        return Verifier::grantsAccess($this->subscriptionStatus);
+        return Verifier::grantAccess($this->subscriptionStatus);
     }
 
     /** @param array<string, mixed> $data */

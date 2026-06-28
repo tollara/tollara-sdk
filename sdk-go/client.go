@@ -57,8 +57,8 @@ type ServiceKeyValidationResult struct {
 	UnitLabel                string   `json:"unitLabel"`
 }
 
-func (r *ServiceKeyValidationResult) GrantsAccess() bool {
-	return GrantsAccess(r.SubscriptionStatus)
+func (r *ServiceKeyValidationResult) GrantAccess() bool {
+	return GrantAccess(r.SubscriptionStatus)
 }
 
 type UsageBreakdown struct {

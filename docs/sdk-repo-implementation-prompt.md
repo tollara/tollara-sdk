@@ -8,7 +8,7 @@ Use this document as the single copy-paste brief when updating the **tollara-sdk
 
 **Task (superseded):** Implement **estimateUsage** (service-key pre-flight) across all SDK languages (Java, JS/TS, .NET, Python, etc.) for Tollara, plus **HMAC v2** and **validate schema v2** updates.
 
-**Current contract (v3):** **`serviceProductId`**, **`subscriptionStatus`**, **`validationSchemaVersion: 3`**, **`grantsAccess`**, gateway **`buildV3`** / signing version `"3"`, estimate **`estimateSchemaVersion: 3`** with balances on **`breakdown`** only, report **`reportSchemaVersion: 2`**.
+**Current contract (v3):** **`serviceProductId`**, **`subscriptionStatus`**, **`validationSchemaVersion: 3`**, **`grantAccess`**, gateway **`buildV3`** / signing version `"3"`, estimate **`estimateSchemaVersion: 3`** with balances on **`breakdown`** only, report **`reportSchemaVersion: 2`**.
 
 ### estimateUsage (agent backend, same trust as validate)
 

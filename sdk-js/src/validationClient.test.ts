@@ -56,7 +56,7 @@ describe('validationClient', () => {
       billingModelType: 'SUBSCRIPTION',
       measurementType: 'PER_REQUEST',
       unitLabel: 'request',
-      grantsAccess: true,
+      grantAccess: true,
     });
   });
 
@@ -239,7 +239,7 @@ describe('validationClient', () => {
       billingModelType: 'SUBSCRIPTION',
       measurementType: null,
       unitLabel: null,
-      grantsAccess: true,
+      grantAccess: true,
     };
     cache.set('k', entry);
     expect(cache.get('k')).toEqual(entry);

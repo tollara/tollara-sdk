@@ -43,11 +43,11 @@ func TestBuildGatewayUserContextStringV3_nonAccessStatus_goldenString(t *testing
 	}
 }
 
-func TestGrantsAccess(t *testing.T) {
-	if !GrantsAccess("ACTIVE") || !GrantsAccess("TRIAL") || !GrantsAccess("CANCELLING_PENDING") {
+func TestGrantAccess(t *testing.T) {
+	if !GrantAccess("ACTIVE") || !GrantAccess("TRIAL") || !GrantAccess("CANCELLING_PENDING") {
 		t.Fatal("expected eligible statuses to grant access")
 	}
-	if GrantsAccess("EXPIRED") || GrantsAccess("") {
+	if GrantAccess("EXPIRED") || GrantAccess("") {
 		t.Fatal("expected non-eligible statuses to deny access")
 	}
 }
