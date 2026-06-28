@@ -112,6 +112,47 @@ async fn validate_service_key_returns_none_when_hmac_invalid() {
     assert!(result.is_none());
 }
 
+#[tokio::test]
+async fn estimate_usage_returns_v3_breakdown_when_core_returns_200_with_valid_hmac() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+
+    let body_str = r#"{"sufficientCredits":true,"wouldExceedCap":false,"wouldAllow":true,"estimatedCost":0.1,"billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":{"unitsRemaining":199,"remainingSpendingCap":20,"isOverLimit":false},"estimateSchemaVersion":3,"timestamp":1700000000}"#;
+    let timestamp = "1700000000";
+    let canonical = format!("{}{}", body_str, timestamp);
+    let signature = calculate_hmac(&canonical, AGENT_SECRET);
+
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/estimate-usage")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_header("X-Tollara-Signature", &signature)
+        .with_header("X-Tollara-Timestamp", timestamp)
+        .with_body(body_str)
+        .create();
+
+    let client = Client::new();
+    let result = validation_client::estimate_usage(
+        &client,
+        &core_base,
+        AGENT_KEY,
+        AGENT_SECRET,
+        Some(AGENT_ID),
+        1.0,
+    )
+    .await;
+
+    assert!(result.is_some());
+    let r = result.unwrap();
+    assert_eq!(r.estimate_schema_version, Some(3));
+    assert_eq!(r.http_status, 200);
+    let cap = r
+        .breakdown
+        .as_ref()
+        .and_then(|b| b.remaining_spending_cap);
+    assert_eq!(cap, Some(20.0));
+}
+
 // ---------- Usage client (Usage API §3) ----------
 
 #[tokio::test]

@@ -1,0 +1,16 @@
+{
+  "sufficientCredits": true,
+  "wouldExceedCap": false,
+  "wouldAllow": true,
+  "estimatedCost": 0.1,
+  "billingModelType": "SUBSCRIPTION",
+  "measurementType": "PER_REQUEST",
+  "unitLabel": "request",
+  "breakdown": {
+    "unitsRemaining": 199,
+    "remainingSpendingCap": 20,
+    "isOverLimit": false
+  },
+  "estimateSchemaVersion": 3,
+  "timestamp": 1700000000
+}

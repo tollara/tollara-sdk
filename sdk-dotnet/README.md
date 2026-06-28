@@ -95,7 +95,14 @@ dotnet test Tollara.ServiceSdk.Tests/Tollara.ServiceSdk.Tests.csproj
 
 ## Changelog (high level)
 
-### 0.0.6 (current)
+### 3.0.0 (current)
+
+- **Breaking:** Validation **v3** — `serviceProductId`, `subscriptionStatus`, `validationSchemaVersion: 3`; removed `plan`, `quotaRemaining`, `subscriptionActive`; **`GrantsAccess(subscriptionStatus)`** for invoke eligibility.
+- **Breaking:** Gateway HMAC **v3** — `BuildGatewayUserContextStringV3`, headers `X-Tollara-Service-Product-ID`, `X-Tollara-Subscription-Status`, signing version `"3"`.
+- **Breaking:** Estimate **v3** — balances/caps on **`breakdown`** only (`estimateSchemaVersion: 3`).
+- **Breaking:** Report **v2** — identity + **`breakdown`** (`reportSchemaVersion: 2`).
+
+### 0.0.6
 
 - **Environment variables:** `TollaraClient.Create` uses `TOLLARA_SERVICE_ID` / `TOLLARA_SERVICE_SECRET` when options are omitted.
 
@@ -116,7 +123,7 @@ dotnet test Tollara.ServiceSdk.Tests/Tollara.ServiceSdk.Tests.csproj
 
 ## Release (NuGet.org)
 
-1. **Version** — Set `<Version>` in `Tollara.ServiceSdk.csproj` to a new **SemVer** value (e.g. `0.0.6`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
+1. **Version** — Set `<Version>` in `Tollara.ServiceSdk.csproj` to a new **SemVer** value (e.g. `3.0.1`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
 2. **Verify** — Run tests (command above).
 3. **Pack** — From `sdk-dotnet`:
 
