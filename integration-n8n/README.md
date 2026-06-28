@@ -19,7 +19,7 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 - **Tollara Job Result** – Fetch async job result by request ID.
 - **Tollara Progress** – Send a progress update (use the `progressUrl` from an async invoke response).
 - **Tollara Complete** – Send completion (use the `callbackUrl` from an async invoke response).
-- **Tollara Validate Key** – Validate a service key and return user/plan/quota. Place after the n8n **Webhook** node; reads `Authorization: Bearer` automatically. Set **Service ID** once in credentials (Service Workspace → your service → Settings).
+- **Tollara Validate Key** – Validate a service key and return user/plan/quota. Place after the n8n **Webhook** node; reads `Authorization: Bearer` automatically. Set **Service Secret** and **Service ID** on the node.
 - **Tollara Report Usage** – Report usage units for a user and service.
 - **Tollara Estimate Usage** – Estimate usage cost and quota for a service key.
 
@@ -42,16 +42,13 @@ Import-ready demo workflows live in [`example-workflows/`](example-workflows/REA
 
 Enable **Raw Body** on the Webhook node for reliable HMAC verification. Point your Tollara service at the Webhook production URL.
 
-## Credentials
+## API endpoints (optional)
 
-**Tollara API**
+**Production:** leave **Set API Endpoints** disabled on each node. The SDK uses production Tollara URLs automatically. No n8n credential is required.
 
-- **Service Secret** (required) – Used for HMAC signing and verification.
-- **Service ID** (optional) – Your service UUID from the Tollara Service Workspace (service settings). Avoids re-entering it on each Validate Key node.
-- **API URL** (optional) – Leave blank for production. Default base URL for all services.
-- **Core / Usage / Gateway API URL** (optional) – Per-service overrides for local dev when services run on different ports. Each falls back to **API URL**, then the production default.
+**Custom / local dev:** on nodes that call Tollara APIs (Invoke, Validate Key, Progress, etc.), enable **Set API Endpoints** and fill in the URLs you need. **Tollara Verify Request** only needs **Service Secret** — it does not call Tollara APIs.
 
-**Local Docker example:** leave **API URL** blank and set **Core API URL** to `http://host.docker.internal:8081` and **Usage API URL** to `http://host.docker.internal:8084` (and **Gateway API URL** to `http://host.docker.internal:8083` if you use Invoke). One credential works for the whole workflow.
+Set **Service Secret** and **Service ID** on each Tollara node (required where those fields appear).
 
 ## Build
 
@@ -64,27 +61,54 @@ npm run build
 
 Self-hosted n8n can install unverified community nodes from npm (unlike n8n Cloud).
 
-**Local dev (no npm publish):** the Docker setup bind-mounts your built `integration-n8n` folder and `sdk-js` (for the `file:../sdk-js` dependency). Changes take effect after rebuilding both packages and restarting n8n.
-
-From `integration-n8n/docker`:
-
-```powershell
-cd integration-n8n\docker
-.\start.ps1
-```
-
-Or manually:
+**Local dev (no npm publish):** the Docker setup bind-mounts your built `integration-n8n` folder and `sdk-js` (for the `file:../sdk-js` dependency). One command builds everything and redeploys n8n:
 
 ```powershell
 cd integration-n8n
-npm install
-npm run build
-cd docker
-docker compose up -d --force-recreate
+.\deploy-local.ps1
 ```
+
+Or:
+
+```powershell
+cd integration-n8n
+npm run deploy:local
+```
+
+Options: `-RunTests` (run unit tests before deploy), `-SkipPull` (skip `docker compose pull`).
+
+The same script is also available as `docker\start.ps1` for backward compatibility.
 
 Open **http://localhost:5678**, create an owner account, then add nodes — search **Tollara**.
 
 Workflow data persists in the `n8n_data` Docker volume. The Tollara package is loaded from your repo via bind mount, not from npm.
 
 Stop: `docker compose down` (from the `docker` folder).
+
+### Troubleshooting: broken Tollara nodes after import
+
+If Tollara nodes appear in the node picker but imported workflows show **“Install this node to use it”**:
+
+1. Run **`.\deploy-local.ps1`** (not just `npm run build`) — this rebuilds, restarts n8n, and syncs the community-node registry.
+2. **Delete** the broken workflow and **import again** from `example-workflows/`. n8n strips node parameters when the package failed to load on the first import.
+3. Replace **`YOUR_SERVICE_SECRET`** (and **`YOUR_SERVICE_ID`** on Validate Key) on each Tollara node. Enable **Set API Endpoints** only if you use custom API URLs.
+
+Cause: the package must expose a root **`index.js`** (referenced by `package.json` `"main"`). Without it, n8n lists nodes in Settings but does not load them at runtime.
+
+### Troubleshooting: red exclamation on Tollara nodes
+
+Tollara nodes do **not** use n8n credentials (v0.0.16+). If you still see **Set Credential**, **Unnamed credential**, or a warning until you create a credential, your workflow has stale data from an older package version.
+
+**Fix:**
+
+1. Run **`.\deploy-local.ps1`** to load **v0.0.16+**
+2. **Delete** the workflow and re-import from `example-workflows/` (do not import over an existing copy)
+3. Set **Service Secret** on each Tollara node
+4. You can **delete** any old **Tollara Environment** credentials from Settings → Credentials — they are no longer used
+5. Hard-refresh the browser (Ctrl+F5)
+
+If only one node is affected: delete it on the canvas, drag a fresh Tollara node from the picker, reconnect wires, and paste parameters back.
+
+If one node is still broken after that: delete it on the canvas, drag a fresh **Tollara …** node from the node picker (same name), reconnect wires, and paste parameters from the example JSON.
+
+You do **not** need to delete the Docker image. Only reset the `n8n_data` volume if you want a completely fresh n8n instance (that wipes users and all workflows).

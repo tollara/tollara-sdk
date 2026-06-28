@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Subscriber — URL Metadata (sync invoke)\n\n**Tollara:** caller / buyer automation\n\nCalls **backend-url-metadata-sync** via gateway.\n\n**Before run:** edit **Set Config** — `serviceKey`, `serviceId`, `endpointId` from your Tollara listing.\n\n**Credential:** Tollara Subscriber API (Gateway `http://host.docker.internal:8083`)\n\n**Requires:** backend workflow active + listing `realUrl` → n8n webhook.",
+        "content": "## Subscriber — URL Metadata (sync invoke)\n\n**Tollara:** caller / buyer automation\n\nCalls **backend-url-metadata-sync** via gateway.\n\n**Before run:** edit **Set Config** — `serviceKey`, `serviceId`, `endpointId` from your Tollara listing. For local Docker, enable **Set API Endpoints** on Invoke (Gateway URL).\n\n**Requires:** backend workflow active + listing `realUrl` → n8n webhook.",
         "height": 280,
         "width": 460
       },
@@ -44,13 +44,7 @@
       "name": "Tollara Invoke",
       "type": "n8n-nodes-tollara.tollaraInvoke",
       "typeVersion": 1,
-      "position": [480, 300],
-      "credentials": {
-        "tollaraApi": {
-          "name": "Tollara Subscriber API"
-        }
-      }
-    },
+      "position": [480, 300]    },
     {
       "parameters": {
         "jsCode": "const invoke = $('Tollara Invoke').first().json;\nconst data = invoke.data ?? {};\nreturn [{\n  json: {\n    statusCode: invoke.statusCode,\n    url: data.url,\n    title: data.title,\n    description: data.description,\n    raw: invoke.body,\n  },\n}];"

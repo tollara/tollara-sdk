@@ -1,12 +1,9 @@
-import type { IDataObject } from 'n8n-workflow';
+import type { IDataObject, IExecuteFunctions } from 'n8n-workflow';
 
 export interface TollaraCredentials {
-  apiUrl: string | undefined;
   coreApiUrl: string | undefined;
   usageApiUrl: string | undefined;
   gatewayApiUrl: string | undefined;
-  serviceSecret: string;
-  serviceId: string | undefined;
 }
 
 function trimOptional(value: string | undefined): string | undefined {
@@ -16,37 +13,54 @@ function trimOptional(value: string | undefined): string | undefined {
 
 export function getTollaraCredentials(credentials: IDataObject): TollaraCredentials {
   return {
-    apiUrl: trimOptional(credentials.apiUrl as string | undefined),
     coreApiUrl: trimOptional(credentials.coreApiUrl as string | undefined),
     usageApiUrl: trimOptional(credentials.usageApiUrl as string | undefined),
     gatewayApiUrl: trimOptional(credentials.gatewayApiUrl as string | undefined),
-    serviceSecret: credentials.serviceSecret as string,
-    serviceId: trimOptional(credentials.serviceId as string | undefined),
   };
 }
 
-/** Service-specific override, else shared API URL (SDK defaults to production when both unset). */
-export function resolveServiceApiUrl(
-  serviceUrl: string | undefined,
-  apiUrl: string | undefined,
-): string | undefined {
-  return serviceUrl ?? apiUrl;
+/** Read optional endpoint overrides from node parameters (production defaults when toggle is off). */
+export function tollaraCredentialsFromNodeParameters(
+  executeFunctions: IExecuteFunctions,
+  itemIndex = 0,
+): TollaraCredentials {
+  const setApiEndpoints = executeFunctions.getNodeParameter('setApiEndpoints', itemIndex, false) as boolean;
+  if (!setApiEndpoints) {
+    return getTollaraCredentials({});
+  }
+
+  const params = executeFunctions.getNode().parameters;
+  return getTollaraCredentials({
+    coreApiUrl: params.coreApiUrl as string | undefined,
+    usageApiUrl: params.usageApiUrl as string | undefined,
+    gatewayApiUrl: params.gatewayApiUrl as string | undefined,
+  });
 }
 
 export function resolveCoreApiUrl(credentials: TollaraCredentials): string | undefined {
-  return resolveServiceApiUrl(credentials.coreApiUrl, credentials.apiUrl);
+  return credentials.coreApiUrl;
 }
 
 export function resolveUsageApiUrl(credentials: TollaraCredentials): string | undefined {
-  return resolveServiceApiUrl(credentials.usageApiUrl, credentials.apiUrl);
+  return credentials.usageApiUrl;
 }
 
 export function resolveGatewayApiUrl(credentials: TollaraCredentials): string | undefined {
-  return resolveServiceApiUrl(credentials.gatewayApiUrl, credentials.apiUrl);
+  return credentials.gatewayApiUrl;
 }
 
-/** Node parameter override, else credential default. */
-export function resolveServiceId(credentialServiceId: string | undefined, nodeServiceId: string | undefined): string | null {
-  const raw = (nodeServiceId?.trim() || credentialServiceId?.trim()) ?? '';
-  return raw || null;
+export function requireServiceSecret(nodeServiceSecret: string | undefined): string {
+  const secret = nodeServiceSecret?.trim() ?? '';
+  if (!secret) {
+    throw new Error('Service secret is required — set it on this node');
+  }
+  return secret;
+}
+
+export function requireServiceId(nodeServiceId: string | undefined): string {
+  const serviceId = nodeServiceId?.trim() ?? '';
+  if (!serviceId) {
+    throw new Error('Service ID is required — set it on this node');
+  }
+  return serviceId;
 }

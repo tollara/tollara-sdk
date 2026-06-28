@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Backend — URL Metadata API\n\n**Tollara:** proxied sync **service** (seller)\n\n**Webhook path:** `url-metadata`\n\n**Caller invokes:** `POST …/invoke` with `{ \"url\": \"https://example.com\" }`\n\nPair with **subscriber-url-metadata-sync** workflow.\n\n**Credential:** Tollara Proxied API",
+        "content": "## Backend — URL Metadata API\n\n**Tollara:** proxied sync **service** (seller)\n\n**Webhook path:** `url-metadata`\n\n**Caller invokes:** `POST …/invoke` with `{ \"url\": \"https://example.com\" }`\n\n**After import:** run `npm run repair:workflows` from `integration-n8n` if **Tollara Verify Request** shows a broken icon, then set **Service Secret** on Tollara nodes. For local Docker, enable **Set API Endpoints** on Progress/Complete and set Usage API URL.\n\nPair with **subscriber-url-metadata-sync** workflow.",
         "height": 260,
         "width": 440
       },
@@ -31,18 +31,14 @@
     },
     {
       "parameters": {
+        "serviceSecret": "YOUR_SERVICE_SECRET",
         "rawBodyBinaryProperty": "data"
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000011",
       "name": "Tollara Verify Request",
       "type": "n8n-nodes-tollara.tollaraVerifyRequest",
       "typeVersion": 1,
-      "position": [240, 300],
-      "credentials": {
-        "tollaraApi": {
-          "name": "Tollara Proxied API"
-        }
-      }
+      "position": [240, 300]
     },
     {
       "parameters": {

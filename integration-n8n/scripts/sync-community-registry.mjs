@@ -16,11 +16,12 @@ const nodes = nodePaths.map((relPath) => {
   const abs = join(root, relPath);
   const src = readFileSync(abs, 'utf8');
   const displayName = src.match(/displayName:\s*['"]([^'"]+)['"]/)?.[1];
-  const name = src.match(/name:\s*['"]([^'"]+)['"]/)?.[1];
+  const name = src.match(/^\s*name:\s*['"]([^'"]+)['"]/m)?.[1];
+  const version = Number(src.match(/^\s*version:\s*(\d+)/m)?.[1] ?? 1);
   if (!displayName || !name) {
     throw new Error(`Could not parse node metadata from ${relPath}`);
   }
-  return { displayName, type: `${packageName}.${name}` };
+  return { displayName, type: `${packageName}.${name}`, version };
 });
 
 const esc = (s) => s.replace(/'/g, "''");
@@ -34,7 +35,7 @@ const lines = [
 
 for (const node of nodes) {
   lines.push(
-    `INSERT INTO installed_nodes (name, type, latestVersion, package) VALUES ('${esc(node.displayName)}', '${esc(node.type)}', 1, '${esc(packageName)}');`,
+    `INSERT INTO installed_nodes (name, type, latestVersion, package) VALUES ('${esc(node.displayName)}', '${esc(node.type)}', ${node.version}, '${esc(packageName)}');`,
   );
 }
 

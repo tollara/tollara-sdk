@@ -1,6 +1,7 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { verifySignatureFromHeaders, getUserContext } from '@tollara/service-sdk';
-import { getTollaraCredentials } from '../../lib/tollaraCredentials';
+import { requireServiceSecret } from '../../lib/tollaraCredentials';
+import { serviceSecretNodeProperty } from '../../lib/nodeProperties';
 import { headersFromWebhookItem, signedPayloadFromWebhookItem } from '../../lib/webhookPayload';
 import { passthroughItemWithJson } from '../../lib/passthroughItem';
 
@@ -16,8 +17,8 @@ export class TollaraVerifyRequest implements INodeType {
     defaults: { name: 'Tollara Verify Request' },
     inputs: ['main'],
     outputs: ['main'],
-    credentials: [{ name: 'tollaraApi', required: true }],
     properties: [
+      serviceSecretNodeProperty,
       {
         displayName: 'Raw Body Binary Property',
         name: 'rawBodyBinaryProperty',
@@ -30,8 +31,7 @@ export class TollaraVerifyRequest implements INodeType {
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-    const credentials = await this.getCredentials('tollaraApi');
-    const { serviceSecret } = getTollaraCredentials(credentials);
+    const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
     const rawBodyBinaryProperty = this.getNodeParameter('rawBodyBinaryProperty', 0, 'data') as string;
 
     const items = this.getInputData();
