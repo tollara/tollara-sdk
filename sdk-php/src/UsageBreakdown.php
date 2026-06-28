@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tollara\AgentSdk;
+namespace Tollara\ServiceSdk;
 
 /**
  * Shared usage breakdown for estimate and report responses.

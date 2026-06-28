@@ -1,6 +1,6 @@
 # Tollara SDK (JavaScript/TypeScript)
 
-**Package:** `@tollara/service-sdk` (version **0.0.1** in this repo)
+**Package:** `@tollara/service-sdk` (version **3.0.0** in this repo)
 
 Verify inbound HMAC, validate **service keys**, run usage pre-flight (service-key **and** JWT paths), **gateway invoke** (sync/async), report usage, progress, completion, and poll async job status.
 
@@ -41,13 +41,13 @@ if (estimate) {
 
 ### Verify signature and user context together
 
-Verification defaults to signing version **v2** (newer user-context suffix, no quota segment in the signed material). `verifySignatureFromHeaders` also reads `X-Tollara-Signing-Version` when present.
+Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `"3"` (`serviceProductId`, `subscriptionStatus`); **v2** when `"2"`; legacy v1 when the header is absent.
 
 ```ts
-import { verifySignatureFromHeadersAndGetUserContext } from '@tollara/service-sdk';
+import { grantsAccess, verifySignatureFromHeadersAndGetUserContext } from '@tollara/service-sdk';
 
 const ctx = verifySignatureFromHeadersAndGetUserContext(serviceSecret, headers, rawBody);
-if (ctx) { /* trusted */ }
+if (ctx && grantsAccess(ctx.subscriptionStatus)) { /* trusted + invoke-eligible */ }
 ```
 
 ## Install
@@ -58,9 +58,10 @@ npm install @tollara/service-sdk
 
 ## API highlights
 
-- `TollaraHeaders` — canonical `X-Tollara-*` names (including signing-version for gateway HMAC v2)
-- `buildGatewayUserContextString` / `buildGatewayUserContextStringV2` — inbound suffix helpers
-- `verifyInboundHmac` / `verifySignatureFromHeaders` — inbound gateway HMAC
+- `TollaraHeaders` — canonical `X-Tollara-*` names (including signing-version for gateway HMAC v3)
+- `buildGatewayUserContextStringV3` — inbound suffix helper for production gateway forwards
+- `grantsAccess` — invoke eligibility from `subscriptionStatus` (validate/gateway v3)
+- `verifyInboundHmac` / `verifySignatureFromHeaders` — inbound gateway HMAC (v3 when `X-Tollara-Signing-Version` is `"3"`)
 - `getUserContext` — parses headers (case-insensitive keys)
 - `TollaraClient` — validate key, estimates, invoke, usage reporting, gateway polling
 - `validateServiceKey` / `estimateUsage` — Core **service-key** paths; response HMAC verified when headers present

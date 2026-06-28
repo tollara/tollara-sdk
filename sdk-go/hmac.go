@@ -47,7 +47,7 @@ var invokeEligibleStatuses = map[string]struct{}{
 
 // GrantsAccess returns true when subscriptionStatus is invoke-eligible.
 func GrantsAccess(subscriptionStatus string) bool {
-	s := strings.TrimSpace(subscriptionStatus)
+	s := strings.ToUpper(strings.TrimSpace(subscriptionStatus))
 	if s == "" {
 		return false
 	}

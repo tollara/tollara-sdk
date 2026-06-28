@@ -50,15 +50,16 @@ import "github.com/tollara/service-sdk-go"
 // From net/http (package name is sdk):
 ok := sdk.VerifyInboundHMACFromHeaders(serviceSecret, r.Header, string(bodyBytes))
 
-// Or explicit struct:
+// Or explicit struct (v3):
 req := &sdk.InboundHmacRequest{
-    Signature: sig,
-    Timestamp: ts,
-    Payload:   string(body),
-    UserID:    "user1",
-    Plan:      "plan1",
-    Roles:     []string{"role1", "role2"},
-    QuotaRemaining: "10",
+    Signature:          sig,
+    Timestamp:          ts,
+    Payload:            string(body),
+    UserID:             "user1",
+    ServiceProductID:   "prod-uuid-1",
+    Roles:              []string{"role1", "role2"},
+    SubscriptionStatus: "ACTIVE",
+    SigningVersion:     "3",
 }
 ok = sdk.VerifyInboundHMAC(serviceSecret, req)
 

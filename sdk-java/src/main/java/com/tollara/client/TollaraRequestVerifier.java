@@ -46,7 +46,7 @@ public class TollaraRequestVerifier {
         if (subscriptionStatus == null || subscriptionStatus.isBlank()) {
             return false;
         }
-        return INVOKE_ELIGIBLE_STATUSES.contains(subscriptionStatus.trim());
+        return INVOKE_ELIGIBLE_STATUSES.contains(subscriptionStatus.trim().toUpperCase(Locale.ROOT));
     }
 
     public boolean verifyInboundHmac(InboundHmacRequest request) {

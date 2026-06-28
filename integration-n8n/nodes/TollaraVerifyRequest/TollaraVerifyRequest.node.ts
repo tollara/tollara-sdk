@@ -3,7 +3,7 @@ import { verifySignatureFromHeaders, getUserContext } from '@tollara/service-sdk
 import { requireServiceSecret } from '../../lib/tollaraCredentials';
 import { serviceSecretNodeProperty } from '../../lib/nodeProperties';
 import { headersFromWebhookItem, signedPayloadFromWebhookItem } from '../../lib/webhookPayload';
-import { passthroughItemWithJson } from '../../lib/passthroughItem';
+import { passthroughItemWithJson, headerUserContextToPassthrough } from '../../lib/passthroughItem';
 
 export class TollaraVerifyRequest implements INodeType {
   description: INodeTypeDescription = {
@@ -47,7 +47,7 @@ export class TollaraVerifyRequest implements INodeType {
         throw new Error('Invalid HMAC signature');
       }
 
-      const userContext = getUserContext(headers);
+      const userContext = headerUserContextToPassthrough(getUserContext(headers));
 
       returnData.push(passthroughItemWithJson(item, { userContext }, i));
     }

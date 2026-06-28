@@ -86,7 +86,7 @@ sequenceDiagram
 
 ### 2.2 Optional: validate service key and get quota info
 
-Callers that need **plan, quota, or validity** before invoking (or without going through the gateway) call **core** `POST .../agent-keys/validate`. The response is **HMAC-signed**; clients that care about tampering **must** verify the signature using the **service secret** (same rules as in [sdk-api-spec.md](./sdk-api-spec.md) §2).
+Callers that need **entitlement or validity** before invoking (or without going through the gateway) call **core** `POST .../service-keys/validate`. The response is **HMAC-signed**; clients that care about tampering **must** verify the signature using the **service secret** (same rules as in [docs-sdk/MAIN-SDK-API-SPEC.md](../docs-sdk/MAIN-SDK-API-SPEC.md) §2). Success bodies use **`validationSchemaVersion: 3`** with **`serviceProductId`** and **`subscriptionStatus`**; use **`grantsAccess(subscriptionStatus)`** for invoke eligibility.
 
 **SDK value:** Implements **response HMAC verification** (canonical string, constant-time compare), which is easy to get wrong when hand-rolled.
 
@@ -95,7 +95,7 @@ sequenceDiagram
   participant Caller as Caller app
   participant CORE as Core service
 
-  Caller->>CORE: POST /agent-keys/validate (serviceKey, serviceId, serviceSecret in body as required)
+  Caller->>CORE: POST /service-keys/validate (serviceKey, serviceId, serviceSecret in body as required)
   CORE-->>Caller: JSON body + X-Tollara-Signature + X-Tollara-Timestamp
   Note over Caller: SDK verifies HMAC before trusting body
 ```
