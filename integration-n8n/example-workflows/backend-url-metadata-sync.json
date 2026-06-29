@@ -3,8 +3,8 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Backend — URL Metadata API\n\n**Error paths:** Verify **Failure** → 401; Success + !grantAccess → 403; invalid URL → 400; fetch fail → 502.\n\nPair with **subscriber-url-metadata-sync** workflow.",
-        "height": 200,
+        "content": "## Backend — URL Metadata API\n\n**Webhook path:** `url-metadata`\n\n**POST body:** `{ \"url\": \"https://example.com\" }` — gateway callers use `POST …/invoke` with this JSON.\n\n**Error paths:** Verify **Failure** → 401; Success + !grantAccess → 403; invalid URL → 400; fetch fail → 502.\n\nOptional n8n seller demo. Subscribers can use **subscriber-proxied-sync-agent** against **proxied-agent** Docker instead.",
+        "height": 260,
         "width": 440
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000001",

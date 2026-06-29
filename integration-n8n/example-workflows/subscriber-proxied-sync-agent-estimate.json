@@ -1,17 +1,17 @@
 {
-  "name": "Tollara Demo — Subscriber URL Metadata + Estimate",
+  "name": "Tollara Demo — Subscriber Proxied Sync Agent + Estimate",
   "nodes": [
     {
       "parameters": {
-        "content": "## Subscriber — URL Metadata with Estimate Usage\n\n**Error paths:** !tollaraOk or !wouldAllow on estimate; invoke !tollaraOk → Format Error.",
-        "height": 160,
-        "width": 460
+        "content": "## Subscriber — Proxied sync agent + Estimate Usage\n\nSame as **subscriber-proxied-sync-agent** but runs **Tollara Estimate Usage** before invoke.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `YOUR_SERVICE_ID`, `YOUR_SERVICE_SECRET`, `YOUR_PROXIED_SYNC_ENDPOINT_ID`.\n\nService secret must match listing / agent `AGENT_SECRET` (estimate hits core, not the agent directly).\n\n**Local Docker:** Gateway URL on Invoke; Core API URL on Estimate Usage (`http://host.docker.internal:8081`).",
+        "height": 260,
+        "width": 520
       },
       "id": "d2e3f4a5-0005-4000-8000-000000000001",
       "name": "Sticky Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-220, -100]
+      "position": [-560, -220]
     },
     {
       "parameters": {},
@@ -19,17 +19,17 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [0, 320]
+      "position": [0, 200]
     },
     {
       "parameters": {
-        "jsCode": "return [{\n  json: {\n    serviceKey: 'YOUR_SERVICE_KEY',\n    serviceId: 'YOUR_SERVICE_ID',\n    serviceSecret: 'YOUR_SERVICE_SECRET',\n    endpointId: 'YOUR_URL_METADATA_ENDPOINT_ID',\n    estimatedUnits: 1,\n    invokeBody: JSON.stringify({ url: 'https://example.com' }),\n  },\n}];"
+        "jsCode": "return [{\n  json: {\n    serviceKey: 'YOUR_SERVICE_KEY',\n    serviceId: 'YOUR_SERVICE_ID',\n    serviceSecret: 'YOUR_SERVICE_SECRET',\n    endpointId: 'YOUR_PROXIED_SYNC_ENDPOINT_ID',\n    estimatedUnits: 1,\n    invokeBody: JSON.stringify({ message: 'Hello from n8n proxied sync' }),\n  },\n}];"
       },
       "id": "d2e3f4a5-0005-4000-8000-000000000011",
       "name": "Set Config",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [240, 320]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -42,7 +42,7 @@
       "name": "Tollara Estimate Usage",
       "type": "n8n-nodes-tollara.tollaraEstimateUsage",
       "typeVersion": 1,
-      "position": [480, 320]
+      "position": [600, 200]
     },
     {
       "parameters": {
@@ -70,7 +70,7 @@
       "name": "Estimate OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 320]
+      "position": [900, 200]
     },
     {
       "parameters": {
@@ -85,7 +85,7 @@
       "name": "Tollara Invoke",
       "type": "n8n-nodes-tollara.tollaraInvoke",
       "typeVersion": 1,
-      "position": [960, 260]
+      "position": [1200, 200]
     },
     {
       "parameters": {
@@ -105,17 +105,17 @@
       "name": "Invoke OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1200, 260]
+      "position": [1500, 200]
     },
     {
       "parameters": {
-        "jsCode": "const estimate = $('Tollara Estimate Usage').first().json;\nconst invoke = $('Tollara Invoke').first().json;\nconst data = invoke.data ?? {};\nreturn [{ json: { estimate, statusCode: invoke.statusCode, url: data.url, title: data.title, description: data.description } }];"
+        "jsCode": "const estimate = $('Tollara Estimate Usage').first().json;\nconst invoke = $('Tollara Invoke').first().json;\nconst data = invoke.data ?? {};\nreturn [{ json: { estimate, statusCode: invoke.statusCode, message: data.message, receivedPayload: data.receivedPayload, raw: data } }];"
       },
       "id": "d2e3f4a5-0005-4000-8000-000000000014",
       "name": "Format Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1440, 200]
+      "position": [1800, 200]
     },
     {
       "parameters": {
@@ -125,7 +125,7 @@
       "name": "Format Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1440, 380]
+      "position": [1500, 440]
     }
   ],
   "connections": {

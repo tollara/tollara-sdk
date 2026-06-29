@@ -29,12 +29,13 @@ Import-ready demo workflows live in [`example-workflows/`](example-workflows/REA
 
 | Workflow | Mode |
 |----------|------|
-| `backend-url-metadata-sync.json` | Proxied sync backend — fetch page title/description |
-| `backend-topic-brief-async.json` | Proxied async backend — Wikipedia brief + Progress/Complete |
-| `backend-echo-non-proxied.json` | Non-proxied backend — Validate Key + echo + Report Usage |
-| `subscriber-url-metadata-sync.json` | Subscriber — Invoke sync (URL Metadata) |
-| `subscriber-url-metadata-estimate.json` | Subscriber — Estimate Usage + Invoke sync |
-| `subscriber-topic-brief-async.json` | Subscriber — Invoke async + Job Status + Job Result |
+| `backend-url-metadata-sync.json` | Proxied sync backend (optional n8n seller demo) |
+| `backend-topic-brief-async.json` | Proxied async backend (optional n8n seller demo) |
+| `backend-echo-non-proxied.json` | Non-proxied backend (optional n8n seller demo) |
+| `subscriber-proxied-sync-agent.json` | Subscriber — proxied sync agent (`agents/proxied-agent`) |
+| `subscriber-proxied-sync-agent-estimate.json` | Subscriber — estimate + proxied sync agent |
+| `subscriber-proxied-async-agent.json` | Subscriber — proxied async agent + poll |
+| `subscriber-non-proxied-sync-agent.json` | Subscriber — direct non-proxied agent |
 
 **Caller async:** Tollara Invoke (async) → Tollara Job Status → Tollara Job Result
 

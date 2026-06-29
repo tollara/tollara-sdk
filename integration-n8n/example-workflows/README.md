@@ -25,32 +25,50 @@ Backend webhooks wire auth node **Failure** → 401, Success + `!userContext.gra
 
 4. **Backend** workflows: set each Webhook **Production URL** on the Tollara listing `realUrl`.
 
-5. **Subscriber** workflows: edit **Set Config** with your service key, `serviceId`, and `endpointId` from the listing. For **`subscriber-url-metadata-estimate`**, you also need the **service secret** (same as the seller backend) — estimate uses the core pre-flight API, not buyer-only invoke auth.
+5. **Subscriber** workflows: edit **Set Config** (see [Subscriber config](#subscriber-config-set-config) below).
 
 6. Enable **Raw Body** on proxied backend webhooks (already set in exports).
 
-7. Activate **backend** workflows; run **subscriber** workflows manually (Test workflow).
+7. **Backend** n8n workflows are optional demos. **Subscriber** workflows target Docker **agents** via listings — run subscribers manually (Test workflow); activate backends only if you use n8n as the seller service.
 
-## Backend workflows (seller — gateway calls n8n)
+## Backend workflows (optional — seller n8n webhooks)
 
-| File | Mode | Webhook path | Pair with subscriber |
-|------|------|--------------|----------------------|
-| `backend-url-metadata-sync.json` | Proxied sync | `url-metadata` | `subscriber-url-metadata-sync.json` |
-| `backend-topic-brief-async.json` | Proxied async | `topic-brief` | `subscriber-topic-brief-async.json` |
-| `backend-echo-non-proxied.json` | Non-proxied | `subscriber-echo` | (HTTP Request + Bearer — no Invoke node) |
+| File | Mode | Webhook path |
+|------|------|--------------|
+| `backend-url-metadata-sync.json` | Proxied sync | `url-metadata` |
+| `backend-topic-brief-async.json` | Proxied async | `topic-brief` |
+| `backend-echo-non-proxied.json` | Non-proxied | `subscriber-echo` |
 
-**Topic Brief** backend uses **10s** waits between progress steps (~30s total). The paired **subscriber** workflow polls up to **four** times (10s apart, ~40s) before fetching the job result.
+## Subscriber workflows (buyer — invoke Docker agents)
 
-## Subscriber workflows (buyer — n8n calls gateway)
+Targets **proxied-agent** and **non-proxied-agent** (`agents/` in agent-hub) via Tollara listings (or direct HTTP for non-proxied). Start agents with `docker/docker-compose.e2e-agents.yml --profile local` from agent-hub.
 
-| File | Nodes | Targets backend |
-|------|-------|-----------------|
-| `subscriber-url-metadata-sync.json` | Invoke (sync) | URL Metadata |
-| `subscriber-url-metadata-estimate.json` | Estimate Usage → Invoke (sync) | URL Metadata — **requires service secret** (seller); for owner self-test, not buyer-only |
-| `subscriber-topic-brief-async.json` | Invoke (async) → Job Status (poll) → Job Result | Topic Brief |
+| File | Pattern | Agent backend `realUrl` |
+|------|---------|-------------------------|
+| `subscriber-proxied-sync-agent.json` | Invoke (sync) | `http://host.docker.internal:9090/api/test/sync` |
+| `subscriber-proxied-sync-agent-estimate.json` | Estimate → Invoke (sync) | same |
+| `subscriber-proxied-async-agent.json` | Invoke (async) → poll → result | `http://host.docker.internal:9090/api/test/async` |
+| `subscriber-non-proxied-sync-agent.json` | HTTP POST + Bearer (direct) | `http://host.docker.internal:9091/api/test/sync` |
 
-## Tollara listing checklist
+## Subscriber config (Set Config)
 
-- **URL Metadata** — proxied, sync endpoint, POST, product per-request.
-- **Topic Brief** — proxied, **async** endpoint (`isAsync` required), POST, invoke via `…/invoke/async` only.
-- **Echo** — non-proxied, direct webhook URL, POST.
+| Placeholder | Used in | Where to get it |
+|-------------|---------|-----------------|
+| `YOUR_SERVICE_KEY` | All subscriber workflows | **Service Keys** in Tollara UI (buyer key for the listed service) |
+| `YOUR_SERVICE_ID` | Proxied sync / async | Service detail page → **Service ID** (UUID) |
+| `YOUR_PROXIED_SYNC_ENDPOINT_ID` | Proxied sync (+ estimate) | Listing endpoint → **Endpoint ID** for sync POST endpoint |
+| `YOUR_PROXIED_ASYNC_ENDPOINT_ID` | Proxied async | Listing endpoint → **Endpoint ID** for async POST endpoint (`isAsync`) |
+| `YOUR_SERVICE_SECRET` | Estimate workflow only | Same as listing / agent `AGENT_SECRET` |
+| `agentUrl` | Non-proxied only | Direct agent URL (default in workflow; change if not using Docker local profile) |
+
+**Listing secrets:** agent `AGENT_SECRET` (default `test-service-secret-key-change-in-production` in e2e compose) must match the **service secret** on the Tollara listing.
+
+**Proxied listings:** gateway must reach agent URLs (`host.docker.internal` from gateway container).
+
+**Non-proxied:** no gateway invoke — only `YOUR_SERVICE_KEY` and `agentUrl` in Set Config.
+
+## Tollara listing checklist (agents)
+
+- **Proxied sync** — proxied, sync, POST, `realUrl` → proxied-agent `/api/test/sync`.
+- **Proxied async** — proxied, **`isAsync`**, POST, `realUrl` → proxied-agent `/api/test/async`.
+- **Non-proxied** — direct URL exposed, `realUrl` → non-proxied-agent `/api/test/sync`.
