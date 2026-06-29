@@ -137,6 +137,73 @@ public class ServiceKeyValidationClient {
     }
 
     /**
+     * Validates a service key and returns a structured outcome (§2.1.1). Single HTTP attempt; no cache.
+     */
+    public ServiceKeyValidationOutcome validateServiceKeyWithOutcome(String serviceKey) {
+        if (serviceKey == null || serviceKey.isBlank()) {
+            return ServiceKeyValidationOutcome.failure(
+                    ValidationFailureCode.MISSING_KEY, null, null);
+        }
+        String validateUrl = coreServiceUrl + "/service-keys/validate";
+        ValidateRequest request = new ValidateRequest(serviceKey, serviceId, serviceSecret);
+        try {
+            String bodyJson = objectMapper.writeValueAsString(request);
+            HttpResponse<String> response = HttpSupport.postJson(httpClient, validateUrl, bodyJson, Map.of());
+            int httpStatus = response.statusCode();
+            if (httpStatus < 200 || httpStatus >= 300) {
+                return ServiceKeyValidationOutcome.failure(
+                        ValidationFailureCode.HTTP_ERROR, null, httpStatus);
+            }
+            String responseText = response.body();
+            String signature = response.headers().firstValue(TollaraHeaders.SIGNATURE).orElse(null);
+            String timestampStr = response.headers().firstValue(TollaraHeaders.TIMESTAMP).orElse(null);
+            if (signature == null || timestampStr == null) {
+                return ServiceKeyValidationOutcome.failure(
+                        ValidationFailureCode.MISSING_SIGNATURE_HEADERS, null, httpStatus);
+            }
+            long timestamp = Long.parseLong(timestampStr);
+            if (!HmacUtils.validateHmacSignature(signature, responseText + timestamp, serviceSecret)) {
+                return ServiceKeyValidationOutcome.failure(
+                        ValidationFailureCode.HMAC_MISMATCH, null, httpStatus);
+            }
+            ValidationResponse validationResponse;
+            try {
+                validationResponse = objectMapper.readValue(responseText, ValidationResponse.class);
+            } catch (IOException e) {
+                return ServiceKeyValidationOutcome.failure(
+                        ValidationFailureCode.PARSE_ERROR, null, httpStatus);
+            }
+            if (!validationResponse.isValid()) {
+                return ServiceKeyValidationOutcome.failure(
+                        ValidationFailureCode.INVALID_KEY, validationResponse.getError(), httpStatus);
+            }
+            String resultServiceId = validationResponse.getServiceId() != null
+                    ? validationResponse.getServiceId() : serviceId;
+            ServiceKeyValidationResult result = ServiceKeyValidationResult.builder()
+                    .userId(validationResponse.getUserId())
+                    .serviceId(resultServiceId)
+                    .serviceKeyId(validationResponse.getServiceKeyId())
+                    .serviceProductId(validationResponse.getServiceProductId())
+                    .roles(validationResponse.getRoles() != null ? validationResponse.getRoles() : Collections.emptyList())
+                    .subscriptionStatus(validationResponse.getSubscriptionStatus())
+                    .validationSchemaVersion(validationResponse.getValidationSchemaVersion())
+                    .billingModelType(validationResponse.getBillingModelType())
+                    .measurementType(validationResponse.getMeasurementType())
+                    .unitLabel(validationResponse.getUnitLabel())
+                    .build();
+            return ServiceKeyValidationOutcome.success(result);
+        } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            return ServiceKeyValidationOutcome.failure(ValidationFailureCode.NETWORK, null, null);
+        } catch (Exception e) {
+            log.error("Error validating service key with outcome: {}", e.getMessage(), e);
+            return ServiceKeyValidationOutcome.failure(ValidationFailureCode.NETWORK, null, null);
+        }
+    }
+
+    /**
      * Pre-flight usage estimate for a service key (Core {@code POST /service-keys/estimate-usage}). Same trust model as
      * {@link #validateServiceKey(String)}: no Bearer; body carries {@code serviceKey} and optional {@code serviceId} /
      * {@code serviceSecret}. Verifies HMAC on the raw response body when {@code X-Tollara-Signature} and
@@ -351,6 +418,60 @@ public class ServiceKeyValidationClient {
         /** Same rule as {@link #grantAccess()}. */
         public static boolean grantAccess(String subscriptionStatus) {
             return TollaraRequestVerifier.grantAccess(subscriptionStatus);
+        }
+    }
+
+    /** Canonical failure codes for validate outcome (§2.1.1). */
+    public enum ValidationFailureCode {
+        MISSING_KEY,
+        NETWORK,
+        HTTP_ERROR,
+        MISSING_SIGNATURE_HEADERS,
+        HMAC_MISMATCH,
+        INVALID_KEY,
+        PARSE_ERROR
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class ServiceKeyValidationFailure {
+        private ValidationFailureCode code;
+        private String message;
+        private Integer httpStatus;
+    }
+
+    public static final class ServiceKeyValidationOutcome {
+        private final boolean ok;
+        private final ServiceKeyValidationResult result;
+        private final ServiceKeyValidationFailure failure;
+
+        private ServiceKeyValidationOutcome(
+                boolean ok, ServiceKeyValidationResult result, ServiceKeyValidationFailure failure) {
+            this.ok = ok;
+            this.result = result;
+            this.failure = failure;
+        }
+
+        public static ServiceKeyValidationOutcome success(ServiceKeyValidationResult result) {
+            return new ServiceKeyValidationOutcome(true, result, null);
+        }
+
+        public static ServiceKeyValidationOutcome failure(
+                ValidationFailureCode code, String message, Integer httpStatus) {
+            return new ServiceKeyValidationOutcome(
+                    false, null, new ServiceKeyValidationFailure(code, message, httpStatus));
+        }
+
+        public boolean isOk() {
+            return ok;
+        }
+
+        public ServiceKeyValidationResult getResult() {
+            return result;
+        }
+
+        public ServiceKeyValidationFailure getFailure() {
+            return failure;
         }
     }
 

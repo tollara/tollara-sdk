@@ -119,6 +119,10 @@ public final class TollaraClient {
         return core.validateServiceKey(serviceKey);
     }
 
+    public ServiceKeyValidationClient.ServiceKeyValidationOutcome validateServiceKeyWithOutcome(String serviceKey) {
+        return core.validateServiceKeyWithOutcome(serviceKey);
+    }
+
     /**
      * Usage pre-check for a service key (Core {@code /service-keys/estimate-usage}). See {@link ServiceKeyValidationClient#estimateUsage(String, BigDecimal)}.
      */

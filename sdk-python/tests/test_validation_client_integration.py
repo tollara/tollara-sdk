@@ -10,8 +10,11 @@ import responses
 
 from tollara_service_sdk.validation_client import (
     validate_service_key,
+    validate_service_key_with_outcome,
     estimate_usage,
     ServiceKeyValidationResult,
+    ServiceKeyValidationFailure,
+    ValidationFailureCode,
     UsageEstimateResult,
 )
 from tollara_service_sdk.hmac_utils import calculate_hmac
@@ -119,6 +122,76 @@ def test_validate_service_key_returns_none_when_hmac_invalid():
     result = validate_service_key(CORE_BASE, "bearer-token", SERVICE_SECRET, service_id=SERVICE_ID)
 
     assert result is None
+
+
+def test_validate_service_key_with_outcome_missing_key():
+    outcome = validate_service_key_with_outcome(CORE_BASE, "   ", SERVICE_SECRET, service_id=SERVICE_ID)
+    assert isinstance(outcome, ServiceKeyValidationFailure)
+    assert outcome.code == ValidationFailureCode.MISSING_KEY
+
+
+@responses.activate
+def test_validate_service_key_with_outcome_invalid_key_preserves_message():
+    response_body = {"valid": False, "error": "Key expired"}
+    body_str = json.dumps(response_body, separators=(",", ":"))
+    timestamp = "1700000000"
+    signature = calculate_hmac(body_str + timestamp, SERVICE_SECRET)
+    responses.add(
+        responses.POST,
+        f"{CORE_BASE}/api/v1/service-keys/validate",
+        body=body_str,
+        status=200,
+        headers={
+            "X-Tollara-Signature": signature,
+            "X-Tollara-Timestamp": timestamp,
+        },
+    )
+    outcome = validate_service_key_with_outcome(CORE_BASE, "expired", SERVICE_SECRET, service_id=SERVICE_ID)
+    assert isinstance(outcome, ServiceKeyValidationFailure)
+    assert outcome.code == ValidationFailureCode.INVALID_KEY
+    assert outcome.message == "Key expired"
+
+
+@responses.activate
+def test_validate_service_key_with_outcome_http_error_on_401():
+    responses.add(
+        responses.POST,
+        f"{CORE_BASE}/api/v1/service-keys/validate",
+        body="unauthorized",
+        status=401,
+    )
+    outcome = validate_service_key_with_outcome(CORE_BASE, "bad", SERVICE_SECRET, service_id=SERVICE_ID)
+    assert isinstance(outcome, ServiceKeyValidationFailure)
+    assert outcome.code == ValidationFailureCode.HTTP_ERROR
+    assert outcome.http_status == 401
+
+
+@responses.activate
+def test_validate_service_key_with_outcome_hmac_mismatch():
+    response_body = {"valid": True, "userId": "u1"}
+    body_str = json.dumps(response_body, separators=(",", ":"))
+    responses.add(
+        responses.POST,
+        f"{CORE_BASE}/api/v1/service-keys/validate",
+        body=body_str,
+        status=200,
+        headers={
+            "X-Tollara-Signature": "bad-signature",
+            "X-Tollara-Timestamp": "1700000000",
+        },
+    )
+    outcome = validate_service_key_with_outcome(CORE_BASE, "k", SERVICE_SECRET, service_id=SERVICE_ID)
+    assert isinstance(outcome, ServiceKeyValidationFailure)
+    assert outcome.code == ValidationFailureCode.HMAC_MISMATCH
+    assert outcome.http_status == 200
+
+
+def test_validate_service_key_with_outcome_network_error():
+    outcome = validate_service_key_with_outcome(
+        "http://127.0.0.1:1", "k", SERVICE_SECRET, service_id=SERVICE_ID
+    )
+    assert isinstance(outcome, ServiceKeyValidationFailure)
+    assert outcome.code == ValidationFailureCode.NETWORK
 
 
 @responses.activate

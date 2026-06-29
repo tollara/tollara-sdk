@@ -31,14 +31,31 @@ export class TollaraReportUsage implements INodeType {
     const serviceId = requireServiceId(this.getNodeParameter('serviceId', 0) as string);
     const unitsUsed = this.getNodeParameter('unitsUsed', 0) as number;
 
-    const result = await reportUsage({
-      baseUrl: usageApiUrl,
-      userId,
-      serviceId,
-      unitsUsed,
-      serviceSecret,
-    });
+    try {
+      const result = await reportUsage({
+        baseUrl: usageApiUrl,
+        userId,
+        serviceId,
+        unitsUsed,
+        serviceSecret,
+      });
 
-    return [[{ json: result as IDataObject }]];
+      return [[{
+        json: {
+          ...(result as IDataObject),
+          reportSuccess: true,
+        },
+      }]];
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Usage report failed';
+      const statusMatch = message.match(/Usage report failed: (\d+)/);
+      return [[{
+        json: {
+          reportSuccess: false,
+          reportHttpStatus: statusMatch ? Number(statusMatch[1]) : 0,
+          reportError: message,
+        },
+      }]];
+    }
   }
 }

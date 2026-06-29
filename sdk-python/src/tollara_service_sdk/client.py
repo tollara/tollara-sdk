@@ -26,9 +26,11 @@ from .usage_client import (
 from .validation_client import (
     DEFAULT_CORE_PATH_PREFIX,
     ServiceKeyValidationResult,
+    ServiceKeyValidationOutcome,
     UsageEstimateResult,
     estimate_usage,
     validate_service_key,
+    validate_service_key_with_outcome,
 )
 
 if TYPE_CHECKING:
@@ -139,6 +141,16 @@ class TollaraClient:
 
     def validate_service_key(self, service_key: str) -> Optional[ServiceKeyValidationResult]:
         return validate_service_key(
+            self._core_base,
+            service_key,
+            self._service_secret,
+            self._service_id,
+            core_path_prefix=self._core_path_prefix,
+            session=self._session,
+        )
+
+    def validate_service_key_with_outcome(self, service_key: str) -> ServiceKeyValidationOutcome:
+        return validate_service_key_with_outcome(
             self._core_base,
             service_key,
             self._service_secret,

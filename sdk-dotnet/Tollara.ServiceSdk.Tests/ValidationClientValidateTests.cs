@@ -107,4 +107,105 @@ public class ValidationClientValidateTests
         Assert.False(result!.GrantAccess());
         Assert.False(ServiceKeyValidationResult.GrantAccess("EXPIRED"));
     }
+
+    [Fact]
+    public async Task ValidateServiceKeyWithOutcomeAsync_ReturnsMissingKey_WithoutHttpCall()
+    {
+        using var http = new HttpClient(new ValidateOkHandler());
+        var outcome = await ValidationClient.ValidateServiceKeyWithOutcomeAsync(http, CoreRoot, "   ", ServiceId, ServiceSecret);
+        Assert.False(outcome.Ok);
+        var failure = Assert.IsType<ServiceKeyValidationOutcome.Failure>(outcome);
+        Assert.Equal(ValidationFailureCode.MISSING_KEY, failure.Error.Code);
+    }
+
+    [Fact]
+    public async Task ValidateServiceKeyWithOutcomeAsync_ReturnsHttpError_On401()
+    {
+        using var http = new HttpClient(new HttpMessageHandlerStub(HttpStatusCode.Unauthorized, "unauthorized"));
+        var outcome = await ValidationClient.ValidateServiceKeyWithOutcomeAsync(http, CoreRoot, "bad", ServiceId, ServiceSecret);
+        Assert.False(outcome.Ok);
+        var failure = Assert.IsType<ServiceKeyValidationOutcome.Failure>(outcome);
+        Assert.Equal(ValidationFailureCode.HTTP_ERROR, failure.Error.Code);
+        Assert.Equal(401, failure.Error.HttpStatus);
+    }
+
+    [Fact]
+    public async Task ValidateServiceKeyWithOutcomeAsync_ReturnsHmacMismatch_OnBadSignature()
+    {
+        using var http = new HttpClient(new BadHmacHandler());
+        var outcome = await ValidationClient.ValidateServiceKeyWithOutcomeAsync(http, CoreRoot, "k", ServiceId, ServiceSecret);
+        Assert.False(outcome.Ok);
+        var failure = Assert.IsType<ServiceKeyValidationOutcome.Failure>(outcome);
+        Assert.Equal(ValidationFailureCode.HMAC_MISMATCH, failure.Error.Code);
+        Assert.Equal(200, failure.Error.HttpStatus);
+    }
+
+    [Fact]
+    public async Task ValidateServiceKeyWithOutcomeAsync_ReturnsInvalidKey_WithMessage()
+    {
+        using var http = new HttpClient(new InvalidKeyHandler());
+        var outcome = await ValidationClient.ValidateServiceKeyWithOutcomeAsync(http, CoreRoot, "expired", ServiceId, ServiceSecret);
+        Assert.False(outcome.Ok);
+        var failure = Assert.IsType<ServiceKeyValidationOutcome.Failure>(outcome);
+        Assert.Equal(ValidationFailureCode.INVALID_KEY, failure.Error.Code);
+        Assert.Equal("Key expired", failure.Error.Message);
+        Assert.Equal(200, failure.Error.HttpStatus);
+    }
+
+    [Fact]
+    public async Task ValidateServiceKeyWithOutcomeAsync_ReturnsNetwork_OnConnectionFailure()
+    {
+        using var http = new HttpClient();
+        var outcome = await ValidationClient.ValidateServiceKeyWithOutcomeAsync(
+            http, "http://127.0.0.1:1/api/v1", "k", ServiceId, ServiceSecret);
+        Assert.False(outcome.Ok);
+        var failure = Assert.IsType<ServiceKeyValidationOutcome.Failure>(outcome);
+        Assert.Equal(ValidationFailureCode.NETWORK, failure.Error.Code);
+    }
+
+    private sealed class BadHmacHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var msg = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"valid\":true,\"userId\":\"u1\"}", Encoding.UTF8, "application/json"),
+            };
+            msg.Headers.TryAddWithoutValidation(TollaraHeaders.Signature, "bad-signature");
+            msg.Headers.TryAddWithoutValidation(TollaraHeaders.Timestamp, "1700000000");
+            return Task.FromResult(msg);
+        }
+    }
+
+    private sealed class InvalidKeyHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var responseText = "{\"valid\":false,\"error\":\"Key expired\"}";
+            const string timestamp = "1700000000";
+            var signature = Hmac.CalculateHmac(responseText + timestamp, ServiceSecret);
+            var msg = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseText, Encoding.UTF8, "application/json"),
+            };
+            msg.Headers.TryAddWithoutValidation(TollaraHeaders.Signature, signature);
+            msg.Headers.TryAddWithoutValidation(TollaraHeaders.Timestamp, timestamp);
+            return Task.FromResult(msg);
+        }
+    }
+
+    private sealed class HttpMessageHandlerStub : HttpMessageHandler
+    {
+        private readonly HttpStatusCode _status;
+        private readonly string _body;
+
+        public HttpMessageHandlerStub(HttpStatusCode status, string body)
+        {
+            _status = status;
+            _body = body;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(_status) { Content = new StringContent(_body) });
+    }
 }

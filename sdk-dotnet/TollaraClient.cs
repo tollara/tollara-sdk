@@ -99,6 +99,9 @@ public sealed class TollaraClient
     public Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(string serviceKey, CancellationToken ct = default) =>
         ValidationClient.ValidateServiceKeyAsync(_http, _coreRoot, serviceKey, _serviceId, _serviceSecret, ct);
 
+    public Task<ServiceKeyValidationOutcome> ValidateServiceKeyWithOutcomeAsync(string serviceKey, CancellationToken ct = default) =>
+        ValidationClient.ValidateServiceKeyWithOutcomeAsync(_http, _coreRoot, serviceKey, _serviceId, _serviceSecret, ct);
+
     public Task<UsageEstimateResult?> EstimateUsageAsync(string serviceKey, decimal estimatedUnits, CancellationToken ct = default) =>
         ValidationClient.EstimateUsageAsync(_http, _coreRoot, serviceKey, estimatedUnits, _serviceId, _serviceSecret, ct);
 

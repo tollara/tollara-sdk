@@ -36,6 +36,31 @@ public record UsageEstimateResult(
     long Timestamp,
     int HttpStatus);
 
+/// <summary>Canonical failure codes for validate outcome (§2.1.1).</summary>
+public enum ValidationFailureCode
+{
+    MISSING_KEY,
+    NETWORK,
+    HTTP_ERROR,
+    MISSING_SIGNATURE_HEADERS,
+    HMAC_MISMATCH,
+    INVALID_KEY,
+    PARSE_ERROR,
+}
+
+public record ServiceKeyValidationFailure(
+    ValidationFailureCode Code,
+    string? Message = null,
+    int? HttpStatus = null);
+
+public abstract record ServiceKeyValidationOutcome
+{
+    public sealed record Success(ServiceKeyValidationResult Result) : ServiceKeyValidationOutcome;
+    public sealed record Failure(ServiceKeyValidationFailure Error) : ServiceKeyValidationOutcome;
+
+    public bool Ok => this is Success;
+}
+
 public static class ValidationClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -48,30 +73,79 @@ public static class ValidationClient
         string serviceSecret, CancellationToken ct = default) =>
         ValidateServiceKeyAsync(http, DefaultCoreServiceRoot(), serviceKey, serviceId, serviceSecret, ct);
 
+    /// <summary>Validate using the SDK default API origin and Core path prefix (same as <see cref="TollaraClient"/>).</summary>
+    public static Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string serviceKey, string? serviceId,
+        string serviceSecret, CancellationToken ct = default) =>
+        ValidateServiceKeyAsync(http, DefaultCoreServiceRoot(), serviceKey, serviceId, serviceSecret, ct);
+
+    /// <summary>Validate with structured outcome (§2.1.1).</summary>
+    public static Task<ServiceKeyValidationOutcome> ValidateServiceKeyWithOutcomeAsync(HttpClient http, string serviceKey,
+        string? serviceId, string serviceSecret, CancellationToken ct = default) =>
+        ValidateServiceKeyWithOutcomeAsync(http, DefaultCoreServiceRoot(), serviceKey, serviceId, serviceSecret, ct);
+
     /// <summary>Validate against an explicit Core service base (include path prefix, e.g. custom or local stack).</summary>
-    public static async Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string coreServiceUrl,
+    public static async Task<ServiceKeyValidationOutcome> ValidateServiceKeyWithOutcomeAsync(HttpClient http, string coreServiceUrl,
         string serviceKey, string? serviceId, string serviceSecret, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(serviceKey))
+            return new ServiceKeyValidationOutcome.Failure(new ServiceKeyValidationFailure(ValidationFailureCode.MISSING_KEY));
+
         var url = coreServiceUrl.TrimEnd('/') + "/service-keys/validate";
         var body = new { serviceKey, serviceId, serviceSecret };
         var bodyStr = JsonSerializer.Serialize(body);
         var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(bodyStr, Encoding.UTF8, "application/json") };
-        var res = await http.SendAsync(req, ct);
-        if (!res.IsSuccessStatusCode) return null;
+        HttpResponseMessage res;
+        try
+        {
+            res = await http.SendAsync(req, ct);
+        }
+        catch (HttpRequestException)
+        {
+            return new ServiceKeyValidationOutcome.Failure(new ServiceKeyValidationFailure(ValidationFailureCode.NETWORK));
+        }
+
+        var httpStatus = (int)res.StatusCode;
+        if (!res.IsSuccessStatusCode)
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.HTTP_ERROR, HttpStatus: httpStatus));
+
         var responseText = await res.Content.ReadAsStringAsync(ct);
         var signature = res.Headers.TryGetValues(TollaraHeaders.Signature, out var sig) ? string.Join("", sig) : null;
         var timestamp = res.Headers.TryGetValues(TollaraHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
-        if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
-        if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret)) return null;
-        var doc = JsonDocument.Parse(responseText);
+        if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp))
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.MISSING_SIGNATURE_HEADERS, HttpStatus: httpStatus));
+
+        if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret))
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.HMAC_MISMATCH, HttpStatus: httpStatus));
+
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(responseText);
+        }
+        catch (JsonException)
+        {
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.PARSE_ERROR, HttpStatus: httpStatus));
+        }
+
         var root = doc.RootElement;
-        if (root.TryGetProperty("valid", out var v) && !v.GetBoolean()) return null;
+        if (root.TryGetProperty("valid", out var v) && !v.GetBoolean())
+        {
+            var message = ReadString(root, "error");
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.INVALID_KEY, message, httpStatus));
+        }
+
         var roles = root.TryGetProperty("roles", out var r) ? r.EnumerateArray().Select(x => x.GetString() ?? "").ToList() : new List<string>();
         Guid? serviceKeyId = null;
         if (root.TryGetProperty("serviceKeyId", out var sk) && sk.ValueKind == JsonValueKind.String &&
             Guid.TryParse(sk.GetString(), out var skGuid))
             serviceKeyId = skGuid;
-        return new ServiceKeyValidationResult(
+
+        var result = new ServiceKeyValidationResult(
             root.TryGetProperty("userId", out var uid) ? uid.GetString() : null,
             root.TryGetProperty("serviceId", out var sid) ? sid.GetString() : serviceId,
             ReadString(root, "serviceProductId"),
@@ -83,6 +157,15 @@ public static class ValidationClient
             ReadString(root, "unitLabel"),
             serviceKeyId
         );
+        return new ServiceKeyValidationOutcome.Success(result);
+    }
+
+    /// <summary>Validate against an explicit Core service base (include path prefix, e.g. custom or local stack).</summary>
+    public static async Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string coreServiceUrl,
+        string serviceKey, string? serviceId, string serviceSecret, CancellationToken ct = default)
+    {
+        var outcome = await ValidateServiceKeyWithOutcomeAsync(http, coreServiceUrl, serviceKey, serviceId, serviceSecret, ct);
+        return outcome is ServiceKeyValidationOutcome.Success s ? s.Result : null;
     }
 
     /// <summary>Estimate usage using the SDK default Core root (same as <see cref="TollaraClient"/>).</summary>

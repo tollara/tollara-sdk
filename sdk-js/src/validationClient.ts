@@ -37,11 +37,125 @@ export interface UsageEstimateResult {
   httpStatus: number;
 }
 
-const CACHE_TTL_MS = 60_000;
+/** Canonical failure codes for validateServiceKeyWithOutcome (see docs-sdk §2.1.1). */
+export type ValidationFailureCode =
+  | 'MISSING_KEY'
+  | 'NETWORK'
+  | 'HTTP_ERROR'
+  | 'MISSING_SIGNATURE_HEADERS'
+  | 'HMAC_MISMATCH'
+  | 'INVALID_KEY'
+  | 'PARSE_ERROR';
 
-interface CachedResult {
-  result: ServiceKeyValidationResult;
-  ts: number;
+export type ServiceKeyValidationOutcome =
+  | { ok: true; result: ServiceKeyValidationResult }
+  | { ok: false; code: ValidationFailureCode; message?: string; httpStatus?: number };
+
+interface ValidateResponseBody {
+  valid?: boolean;
+  serviceKeyId?: string;
+  userId?: string;
+  serviceId?: string;
+  serviceProductId?: string;
+  roles?: string[];
+  subscriptionStatus?: string;
+  validationSchemaVersion?: number;
+  billingModelType?: string | null;
+  measurementType?: string | null;
+  unitLabel?: string | null;
+  error?: string;
+}
+
+function parseValidationResult(
+  data: ValidateResponseBody,
+  serviceId: string | null,
+): ServiceKeyValidationResult {
+  const subscriptionStatus =
+    typeof data.subscriptionStatus === 'string' ? data.subscriptionStatus : null;
+
+  return {
+    userId: data.userId ?? null,
+    serviceId: data.serviceId ?? serviceId ?? null,
+    serviceKeyId:
+      typeof data.serviceKeyId === 'string' && data.serviceKeyId.length > 0 ? data.serviceKeyId : null,
+    serviceProductId: typeof data.serviceProductId === 'string' ? data.serviceProductId : null,
+    roles: Array.isArray(data.roles) ? data.roles : [],
+    subscriptionStatus,
+    validationSchemaVersion:
+      typeof data.validationSchemaVersion === 'number' ? data.validationSchemaVersion : 0,
+    billingModelType: data.billingModelType ?? null,
+    measurementType: data.measurementType ?? null,
+    unitLabel: data.unitLabel ?? null,
+    grantAccess: grantAccess(subscriptionStatus),
+  };
+}
+
+/**
+ * Validates a service key via the Tollara API and verifies response HMAC.
+ * Returns a discriminated outcome with canonical failure codes (§2.1.1).
+ */
+export async function validateServiceKeyWithOutcome(params: {
+  baseUrl?: string | null;
+  serviceKey: string;
+  serviceId: string | null;
+  serviceSecret: string;
+  fetch?: typeof globalThis.fetch;
+}): Promise<ServiceKeyValidationOutcome> {
+  const { baseUrl, serviceKey, serviceId, serviceSecret, fetch: fetchFn = fetch } = params;
+  if (!serviceKey?.trim()) {
+    return { ok: false, code: 'MISSING_KEY' };
+  }
+
+  const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
+  const url = `${joinUrl(origin, DEFAULT_CORE_PATH_PREFIX)}/service-keys/validate`;
+  const body = JSON.stringify({ serviceKey, serviceId, serviceSecret });
+
+  let res: Response;
+  try {
+    res = await fetchFn(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+  } catch {
+    return { ok: false, code: 'NETWORK' };
+  }
+
+  const httpStatus = res.status;
+  if (!res.ok) {
+    return { ok: false, code: 'HTTP_ERROR', httpStatus };
+  }
+
+  const responseText = await res.text();
+  const signature = res.headers.get(TollaraHeaders.SIGNATURE);
+  const timestamp = res.headers.get(TollaraHeaders.TIMESTAMP);
+  if (!signature || !timestamp) {
+    return { ok: false, code: 'MISSING_SIGNATURE_HEADERS', httpStatus };
+  }
+
+  const dataToVerify = responseText + timestamp;
+  const expectedSig = calculateHmac(dataToVerify, serviceSecret);
+  if (!constantTimeEquals(expectedSig, signature)) {
+    return { ok: false, code: 'HMAC_MISMATCH', httpStatus };
+  }
+
+  let data: ValidateResponseBody;
+  try {
+    data = JSON.parse(responseText) as ValidateResponseBody;
+  } catch {
+    return { ok: false, code: 'PARSE_ERROR', httpStatus };
+  }
+
+  if (!data.valid) {
+    return {
+      ok: false,
+      code: 'INVALID_KEY',
+      message: typeof data.error === 'string' ? data.error : undefined,
+      httpStatus,
+    };
+  }
+
+  return { ok: true, result: parseValidationResult(data, serviceId) };
 }
 
 /**
@@ -56,74 +170,8 @@ export async function validateServiceKey(
     fetch?: typeof globalThis.fetch;
   }
 ): Promise<ServiceKeyValidationResult | null> {
-  const { baseUrl, serviceKey, serviceId, serviceSecret, fetch: fetchFn = fetch } = params;
-  if (!serviceKey?.trim()) return null;
-
-  const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
-  const url = `${joinUrl(origin, DEFAULT_CORE_PATH_PREFIX)}/service-keys/validate`;
-  const body = JSON.stringify({ serviceKey, serviceId, serviceSecret });
-
-  let res: Response;
-  try {
-    res = await fetchFn(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    });
-  } catch {
-    return null;
-  }
-
-  if (!res.ok) return null;
-
-  const responseText = await res.text();
-  const signature = res.headers.get(TollaraHeaders.SIGNATURE);
-  const timestamp = res.headers.get(TollaraHeaders.TIMESTAMP);
-  if (!signature || !timestamp) return null;
-
-  const dataToVerify = responseText + timestamp;
-  const expectedSig = calculateHmac(dataToVerify, serviceSecret);
-  if (!constantTimeEquals(expectedSig, signature)) return null;
-
-  let data: {
-    valid?: boolean;
-    serviceKeyId?: string;
-    userId?: string;
-    serviceId?: string;
-    serviceProductId?: string;
-    roles?: string[];
-    subscriptionStatus?: string;
-    validationSchemaVersion?: number;
-    billingModelType?: string | null;
-    measurementType?: string | null;
-    unitLabel?: string | null;
-    error?: string;
-  };
-  try {
-    data = JSON.parse(responseText);
-  } catch {
-    return null;
-  }
-
-  if (!data.valid) return null;
-
-  const subscriptionStatus =
-    typeof data.subscriptionStatus === 'string' ? data.subscriptionStatus : null;
-
-  return {
-    userId: data.userId ?? null,
-    serviceId: data.serviceId ?? serviceId ?? null,
-    serviceKeyId: typeof data.serviceKeyId === 'string' && data.serviceKeyId.length > 0 ? data.serviceKeyId : null,
-    serviceProductId: typeof data.serviceProductId === 'string' ? data.serviceProductId : null,
-    roles: Array.isArray(data.roles) ? data.roles : [],
-    subscriptionStatus,
-    validationSchemaVersion:
-      typeof data.validationSchemaVersion === 'number' ? data.validationSchemaVersion : 0,
-    billingModelType: data.billingModelType ?? null,
-    measurementType: data.measurementType ?? null,
-    unitLabel: data.unitLabel ?? null,
-    grantAccess: grantAccess(subscriptionStatus),
-  };
+  const outcome = await validateServiceKeyWithOutcome(params);
+  return outcome.ok ? outcome.result : null;
 }
 
 function parseEstimateResult(data: Record<string, unknown>, httpStatus: number): UsageEstimateResult {
@@ -247,6 +295,13 @@ export async function estimateUsageWithJwt(params: {
   }
 
   return parseEstimateResult(data, code);
+}
+
+const CACHE_TTL_MS = 60_000;
+
+interface CachedResult {
+  result: ServiceKeyValidationResult;
+  ts: number;
 }
 
 /** Simple cache for validateServiceKey (optional). */

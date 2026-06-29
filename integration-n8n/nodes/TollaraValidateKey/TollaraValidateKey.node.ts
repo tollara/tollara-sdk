@@ -1,9 +1,14 @@
-import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
-import { validateServiceKey } from '@tollara/service-sdk';
+import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
+import { validateServiceKeyWithOutcome } from '@tollara/service-sdk';
 import { optionalServiceId, requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
 import { bearerTokenFromWebhookItem } from '../../lib/webhookPayload';
-import { passthroughItemWithJson, validationResultToUserContext } from '../../lib/passthroughItem';
+import {
+  authFailureItem,
+  missingKeyFailureFields,
+  outcomeFieldsFromValidation,
+  validateKeySuccessItem,
+} from '../../lib/tollaraOutcome';
 
 export class TollaraValidateKey implements INodeType {
   description: INodeTypeDescription = {
@@ -11,11 +16,13 @@ export class TollaraValidateKey implements INodeType {
     name: 'tollaraValidateKey',
     icon: 'file:tollara.png',
     group: ['transform'],
-    version: 1,
-    description: 'Validate a service key (typical after Webhook). Passes through all incoming data and adds userContext.',
+    version: 2,
+    description:
+      'Validate a service key (typical after Webhook). Success output adds userContext; Failure output adds tollaraErrorCode.',
     defaults: { name: 'Tollara Validate Key' },
     inputs: ['main'],
-    outputs: ['main'],
+    outputs: ['main', 'main'],
+    outputNames: ['Success', 'Failure'],
     properties: [
       serviceSecretNodeProperty,
       {
@@ -54,7 +61,8 @@ export class TollaraValidateKey implements INodeType {
     const manualServiceKey = this.getNodeParameter('serviceKey', 0, '') as string;
 
     const items = this.getInputData();
-    const returnData: INodeExecutionData[] = [];
+    const successData: INodeExecutionData[] = [];
+    const failureData: INodeExecutionData[] = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -64,29 +72,34 @@ export class TollaraValidateKey implements INodeType {
           : bearerTokenFromWebhookItem(item);
 
       if (!serviceKey?.trim()) {
-        throw new Error(
-          serviceKeySource === 'manual'
-            ? 'Service key is required when using Manual source'
-            : 'No Bearer token found in headers.authorization — place this node after the n8n Webhook node, or switch to Manual',
+        failureData.push(
+          authFailureItem(
+            item,
+            missingKeyFailureFields(
+              serviceKeySource === 'manual'
+                ? 'Service key is required when using Manual source'
+                : 'No Bearer token found in headers.authorization',
+            ),
+            i,
+          ),
         );
+        continue;
       }
 
-      const result = await validateServiceKey({
+      const outcome = await validateServiceKeyWithOutcome({
         baseUrl: coreApiUrl,
         serviceKey,
         serviceId,
         serviceSecret,
       });
 
-      if (!result) {
-        throw new Error('Service key validation failed');
+      if (outcome.ok) {
+        successData.push(validateKeySuccessItem(item, outcome, i));
+      } else {
+        failureData.push(authFailureItem(item, outcomeFieldsFromValidation(outcome), i));
       }
-
-      returnData.push(
-        passthroughItemWithJson(item, { userContext: validationResultToUserContext(result) }, i),
-      );
     }
 
-    return [returnData];
+    return [successData, failureData];
   }
 }

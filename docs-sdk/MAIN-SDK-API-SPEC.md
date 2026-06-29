@@ -184,6 +184,28 @@ Used by both callers and backends to validate a service key and get user/entitle
 3. Compare `expectedSignature` with `X-Tollara-Signature` using **constant-time** comparison.
 4. If they differ, treat the response as invalid and do not trust the body.
 
+### 2.1.1 Validate outcome (SDK)
+
+All language SDKs expose **`validateServiceKeyWithOutcome`** (idiomatic naming per language) in addition to **`validateServiceKey`**, which remains a thin wrapper returning `null` on any failure.
+
+**Success:** `{ ok: true, result: ServiceKeyValidationResult }`
+
+**Failure:** `{ ok: false, code, message?, httpStatus? }`
+
+**`code` values (exact strings, all SDKs):**
+
+| Code | When |
+|------|------|
+| `MISSING_KEY` | Blank/whitespace service key (no HTTP call) |
+| `NETWORK` | Transport/connection failure |
+| `HTTP_ERROR` | Non-2xx response (typically unsigned empty body per §2.1) |
+| `MISSING_SIGNATURE_HEADERS` | 2xx body but missing `X-Tollara-Signature` or `X-Tollara-Timestamp` |
+| `HMAC_MISMATCH` | Signature verification failed |
+| `INVALID_KEY` | Signed body with `valid: false` — set `message` from Core `error` field when present |
+| `PARSE_ERROR` | Response body not valid JSON |
+
+**Not a failure:** `valid: true` with a `subscriptionStatus` where `grantAccess(subscriptionStatus)` is `false` (e.g. `EXPIRED`) — returns success outcome; callers branch on `grantAccess` / subscription status.
+
 ### 2.2 Usage estimate (JWT)
 
 **Request**
@@ -452,6 +474,7 @@ Public marketplace and workspace list/detail responses that serialize **`Service
 
 | Date | Summary |
 |------|---------|
+| 2026-06-28 | **§2.1.1 validate outcome:** All SDKs expose `validateServiceKeyWithOutcome` with canonical failure codes (`MISSING_KEY`, `NETWORK`, `HTTP_ERROR`, etc.); `validateServiceKey` unchanged (returns null on failure). |
 | 2026-06-28 | **Validation/gateway v3 + unified usage:** Validate `validationSchemaVersion: 3` with `serviceProductId`, `subscriptionStatus`; remove `plan`, `quotaRemaining`, `subscriptionActive`. Gateway HMAC v3 (`X-Tollara-Signing-Version: 3`, `X-Tollara-Service-Product-ID`, `X-Tollara-Subscription-Status`). Estimate `estimateSchemaVersion: 3` — balances/caps on `breakdown` only (`breakdown.remainingCredits` for PREPAID). Report `reportSchemaVersion: 2` with identity + `breakdown`. SDK `grantAccess(subscriptionStatus)`. §2.1–§2.3, §3.1, §4, §6. |
 | 2026-06-23 | **§3 / §6 HMAC verification:** Documented that usage service **progress** and **completion** endpoints verify HMAC against the **raw HTTP request body**, not re-serialized JSON after parse. SDKs must sign the exact bytes they send. |
 | 2026-05-05 | **Discovery + accuracy:** Documented **`TOLLARA-SDK-ENDPOINT`** Javadoc tag for finding platform implementations of this spec. **§2.1** `serviceKeyId` description now references DB table **`service_keys`** (replaces stale `agent_keys`). |

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from enum import Enum
+from typing import Any, Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from .tollara_headers import TollaraHeaders
@@ -73,36 +74,30 @@ class UsageEstimateResult:
     http_status: int
 
 
-def validate_service_key(
-    base_url: str,
-    service_key: str,
-    service_secret: str,
-    service_id: Optional[str] = None,
-    *,
-    core_path_prefix: Optional[str] = None,
-    session: Optional["requests.Session"] = None,
-) -> Optional[ServiceKeyValidationResult]:
-    """Validate service key via Core service. Requires 'requests' (pip install requests)."""
-    try:
-        import requests
-    except ImportError:
-        raise ImportError("validate_service_key requires 'requests'. pip install requests")
-    url = _validate_url(base_url, core_path_prefix)
-    body = {"serviceKey": service_key, "serviceId": service_id, "serviceSecret": service_secret}
-    sess = session or requests.Session()
-    resp = sess.post(url, json=body)
-    if not resp.ok:
-        return None
-    response_text = resp.text
-    signature = resp.headers.get(TollaraHeaders.SIGNATURE)
-    timestamp = resp.headers.get(TollaraHeaders.TIMESTAMP)
-    if not signature or not timestamp:
-        return None
-    if not validate_hmac_signature(signature, response_text + timestamp, service_secret):
-        return None
-    data = resp.json()
-    if not data.get("valid"):
-        return None
+    http_status: int
+
+
+class ValidationFailureCode(str, Enum):
+    MISSING_KEY = "MISSING_KEY"
+    NETWORK = "NETWORK"
+    HTTP_ERROR = "HTTP_ERROR"
+    MISSING_SIGNATURE_HEADERS = "MISSING_SIGNATURE_HEADERS"
+    HMAC_MISMATCH = "HMAC_MISMATCH"
+    INVALID_KEY = "INVALID_KEY"
+    PARSE_ERROR = "PARSE_ERROR"
+
+
+@dataclass
+class ServiceKeyValidationFailure:
+    code: ValidationFailureCode
+    message: Optional[str] = None
+    http_status: Optional[int] = None
+
+
+ServiceKeyValidationOutcome = Union[ServiceKeyValidationResult, ServiceKeyValidationFailure]
+
+
+def _parse_validation_result(data: Dict[str, Any], service_id: Optional[str]) -> ServiceKeyValidationResult:
     roles = data.get("roles") or []
     return ServiceKeyValidationResult(
         user_id=data.get("userId"),
@@ -116,6 +111,74 @@ def validate_service_key(
         measurement_type=data.get("measurementType"),
         unit_label=data.get("unitLabel"),
     )
+
+
+def validate_service_key_with_outcome(
+    base_url: str,
+    service_key: str,
+    service_secret: str,
+    service_id: Optional[str] = None,
+    *,
+    core_path_prefix: Optional[str] = None,
+    session: Optional["requests.Session"] = None,
+) -> ServiceKeyValidationOutcome:
+    """Validate service key via Core service; returns result or structured failure (§2.1.1)."""
+    if not service_key or not str(service_key).strip():
+        return ServiceKeyValidationFailure(code=ValidationFailureCode.MISSING_KEY)
+    try:
+        import requests
+    except ImportError:
+        raise ImportError("validate_service_key_with_outcome requires 'requests'. pip install requests")
+    url = _validate_url(base_url, core_path_prefix)
+    body = {"serviceKey": service_key, "serviceId": service_id, "serviceSecret": service_secret}
+    sess = session or requests.Session()
+    try:
+        resp = sess.post(url, json=body)
+    except requests.RequestException:
+        return ServiceKeyValidationFailure(code=ValidationFailureCode.NETWORK)
+    http_status = resp.status_code
+    if not resp.ok:
+        return ServiceKeyValidationFailure(code=ValidationFailureCode.HTTP_ERROR, http_status=http_status)
+    response_text = resp.text
+    signature = resp.headers.get(TollaraHeaders.SIGNATURE)
+    timestamp = resp.headers.get(TollaraHeaders.TIMESTAMP)
+    if not signature or not timestamp:
+        return ServiceKeyValidationFailure(
+            code=ValidationFailureCode.MISSING_SIGNATURE_HEADERS, http_status=http_status
+        )
+    if not validate_hmac_signature(signature, response_text + timestamp, service_secret):
+        return ServiceKeyValidationFailure(code=ValidationFailureCode.HMAC_MISMATCH, http_status=http_status)
+    try:
+        data = resp.json()
+    except ValueError:
+        return ServiceKeyValidationFailure(code=ValidationFailureCode.PARSE_ERROR, http_status=http_status)
+    if not data.get("valid"):
+        err = data.get("error")
+        return ServiceKeyValidationFailure(
+            code=ValidationFailureCode.INVALID_KEY,
+            message=str(err) if err is not None else None,
+            http_status=http_status,
+        )
+    return _parse_validation_result(data, service_id)
+
+
+def validate_service_key(
+    base_url: str,
+    service_key: str,
+    service_secret: str,
+    service_id: Optional[str] = None,
+    *,
+    core_path_prefix: Optional[str] = None,
+    session: Optional["requests.Session"] = None,
+) -> Optional[ServiceKeyValidationResult]:
+    """Validate service key via Core service. Requires 'requests' (pip install requests)."""
+    outcome = validate_service_key_with_outcome(
+        base_url, service_key, service_secret, service_id,
+        core_path_prefix=core_path_prefix, session=session,
+    )
+    if isinstance(outcome, ServiceKeyValidationFailure):
+        return None
+    return outcome
 
 
 def estimate_usage(
