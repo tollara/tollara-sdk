@@ -113,6 +113,125 @@ async fn validate_service_key_returns_none_when_hmac_invalid() {
 }
 
 #[tokio::test]
+async fn validate_service_key_with_outcome_returns_missing_key_without_http() {
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client,
+        "http://unused/api/v1",
+        "   ",
+        AGENT_SECRET,
+        Some(AGENT_ID),
+    )
+    .await;
+    assert!(!outcome.ok());
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::MissingKey);
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
+async fn validate_service_key_with_outcome_returns_http_error_on_401() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/validate")
+        .with_status(401)
+        .with_body("unauthorized")
+        .create();
+
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client, &core_base, "bad", AGENT_SECRET, Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::HttpError);
+            assert_eq!(f.http_status, Some(401));
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
+async fn validate_service_key_with_outcome_returns_hmac_mismatch() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+    let body_str = r#"{"valid":true,"userId":"u1"}"#;
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/validate")
+        .with_status(200)
+        .with_header("X-Tollara-Signature", "bad-signature")
+        .with_header("X-Tollara-Timestamp", "1700000000")
+        .with_body(body_str)
+        .create();
+
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client, &core_base, "k", AGENT_SECRET, Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::HmacMismatch);
+            assert_eq!(f.http_status, Some(200));
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
+async fn validate_service_key_with_outcome_returns_invalid_key_with_message() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+    let body_str = r#"{"valid":false,"error":"Key expired"}"#;
+    let timestamp = "1700000000";
+    let signature = calculate_hmac(&format!("{}{}", body_str, timestamp), AGENT_SECRET);
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/validate")
+        .with_status(200)
+        .with_header("X-Tollara-Signature", &signature)
+        .with_header("X-Tollara-Timestamp", timestamp)
+        .with_body(body_str)
+        .create();
+
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client, &core_base, "expired", AGENT_SECRET, Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::InvalidKey);
+            assert_eq!(f.message.as_deref(), Some("Key expired"));
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
+async fn validate_service_key_with_outcome_returns_network_on_connection_failure() {
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client,
+        "http://127.0.0.1:1/api/v1",
+        "k",
+        AGENT_SECRET,
+        Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::Network);
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
 async fn estimate_usage_returns_v3_breakdown_when_core_returns_200_with_valid_hmac() {
     let mut server = mockito::Server::new();
     let core_base = format!("{}/api/v1", server.url());

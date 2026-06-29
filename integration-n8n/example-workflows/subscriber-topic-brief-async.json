@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Subscriber — Topic Brief (async invoke + poll)\n\nCalls **backend-topic-brief-async** via gateway.\n\nPolls **Job Status** every 10s (up to four attempts, ~40s) then fetches **Job Result** only after a terminal status or the final poll.\n\nEdit **Set Config** — service key, service/endpoint IDs for Topic Brief listing. For local Docker, enable **Set API Endpoints** on Invoke / Job Status / Job Result (Gateway URL).\n\n**Requires:** backend-topic-brief-async active.",
+        "content": "## Subscriber — Topic Brief (async invoke + poll)\n\nCalls **backend-topic-brief-async** via gateway.\n\nPolls **Job Status** every 10s (up to four attempts, ~40s) then fetches **Job Result** only after a terminal status or the final poll.\n\n**Error paths:** invoke !202 → Format Error; job FAILED/ERROR or !tollaraOk on result → Format Error.\n\nEdit **Set Config** — service key, service/endpoint IDs for Topic Brief listing. For local Docker, enable **Set API Endpoints** on Invoke / Job Status / Job Result (Gateway URL).\n\n**Requires:** backend-topic-brief-async active.",
         "height": 280,
         "width": 480
       },
@@ -45,6 +45,36 @@
       "type": "n8n-nodes-tollara.tollaraInvoke",
       "typeVersion": 1,
       "position": [480, 320]    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-async-202",
+            "leftValue": "={{ $json.tollaraOk && $json.statusCode === 202 }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e3f4a5b6-0006-4000-8000-00000000001f",
+      "name": "Invoke OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst invoke = $('Tollara Invoke').first().json;\nconst status = (row.data?.status ?? row.jobStatus ?? '').toString().toUpperCase();\nreturn [{ json: { status: 'error', message: status === 'FAILED' || status === 'ERROR' ? 'Async job failed' : 'Async job or result request failed', jobStatus: status, statusCode: row.statusCode, tollaraOk: row.tollaraOk, body: row.data ?? row.body, requestId: invoke.requestId } }];"
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000020",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 420]
+    },
     {
       "parameters": {
         "amount": 10
@@ -284,6 +314,46 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [4560, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-job-tollara-ok",
+              "leftValue": "={{ $json.tollaraOk }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "cond-job-completed",
+              "leftValue": "={{ ($json.data?.status ?? '').toUpperCase() }}",
+              "rightValue": "COMPLETED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000022",
+      "name": "Job OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [4440, 320]
     }
   ],
   "connections": {
@@ -313,7 +383,25 @@
       "main": [
         [
           {
+            "node": "Invoke OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoke OK?": {
+      "main": [
+        [
+          {
             "node": "Wait 10s",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
             "type": "main",
             "index": 0
           }
@@ -510,7 +598,25 @@
       "main": [
         [
           {
+            "node": "Job OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job OK?": {
+      "main": [
+        [
+          {
             "node": "Format Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
             "type": "main",
             "index": 0
           }

@@ -22,7 +22,11 @@ from .billing_client import estimate_usage_with_jwt
 from .gateway_invoke import GatewayInvokeAsyncEnvelope, GatewayInvokeResult, invoke_service
 from .validation_client import (
     validate_service_key,
+    validate_service_key_with_outcome,
     ServiceKeyValidationResult,
+    ServiceKeyValidationFailure,
+    ServiceKeyValidationOutcome,
+    ValidationFailureCode,
     estimate_usage,
     UsageEstimateResult,
 )
@@ -71,6 +75,10 @@ __all__ = [
     "UsageBreakdown",
     "parse_usage_breakdown",
     "validate_service_key",
+    "validate_service_key_with_outcome",
+    "ValidationFailureCode",
+    "ServiceKeyValidationFailure",
+    "ServiceKeyValidationOutcome",
     "estimate_usage",
     "estimate_usage_with_jwt",
     "invoke_service",

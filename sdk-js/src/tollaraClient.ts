@@ -18,6 +18,8 @@ import {
   estimateUsage,
   estimateUsageWithJwt,
   validateServiceKey,
+  validateServiceKeyWithOutcome,
+  type ServiceKeyValidationOutcome,
   type ServiceKeyValidationResult,
   type UsageEstimateResult,
 } from './validationClient';
@@ -94,6 +96,16 @@ export class TollaraClient {
 
   async validateServiceKey(serviceKey: string): Promise<ServiceKeyValidationResult | null> {
     return validateServiceKey({
+      baseUrl: this.apiOrigin,
+      serviceKey,
+      serviceId: this.serviceId,
+      serviceSecret: this.serviceSecret,
+      fetch: this.fetchFn,
+    });
+  }
+
+  async validateServiceKeyWithOutcome(serviceKey: string): Promise<ServiceKeyValidationOutcome> {
+    return validateServiceKeyWithOutcome({
       baseUrl: this.apiOrigin,
       serviceKey,
       serviceId: this.serviceId,

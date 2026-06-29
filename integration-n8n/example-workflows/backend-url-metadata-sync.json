@@ -3,8 +3,8 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Backend — URL Metadata API\n\n**Tollara:** proxied sync **service** (seller)\n\n**Webhook path:** `url-metadata`\n\n**Caller invokes:** `POST …/invoke` with `{ \"url\": \"https://example.com\" }`\n\n**After import:** run `npm run repair:workflows` from `integration-n8n` if **Tollara Verify Request** shows a broken icon, then set **Service Secret** on Tollara nodes. For local Docker, enable **Set API Endpoints** on Progress/Complete and set Usage API URL.\n\nPair with **subscriber-url-metadata-sync** workflow.",
-        "height": 260,
+        "content": "## Backend — URL Metadata API\n\n**Error paths:** Verify **Failure** → 401; Success + !grantAccess → 403; invalid URL → 400; fetch fail → 502.\n\nPair with **subscriber-url-metadata-sync** workflow.",
+        "height": 200,
         "width": 440
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000001",
@@ -18,9 +18,7 @@
         "httpMethod": "POST",
         "path": "url-metadata",
         "responseMode": "responseNode",
-        "options": {
-          "rawBody": true
-        }
+        "options": { "rawBody": true }
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000010",
       "name": "Webhook",
@@ -37,8 +35,28 @@
       "id": "a1b2c3d4-0001-4000-8000-000000000011",
       "name": "Tollara Verify Request",
       "type": "n8n-nodes-tollara.tollaraVerifyRequest",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-grant",
+            "leftValue": "={{ $json.userContext.grantAccess }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000018",
+      "name": "Grant Access?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 240]
     },
     {
       "parameters": {
@@ -48,29 +66,18 @@
       "name": "Parse Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 300]
+      "position": [720, 180]
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "cond-valid-url",
-              "leftValue": "={{ $json.valid }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-valid-url",
+            "leftValue": "={{ $json.valid }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
           "combinator": "and"
         },
         "options": {}
@@ -79,147 +86,146 @@
       "name": "URL Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [720, 300]
+      "position": [960, 180]
     },
     {
       "parameters": {
         "url": "={{ $json.url }}",
         "options": {
           "timeout": 15000,
-          "response": {
-            "response": {
-              "neverError": true
-            }
-          }
+          "response": { "response": { "fullResponse": true, "neverError": true } }
         }
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000014",
       "name": "Fetch Page",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 200]
+      "position": [1200, 100]
     },
     {
       "parameters": {
-        "jsCode": "const html = $input.first().json.data ?? $input.first().json.body ?? '';\nconst url = $('Parse Input').first().json.url;\n\nfunction pick(re, text) {\n  const m = text.match(re);\n  return m ? m[1].trim() : null;\n}\n\nconst title = pick(/<title[^>]*>([^<]*)<\\/title>/i, html)\n  || pick(/<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']+)[\"']/i, html);\n\nconst description = pick(/<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']+)[\"']/i, html)\n  || pick(/<meta[^>]+property=[\"']og:description[\"'][^>]+content=[\"']([^\"']+)[\"']/i, html);\n\nreturn [{ json: { url, title, description, status: 'ok' } }];"
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-fetch-ok",
+            "leftValue": "={{ $json.statusCode >= 200 && $json.statusCode < 300 }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-00000000001b",
+      "name": "Fetch OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1440, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.body ?? $input.first().json.data ?? '';\nconst url = $('Parse Input').first().json.url;\nfunction pick(re, text) { const m = text.match(re); return m ? m[1].trim() : null; }\nconst title = pick(/<title[^>]*>([^<]*)<\\/title>/i, html) || pick(/<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']+)[\"']/i, html);\nconst description = pick(/<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']+)[\"']/i, html) || pick(/<meta[^>]+property=[\"']og:description[\"'][^>]+content=[\"']([^\"']+)[\"']/i, html);\nreturn [{ json: { url, title, description, status: 'ok' } }];"
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000015",
       "name": "Extract Metadata",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1200, 200]
+      "position": [1680, 40]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": {
-          "responseCode": 200
-        }
+        "options": { "responseCode": 200 }
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000016",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1440, 200]
+      "position": [1920, 40]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { status: 'error', message: 'Missing or invalid url — send { \"url\": \"https://...\" }' } }}",
-        "options": {
-          "responseCode": 400
-        }
+        "options": { "responseCode": 400 }
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000017",
       "name": "Respond Bad Request",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [960, 420]
+      "position": [1200, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'error', message: 'Unauthorized — invalid HMAC', code: $json.tollaraErrorCode } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000019",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [480, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'error', message: 'Forbidden — subscription does not grant access' } }}",
+        "options": { "responseCode": 403 }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-00000000001a",
+      "name": "Respond Forbidden",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'error', message: 'Fetch failed', statusCode: $json.statusCode } }}",
+        "options": { "responseCode": 502 }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-00000000001c",
+      "name": "Respond Fetch Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1680, 180]
     }
   ],
   "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Tollara Verify Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
+    "Webhook": { "main": [[{ "node": "Tollara Verify Request", "type": "main", "index": 0 }]] },
     "Tollara Verify Request": {
       "main": [
-        [
-          {
-            "node": "Parse Input",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Grant Access?", "type": "main", "index": 0 }],
+        [{ "node": "Respond Unauthorized", "type": "main", "index": 0 }]
       ]
     },
-    "Parse Input": {
+    "Grant Access?": {
       "main": [
-        [
-          {
-            "node": "URL Valid?",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Parse Input", "type": "main", "index": 0 }],
+        [{ "node": "Respond Forbidden", "type": "main", "index": 0 }]
       ]
     },
+    "Parse Input": { "main": [[{ "node": "URL Valid?", "type": "main", "index": 0 }]] },
     "URL Valid?": {
       "main": [
-        [
-          {
-            "node": "Fetch Page",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond Bad Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Fetch Page", "type": "main", "index": 0 }],
+        [{ "node": "Respond Bad Request", "type": "main", "index": 0 }]
       ]
     },
-    "Fetch Page": {
+    "Fetch Page": { "main": [[{ "node": "Fetch OK?", "type": "main", "index": 0 }]] },
+    "Fetch OK?": {
       "main": [
-        [
-          {
-            "node": "Extract Metadata",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Extract Metadata", "type": "main", "index": 0 }],
+        [{ "node": "Respond Fetch Failed", "type": "main", "index": 0 }]
       ]
     },
-    "Extract Metadata": {
-      "main": [
-        [
-          {
-            "node": "Respond OK",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "Extract Metadata": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] }
   },
   "pinData": {},
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "staticData": null,
   "tags": [],
-  "meta": {
-    "templateCredsSetupCompleted": false
-  }
+  "meta": { "templateCredsSetupCompleted": false }
 }

@@ -19,10 +19,13 @@ export {
 export { type UsageBreakdown, parseUsageBreakdown } from './usageBreakdown';
 export {
   validateServiceKey,
+  validateServiceKeyWithOutcome,
   estimateUsage,
   estimateUsageWithJwt,
   createValidationCache,
   type ServiceKeyValidationResult,
+  type ServiceKeyValidationOutcome,
+  type ValidationFailureCode,
   type UsageEstimateResult,
 } from './validationClient';
 export { CompletionStatus } from './completionStatus';

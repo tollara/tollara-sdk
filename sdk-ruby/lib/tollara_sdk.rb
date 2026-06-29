@@ -58,19 +58,47 @@ module TollaraSdk
     end
 
     def validate_service_key(service_key)
+      outcome = validate_service_key_with_outcome(service_key)
+      return nil unless outcome[:ok]
+      outcome[:result]
+    end
+
+    def validate_service_key_with_outcome(service_key)
+      if service_key.to_s.strip.empty?
+        return { ok: false, code: "MISSING_KEY" }
+      end
       body = { serviceKey: service_key, serviceSecret: @service_secret }
       body[:serviceId] = @service_id unless @service_id.to_s.strip.empty?
       url = "#{@core_api_url}#{@core_path_prefix}/service-keys/validate"
-      res = post_json(url, body)
-      return nil unless res.is_a?(Net::HTTPSuccess)
+      begin
+        res = post_json(url, body)
+      rescue StandardError
+        return { ok: false, code: "NETWORK" }
+      end
+      http_status = res.code.to_i
+      return { ok: false, code: "HTTP_ERROR", httpStatus: http_status } unless res.is_a?(Net::HTTPSuccess)
       sig = res[HEADERS[:signature]]
       ts = res[HEADERS[:timestamp]]
-      return nil if sig.to_s.empty? || ts.to_s.empty?
+      if sig.to_s.empty? || ts.to_s.empty?
+        return { ok: false, code: "MISSING_SIGNATURE_HEADERS", httpStatus: http_status }
+      end
       raw = res.body.to_s
-      return nil unless TollaraSdk.validate_hmac_signature(sig, raw + ts, @service_secret)
+      unless TollaraSdk.validate_hmac_signature(sig, raw + ts, @service_secret)
+        return { ok: false, code: "HMAC_MISMATCH", httpStatus: http_status }
+      end
       json = JSON.parse(raw) rescue nil
-      return nil unless json.is_a?(Hash) && json["valid"]
-      ServiceKeyValidationResult.from_hash(json)
+      unless json.is_a?(Hash)
+        return { ok: false, code: "PARSE_ERROR", httpStatus: http_status }
+      end
+      unless json["valid"]
+        return {
+          ok: false,
+          code: "INVALID_KEY",
+          message: json["error"],
+          httpStatus: http_status,
+        }
+      end
+      { ok: true, result: ServiceKeyValidationResult.from_hash(json) }
     end
 
     def estimate_usage(service_key, estimated_units)

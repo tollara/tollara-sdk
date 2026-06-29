@@ -31,6 +31,7 @@ export class TollaraJobStatus implements INodeType {
     const result = await getRequestStatus({ baseUrl: gatewayApiUrl, requestId, serviceKey });
 
     const output: IDataObject = {
+      tollaraOk: result.ok,
       statusCode: result.status,
       ok: result.ok,
       body: result.body,

@@ -160,6 +160,20 @@ impl TollaraClient {
         )
     }
 
+    pub async fn validate_service_key_with_outcome(
+        &self,
+        service_key: &str,
+    ) -> validation_client::ServiceKeyValidationOutcome {
+        validation_client::validate_service_key_with_outcome(
+            &self.http,
+            &self.core_root,
+            service_key,
+            &self.service_secret,
+            self.service_id.as_deref(),
+        )
+        .await
+    }
+
     pub async fn validate_service_key(
         &self,
         service_key: &str,

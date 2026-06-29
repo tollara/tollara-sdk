@@ -3,8 +3,8 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Subscriber — URL Metadata (sync invoke)\n\n**Tollara:** caller / buyer automation\n\nCalls **backend-url-metadata-sync** via gateway.\n\n**Before run:** edit **Set Config** — `serviceKey`, `serviceId`, `endpointId` from your Tollara listing. For local Docker, enable **Set API Endpoints** on Invoke (Gateway URL).\n\n**Requires:** backend workflow active + listing `realUrl` → n8n webhook.",
-        "height": 280,
+        "content": "## Subscriber — URL Metadata (sync invoke)\n\n**Error path:** Invoke !tollaraOk → Format Error.\n\nEdit **Set Config** before running.",
+        "height": 180,
         "width": 460
       },
       "id": "d1e2f3a4-0004-4000-8000-000000000001",
@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Replace placeholders with your Tollara listing + subscriber service key\nreturn [{\n  json: {\n    serviceKey: 'YOUR_SERVICE_KEY',\n    serviceId: 'YOUR_SERVICE_ID',\n    endpointId: 'YOUR_URL_METADATA_ENDPOINT_ID',\n    invokeBody: JSON.stringify({ url: 'https://example.com' }),\n  },\n}];"
+        "jsCode": "return [{\n  json: {\n    serviceKey: 'YOUR_SERVICE_KEY',\n    serviceId: 'YOUR_SERVICE_ID',\n    endpointId: 'YOUR_URL_METADATA_ENDPOINT_ID',\n    invokeBody: JSON.stringify({ url: 'https://example.com' }),\n  },\n}];"
       },
       "id": "d1e2f3a4-0004-4000-8000-000000000011",
       "name": "Set Config",
@@ -44,7 +44,28 @@
       "name": "Tollara Invoke",
       "type": "n8n-nodes-tollara.tollaraInvoke",
       "typeVersion": 1,
-      "position": [480, 300]    },
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-invoke-ok",
+            "leftValue": "={{ $json.tollaraOk }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000014",
+      "name": "Invoke OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 300]
+    },
     {
       "parameters": {
         "jsCode": "const invoke = $('Tollara Invoke').first().json;\nconst data = invoke.data ?? {};\nreturn [{\n  json: {\n    statusCode: invoke.statusCode,\n    url: data.url,\n    title: data.title,\n    description: data.description,\n    raw: invoke.body,\n  },\n}];"
@@ -53,51 +74,33 @@
       "name": "Format Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 300]
+      "position": [960, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoke = $('Tollara Invoke').first().json;\nreturn [{ json: { status: 'error', message: 'Invoke failed', statusCode: invoke.statusCode, tollaraErrorCode: invoke.tollaraErrorCode, body: invoke.body } }];"
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000015",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 380]
     }
   ],
   "connections": {
-    "Manual Trigger": {
+    "Manual Trigger": { "main": [[{ "node": "Set Config", "type": "main", "index": 0 }]] },
+    "Set Config": { "main": [[{ "node": "Tollara Invoke", "type": "main", "index": 0 }]] },
+    "Tollara Invoke": { "main": [[{ "node": "Invoke OK?", "type": "main", "index": 0 }]] },
+    "Invoke OK?": {
       "main": [
-        [
-          {
-            "node": "Set Config",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Set Config": {
-      "main": [
-        [
-          {
-            "node": "Tollara Invoke",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tollara Invoke": {
-      "main": [
-        [
-          {
-            "node": "Format Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Format Result", "type": "main", "index": 0 }],
+        [{ "node": "Format Error", "type": "main", "index": 0 }]
       ]
     }
   },
   "pinData": {},
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "staticData": null,
   "tags": [],
-  "meta": {
-    "templateCredsSetupCompleted": false
-  }
+  "meta": { "templateCredsSetupCompleted": false }
 }

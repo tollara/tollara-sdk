@@ -115,15 +115,68 @@ struct ValidationResponse {
     validation_schema_version: Option<i32>,
 }
 
-/// Validates a service key via the Core service. Returns `None` on 4xx/5xx, missing HMAC headers,
-/// invalid signature, or when the response has `valid: false`.
-pub async fn validate_service_key(
+/// Canonical failure codes for validate outcome (§2.1.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValidationFailureCode {
+    MissingKey,
+    Network,
+    HttpError,
+    MissingSignatureHeaders,
+    HmacMismatch,
+    InvalidKey,
+    ParseError,
+}
+
+impl ValidationFailureCode {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::MissingKey => "MISSING_KEY",
+            Self::Network => "NETWORK",
+            Self::HttpError => "HTTP_ERROR",
+            Self::MissingSignatureHeaders => "MISSING_SIGNATURE_HEADERS",
+            Self::HmacMismatch => "HMAC_MISMATCH",
+            Self::InvalidKey => "INVALID_KEY",
+            Self::ParseError => "PARSE_ERROR",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ServiceKeyValidationFailure {
+    pub code: ValidationFailureCode,
+    pub message: Option<String>,
+    pub http_status: Option<i32>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ServiceKeyValidationOutcome {
+    Success(ServiceKeyValidationResult),
+    Failure(ServiceKeyValidationFailure),
+}
+
+impl ServiceKeyValidationOutcome {
+    #[must_use]
+    pub fn ok(&self) -> bool {
+        matches!(self, Self::Success(_))
+    }
+}
+
+/// Validates a service key via the Core service with structured outcome (§2.1.1).
+pub async fn validate_service_key_with_outcome(
     client: &reqwest::Client,
     core_base_url: &str,
     service_key: &str,
     service_secret: &str,
     service_id: Option<&str>,
-) -> Option<ServiceKeyValidationResult> {
+) -> ServiceKeyValidationOutcome {
+    if service_key.trim().is_empty() {
+        return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+            code: ValidationFailureCode::MissingKey,
+            message: None,
+            http_status: None,
+        });
+    }
     let url = format!(
         "{}/service-keys/validate",
         core_base_url.trim_end_matches('/')
@@ -133,34 +186,81 @@ pub async fn validate_service_key(
         service_id,
         service_secret,
     };
-    let resp = client
-        .post(&url)
-        .json(&body)
-        .send()
-        .await
-        .ok()?;
+    let resp = match client.post(&url).json(&body).send().await {
+        Ok(r) => r,
+        Err(_) => {
+            return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+                code: ValidationFailureCode::Network,
+                message: None,
+                http_status: None,
+            });
+        }
+    };
+    let http_status = i32::from(resp.status().as_u16());
     if !resp.status().is_success() {
-        return None;
+        return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+            code: ValidationFailureCode::HttpError,
+            message: None,
+            http_status: Some(http_status),
+        });
     }
-    let signature = resp
-        .headers()
-        .get(headers::SIGNATURE)
-        .and_then(|v| v.to_str().ok())?;
-    let timestamp = resp
-        .headers()
-        .get(headers::TIMESTAMP)
-        .and_then(|v| v.to_str().ok())?;
-    let response_text = resp.text().await.ok()?;
+    let signature = match resp.headers().get(headers::SIGNATURE).and_then(|v| v.to_str().ok()) {
+        Some(s) => s,
+        None => {
+            return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+                code: ValidationFailureCode::MissingSignatureHeaders,
+                message: None,
+                http_status: Some(http_status),
+            });
+        }
+    };
+    let timestamp = match resp.headers().get(headers::TIMESTAMP).and_then(|v| v.to_str().ok()) {
+        Some(t) => t,
+        None => {
+            return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+                code: ValidationFailureCode::MissingSignatureHeaders,
+                message: None,
+                http_status: Some(http_status),
+            });
+        }
+    };
+    let response_text = match resp.text().await {
+        Ok(t) => t,
+        Err(_) => {
+            return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+                code: ValidationFailureCode::Network,
+                message: None,
+                http_status: Some(http_status),
+            });
+        }
+    };
     if !validate_hmac_signature(signature, &format!("{}{}", response_text, timestamp), service_secret)
     {
-        return None;
+        return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+            code: ValidationFailureCode::HmacMismatch,
+            message: None,
+            http_status: Some(http_status),
+        });
     }
-    let data: ValidationResponse = serde_json::from_str(&response_text).ok()?;
+    let data: ValidationResponse = match serde_json::from_str(&response_text) {
+        Ok(d) => d,
+        Err(_) => {
+            return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+                code: ValidationFailureCode::ParseError,
+                message: None,
+                http_status: Some(http_status),
+            });
+        }
+    };
     if !data.valid {
-        return None;
+        return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+            code: ValidationFailureCode::InvalidKey,
+            message: data.error,
+            http_status: Some(http_status),
+        });
     }
     let roles = data.roles.unwrap_or_default();
-    Some(ServiceKeyValidationResult {
+    ServiceKeyValidationOutcome::Success(ServiceKeyValidationResult {
         user_id: data.user_id,
         service_id: data.service_id.or(service_id.map(String::from)),
         service_key_id: data.service_key_id,
@@ -172,6 +272,21 @@ pub async fn validate_service_key(
         measurement_type: data.measurement_type,
         unit_label: data.unit_label,
     })
+}
+
+/// Validates a service key via the Core service. Returns `None` on 4xx/5xx, missing HMAC headers,
+/// invalid signature, or when the response has `valid: false`.
+pub async fn validate_service_key(
+    client: &reqwest::Client,
+    core_base_url: &str,
+    service_key: &str,
+    service_secret: &str,
+    service_id: Option<&str>,
+) -> Option<ServiceKeyValidationResult> {
+    match validate_service_key_with_outcome(client, core_base_url, service_key, service_secret, service_id).await {
+        ServiceKeyValidationOutcome::Success(r) => Some(r),
+        ServiceKeyValidationOutcome::Failure(_) => None,
+    }
 }
 
 /// Estimates usage via Core service-key endpoint (`.../service-keys/estimate-usage`).

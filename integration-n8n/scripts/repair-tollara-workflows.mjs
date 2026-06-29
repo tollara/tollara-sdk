@@ -17,6 +17,7 @@ const TOLLARA_DEFAULTS = {
   'n8n-nodes-tollara.tollaraVerifyRequest': {
     serviceSecret: '',
     rawBodyBinaryProperty: 'data',
+    typeVersion: 2,
   },
   'n8n-nodes-tollara.tollaraProgress': {
     serviceSecret: '',
@@ -45,6 +46,7 @@ const TOLLARA_DEFAULTS = {
     serviceId: '',
     optionalServiceIdNotice: '',
     setApiEndpoints: false,
+    typeVersion: 2,
   },
   'n8n-nodes-tollara.tollaraInvoke': {
     httpMethod: 'POST',

@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Backend — Topic Brief API\n\n**Tollara:** proxied **async** service (seller)\n\n**Webhook path:** `topic-brief`\n\n**Listing must be async** (`isAsync`). Caller invokes `POST …/invoke/async` with `{ \"topic\": \"Docker\" }` — **not** sync invoke.\n\n10s waits before 50%/75% progress and after 75% for visible frontend polling.\n\n**After import:** run `npm run repair:workflows` from `integration-n8n` if **Tollara Verify Request** shows a broken icon, then set **Service Secret** on every Tollara node. For local Docker, enable **Set API Endpoints** on Progress/Complete and set Usage API URL (e.g. `http://host.docker.internal:8084`).\n\nPair with **subscriber-topic-brief-async** workflow.",
+        "content": "## Backend — Topic Brief API\n\n**Tollara:** proxied **async** service (seller)\n\n**Webhook path:** `topic-brief`\n\n**Listing must be async** (`isAsync`). Caller invokes `POST …/invoke/async` with `{ \"topic\": \"Docker\" }` — **not** sync invoke.\n\n10s waits before 50%/75% progress and after 75% for visible frontend polling.\n\n**Error paths:** Verify **Failure** → 401; !grantAccess → 403; parse fail → 400; !progressSuccess or wiki fetch fail → **Complete Failed**; !completeSuccess → Complete Warning.\n\n**After import:** run `npm run repair:workflows` from `integration-n8n` if **Tollara Verify Request** shows a broken icon, then set **Service Secret** on every Tollara node. For local Docker, enable **Set API Endpoints** on Progress/Complete and set Usage API URL (e.g. `http://host.docker.internal:8084`).\n\nPair with **subscriber-topic-brief-async** workflow.",
         "height": 300,
         "width": 460
       },
@@ -37,12 +37,56 @@
       "id": "b2c3d4e5-0002-4000-8000-000000000011",
       "name": "Tollara Verify Request",
       "type": "n8n-nodes-tollara.tollaraVerifyRequest",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [240, 320]
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first();\nlet raw;\nconst bin = item.binary?.data;\nif (bin?.data) {\n  raw = JSON.parse(Buffer.from(bin.data, 'base64').toString('utf8'));\n} else if (typeof $json.body === 'string') {\n  raw = JSON.parse($json.body || '{}');\n} else {\n  raw = $json.body ?? {};\n}\n\nif (raw.request_id == null && raw.topic != null && raw.payload == null) {\n  throw new Error(\n    'Received sync-shaped body { \"topic\": \"...\" }. This backend requires async invoke — use POST …/invoke/async and set the Tollara endpoint to async (isAsync).'\n  );\n}\n\nconst inner = raw.payload != null\n  ? (typeof raw.payload === 'string' ? JSON.parse(raw.payload || '{}') : raw.payload)\n  : {};\nconst topic = (inner.topic ?? '').trim();\nif (!topic) {\n  throw new Error('Missing topic in async payload — invoke with { \"topic\": \"Docker\" } via …/invoke/async');\n}\nif (!raw.request_id) {\n  throw new Error('Missing request_id — gateway async invoke only (…/invoke/async)');\n}\n\nreturn [{\n  json: {\n    requestId: raw.request_id,\n    progressUrl: raw.progress_url,\n    callbackUrl: raw.callback_url,\n    topic,\n    userContext: $json.userContext,\n  },\n}];"
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-grant",
+            "leftValue": "={{ $json.userContext.grantAccess }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-0002-4000-8000-000000000021",
+      "name": "Grant Access?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'error', message: 'Unauthorized', code: $json.tollaraErrorCode } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "b2c3d4e5-0002-4000-8000-00000000001e",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [480, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'error', message: 'Forbidden — subscription does not grant access' } }}",
+        "options": { "responseCode": 403 }
+      },
+      "id": "b2c3d4e5-0002-4000-8000-00000000001f",
+      "name": "Respond Forbidden",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nlet raw;\nconst bin = item.binary?.data;\nif (bin?.data) {\n  raw = JSON.parse(Buffer.from(bin.data, 'base64').toString('utf8'));\n} else if (typeof $json.body === 'string') {\n  raw = JSON.parse($json.body || '{}');\n} else {\n  raw = $json.body ?? {};\n}\n\nlet parseOk = true;\nlet parseError = null;\nlet requestId = null;\nlet progressUrl = null;\nlet callbackUrl = null;\nlet topic = null;\n\nif (raw.request_id == null && raw.topic != null && raw.payload == null) {\n  parseOk = false;\n  parseError = 'Sync-shaped body — use async invoke';\n} else {\n  const inner = raw.payload != null\n    ? (typeof raw.payload === 'string' ? JSON.parse(raw.payload || '{}') : raw.payload)\n    : {};\n  topic = (inner.topic ?? '').trim();\n  requestId = raw.request_id ?? null;\n  progressUrl = raw.progress_url ?? null;\n  callbackUrl = raw.callback_url ?? null;\n  if (!topic) { parseOk = false; parseError = 'Missing topic'; }\n  else if (!requestId) { parseOk = false; parseError = 'Missing request_id'; }\n}\n\nreturn [{ json: { ...$json, parseOk, parseError, requestId, progressUrl, callbackUrl, topic, userContext: $json.userContext } }];"
       },
       "id": "b2c3d4e5-0002-4000-8000-000000000012",
       "name": "Parse Async Envelope",
@@ -66,6 +110,38 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-parse-ok",
+            "leftValue": "={{ $json.parseOk }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-0002-4000-8000-000000000022",
+      "name": "Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [960, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'error', message: $json.parseError } }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "b2c3d4e5-0002-4000-8000-000000000023",
+      "name": "Respond Bad Request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 420]
+    },
+    {
+      "parameters": {
         "serviceSecret": "YOUR_SERVICE_SECRET",
         "progressUrl": "={{ $('Parse Async Envelope').item.json.progressUrl }}",
         "requestId": "={{ $('Parse Async Envelope').item.json.requestId }}",
@@ -83,6 +159,7 @@
         "options": {
           "response": {
             "response": {
+              "fullResponse": true,
               "neverError": true
             }
           }
@@ -120,7 +197,7 @@
       "position": [1680, 320]    },
     {
       "parameters": {
-        "jsCode": "const parsed = $('Parse Async Envelope').first().json;\nconst wiki = $input.first().json;\nconst topic = parsed.topic;\nconst title = wiki.title ?? topic;\nconst summary = wiki.extract ?? 'No Wikipedia summary found for this topic.';\nconst source = wiki.content_urls?.desktop?.page ?? null;\nconst report = [\n  '# Topic brief: ' + topic,\n  '',\n  '**Title:** ' + title,\n  source ? '**Source:** ' + source : '',\n  '',\n  '## Summary',\n  summary,\n  '',\n  '---',\n  '_Generated by n8n + Tollara_',\n].filter(Boolean).join('\\n');\n\nreturn [{\n  json: {\n    requestId: parsed.requestId,\n    progressUrl: parsed.progressUrl,\n    callbackUrl: parsed.callbackUrl,\n    report,\n  },\n}];"
+        "jsCode": "const parsed = $('Parse Async Envelope').first().json;\nconst raw = $input.first().json;\nconst wiki = raw.body ?? raw;\nconst topic = parsed.topic;\nconst title = wiki.title ?? topic;\nconst summary = wiki.extract ?? 'No Wikipedia summary found for this topic.';\nconst source = wiki.content_urls?.desktop?.page ?? null;\nconst report = [\n  '# Topic brief: ' + topic,\n  '',\n  '**Title:** ' + title,\n  source ? '**Source:** ' + source : '',\n  '',\n  '## Summary',\n  summary,\n  '',\n  '---',\n  '_Generated by n8n + Tollara_',\n].filter(Boolean).join('\\n');\n\nreturn [{\n  json: {\n    requestId: parsed.requestId,\n    progressUrl: parsed.progressUrl,\n    callbackUrl: parsed.callbackUrl,\n    report,\n  },\n}];"
       },
       "id": "b2c3d4e5-0002-4000-8000-000000000019",
       "name": "Build Report",
@@ -177,7 +254,153 @@
       "name": "Tollara Complete",
       "type": "n8n-nodes-tollara.tollaraComplete",
       "typeVersion": 1,
-      "position": [2880, 320]    }
+      "position": [2880, 320]    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-progress-success",
+              "leftValue": "={{ $json.progressSuccess }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-0002-4000-8000-00000000001e",
+      "name": "Progress OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1080, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-wiki-ok",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 299,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            },
+            {
+              "id": "cond-wiki-ok-min",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-0002-4000-8000-00000000001f",
+      "name": "Wiki OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1320, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Async Envelope').first().json;\nreturn [{ json: { callbackUrl: parsed.callbackUrl, requestId: parsed.requestId, failReason: 'Progress update failed' } }];"
+      },
+      "id": "b2c3d4e5-0002-4000-8000-000000000020",
+      "name": "Mark Progress Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Async Envelope').first().json;\nconst wiki = $input.first().json;\nreturn [{ json: { callbackUrl: parsed.callbackUrl, requestId: parsed.requestId, failReason: 'Wikipedia fetch failed (HTTP ' + (wiki.statusCode ?? 'unknown') + ')' } }];"
+      },
+      "id": "b2c3d4e5-0002-4000-8000-000000000021",
+      "name": "Mark Wiki Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 480]
+    },
+    {
+      "parameters": {
+        "serviceSecret": "YOUR_SERVICE_SECRET",
+        "callbackUrl": "={{ $json.callbackUrl }}",
+        "requestId": "={{ $json.requestId }}",
+        "status": "FAILED",
+        "result": "={{ $json.failReason || 'Job processing failed' }}",
+        "units": 0
+      },
+      "id": "b2c3d4e5-0002-4000-8000-000000000022",
+      "name": "Complete Failed",
+      "type": "n8n-nodes-tollara.tollaraComplete",
+      "typeVersion": 1,
+      "position": [1560, 480]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-complete-success",
+              "leftValue": "={{ $json.completeSuccess }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-0002-4000-8000-000000000023",
+      "name": "Complete OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [3120, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { warning: 'Completion callback failed (job already finished)', completeHttpStatus: $json.completeHttpStatus ?? 0, completeHttpStatusText: $json.completeHttpStatusText, completeNetworkError: $json.completeNetworkError } }];"
+      },
+      "id": "b2c3d4e5-0002-4000-8000-000000000024",
+      "name": "Complete Warning",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3360, 420]
+    }
   ],
   "connections": {
     "Webhook": {
@@ -193,24 +416,25 @@
     },
     "Tollara Verify Request": {
       "main": [
-        [
-          {
-            "node": "Parse Async Envelope",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Grant Access?", "type": "main", "index": 0 }],
+        [{ "node": "Respond Unauthorized", "type": "main", "index": 0 }]
+      ]
+    },
+    "Grant Access?": {
+      "main": [
+        [{ "node": "Parse Async Envelope", "type": "main", "index": 0 }],
+        [{ "node": "Respond Forbidden", "type": "main", "index": 0 }]
       ]
     },
     "Parse Async Envelope": {
       "main": [
-        [
-          {
-            "node": "Respond Accepted",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Parse OK?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse OK?": {
+      "main": [
+        [{ "node": "Respond Accepted", "type": "main", "index": 0 }],
+        [{ "node": "Respond Bad Request", "type": "main", "index": 0 }]
       ]
     },
     "Respond Accepted": {
@@ -228,7 +452,36 @@
       "main": [
         [
           {
+            "node": "Progress OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Progress OK?": {
+      "main": [
+        [
+          {
             "node": "Fetch Wikipedia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Progress Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Progress Failure": {
+      "main": [
+        [
+          {
+            "node": "Complete Failed",
             "type": "main",
             "index": 0
           }
@@ -239,7 +492,36 @@
       "main": [
         [
           {
+            "node": "Wiki OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wiki OK?": {
+      "main": [
+        [
+          {
             "node": "Wait 10s1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Wiki Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Wiki Failure": {
+      "main": [
+        [
+          {
+            "node": "Complete Failed",
             "type": "main",
             "index": 0
           }
@@ -306,6 +588,29 @@
         [
           {
             "node": "Tollara Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tollara Complete": {
+      "main": [
+        [
+          {
+            "node": "Complete OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete OK?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Complete Warning",
             "type": "main",
             "index": 0
           }

@@ -13,13 +13,13 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 
 ## Nodes
 
-- **Tollara Verify Request** – Verify Tollara HMAC on output from the n8n **Webhook** node. Passes through all webhook fields (`headers`, `params`, `query`, `body`, binary) and adds `userContext`.
-- **Tollara Invoke** – Invoke a service endpoint (sync or async). Supports GET, POST, PUT, DELETE.
+- **Tollara Verify Request** (v2) – Verify Tollara HMAC on webhook output. **Success** output adds `userContext`; **Failure** output adds `tollaraErrorCode` (e.g. `HMAC_MISMATCH`). Wire Failure → `Respond to Webhook` 401.
+- **Tollara Invoke** – Invoke a service endpoint (sync or async). Emits `tollaraOk`, `statusCode`, and parsed `data`. Branch on `tollaraOk` for subscriber error paths.
 - **Tollara Job Status** – Poll async job status by request ID.
 - **Tollara Job Result** – Fetch async job result by request ID.
 - **Tollara Progress** – Send a progress update (use the `progressUrl` from an async invoke response).
 - **Tollara Complete** – Send completion (use the `callbackUrl` from an async invoke response).
-- **Tollara Validate Key** – Validate a service key and return user context (`serviceProductId`, `subscriptionStatus`, `grantAccess`). Place after the n8n **Webhook** node; reads `Authorization: Bearer` automatically. Set **Service Secret** and **Service ID** on the node.
+- **Tollara Validate Key** (v2) – Validate a service key after Webhook. **Success** output adds `userContext` (including `grantAccess`); **Failure** output adds canonical `tollaraErrorCode`. Branch Success + `!grantAccess` → 403.
 - **Tollara Report Usage** – Report usage units for a user and service.
 - **Tollara Estimate Usage** – Estimate usage cost and quota for a service key.
 

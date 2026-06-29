@@ -1,9 +1,10 @@
-import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
+import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
 import { verifySignatureFromHeaders, getUserContext } from '@tollara/service-sdk';
 import { requireServiceSecret } from '../../lib/tollaraCredentials';
 import { serviceSecretNodeProperty } from '../../lib/nodeProperties';
 import { headersFromWebhookItem, signedPayloadFromWebhookItem } from '../../lib/webhookPayload';
 import { passthroughItemWithJson, headerUserContextToPassthrough } from '../../lib/passthroughItem';
+import { authFailureItem, hmacFailureFields } from '../../lib/tollaraOutcome';
 
 export class TollaraVerifyRequest implements INodeType {
   description: INodeTypeDescription = {
@@ -11,12 +12,13 @@ export class TollaraVerifyRequest implements INodeType {
     name: 'tollaraVerifyRequest',
     icon: 'file:tollara.png',
     group: ['transform'],
-    version: 1,
+    version: 2,
     description:
-      'Verify Tollara HMAC on output from the n8n Webhook node. Passes through all webhook data and adds userContext when valid.',
+      'Verify Tollara HMAC on output from the n8n Webhook node. Success output adds userContext; Failure output for invalid HMAC.',
     defaults: { name: 'Tollara Verify Request' },
     inputs: ['main'],
-    outputs: ['main'],
+    outputs: ['main', 'main'],
+    outputNames: ['Success', 'Failure'],
     properties: [
       serviceSecretNodeProperty,
       {
@@ -35,7 +37,8 @@ export class TollaraVerifyRequest implements INodeType {
     const rawBodyBinaryProperty = this.getNodeParameter('rawBodyBinaryProperty', 0, 'data') as string;
 
     const items = this.getInputData();
-    const returnData: INodeExecutionData[] = [];
+    const successData: INodeExecutionData[] = [];
+    const failureData: INodeExecutionData[] = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -44,14 +47,16 @@ export class TollaraVerifyRequest implements INodeType {
       const valid = verifySignatureFromHeaders(serviceSecret, headers, payload);
 
       if (!valid) {
-        throw new Error('Invalid HMAC signature');
+        failureData.push(authFailureItem(item, hmacFailureFields(), i));
+        continue;
       }
 
       const userContext = headerUserContextToPassthrough(getUserContext(headers));
-
-      returnData.push(passthroughItemWithJson(item, { userContext }, i));
+      successData.push(
+        passthroughItemWithJson(item, { tollaraOk: true, userContext }, i),
+      );
     }
 
-    return [returnData];
+    return [successData, failureData];
   }
 }

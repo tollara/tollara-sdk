@@ -40,10 +40,14 @@ export class TollaraEstimateUsage implements INodeType {
       estimatedUnits,
     });
 
-    if (!result) {
-      throw new Error('Usage estimate failed or was denied');
-    }
+    const output: IDataObject = result
+      ? { ...(result as unknown as IDataObject), tollaraOk: true }
+      : {
+          tollaraOk: false,
+          tollaraErrorCode: 'HTTP_ERROR',
+          tollaraErrorMessage: 'Usage estimate failed or was denied',
+        };
 
-    return [[{ json: result as unknown as IDataObject }]];
+    return [[{ json: output }]];
   }
 }

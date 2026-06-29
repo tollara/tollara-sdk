@@ -3,6 +3,7 @@ import { invokeService, type GatewayHttpMethod } from '@tollara/service-sdk';
 import { resolveGatewayApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { tollaraGatewayEndpointProperties } from '../../lib/nodeProperties';
 import { parseJsonBody } from '../../lib/parseJsonBody';
+import { invokeOk } from '../../lib/tollaraOutcome';
 
 export class TollaraInvoke implements INodeType {
   description: INodeTypeDescription = {
@@ -63,18 +64,17 @@ export class TollaraInvoke implements INodeType {
       async: isAsync,
     });
 
-    if (!result) {
-      throw new Error('Invoke request failed');
-    }
-
-    const data = parseJsonBody(result.body);
+    const data = result ? parseJsonBody(result.body) : null;
     const output: IDataObject = {
-      statusCode: result.statusCode,
-      body: result.body,
-      data,
-      requestId: result.asyncEnvelope?.requestId ?? '',
-      callbackUrl: result.asyncEnvelope?.callbackUrl ?? '',
-      progressUrl: result.asyncEnvelope?.progressUrl ?? '',
+      tollaraOk: invokeOk(result),
+      tollaraErrorCode: result ? undefined : 'NETWORK',
+      tollaraErrorMessage: result ? undefined : 'Invoke request failed',
+      statusCode: result?.statusCode ?? 0,
+      body: result?.body ?? '',
+      data: data ?? {},
+      requestId: result?.asyncEnvelope?.requestId ?? '',
+      callbackUrl: result?.asyncEnvelope?.callbackUrl ?? '',
+      progressUrl: result?.asyncEnvelope?.progressUrl ?? '',
     };
 
     return [[{ json: output }]];

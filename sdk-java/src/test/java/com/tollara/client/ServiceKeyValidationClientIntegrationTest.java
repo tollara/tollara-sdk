@@ -161,6 +161,95 @@ class ServiceKeyValidationClientIntegrationTest {
     }
 
     @Test
+    void validateServiceKeyWithOutcome_returnsInvalidKeyWithMessage() throws Exception {
+        String responseBody = """
+            {"valid":false,"error":"Key expired"}
+            """.trim();
+        String timestamp = "1700000000";
+        String signature = HmacUtils.calculateHmac(responseBody + timestamp, SERVICE_SECRET);
+
+        wireMock.stubFor(
+                post(urlPathEqualTo("/api/v1/service-keys/validate"))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
+                                .withHeader("X-Tollara-Signature", signature)
+                                .withHeader("X-Tollara-Timestamp", timestamp)
+                                .withBody(responseBody))
+        );
+
+        ServiceKeyValidationClient.ServiceKeyValidationOutcome outcome =
+                client.validateServiceKeyWithOutcome("expired-key");
+
+        assertThat(outcome.isOk()).isFalse();
+        assertThat(outcome.getFailure().getCode())
+                .isEqualTo(ServiceKeyValidationClient.ValidationFailureCode.INVALID_KEY);
+        assertThat(outcome.getFailure().getMessage()).isEqualTo("Key expired");
+    }
+
+    @Test
+    void validateServiceKeyWithOutcome_returnsMissingKey_withoutHttpCall() {
+        ServiceKeyValidationClient.ServiceKeyValidationOutcome outcome =
+                client.validateServiceKeyWithOutcome("   ");
+
+        assertThat(outcome.isOk()).isFalse();
+        assertThat(outcome.getFailure().getCode())
+                .isEqualTo(ServiceKeyValidationClient.ValidationFailureCode.MISSING_KEY);
+    }
+
+    @Test
+    void validateServiceKeyWithOutcome_returnsHttpError_on401() {
+        wireMock.stubFor(
+                post(urlPathEqualTo("/api/v1/service-keys/validate"))
+                        .willReturn(aResponse()
+                                .withStatus(401)
+                                .withBody("unauthorized"))
+        );
+
+        ServiceKeyValidationClient.ServiceKeyValidationOutcome outcome =
+                client.validateServiceKeyWithOutcome("bad-key");
+
+        assertThat(outcome.isOk()).isFalse();
+        assertThat(outcome.getFailure().getCode())
+                .isEqualTo(ServiceKeyValidationClient.ValidationFailureCode.HTTP_ERROR);
+        assertThat(outcome.getFailure().getHttpStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void validateServiceKeyWithOutcome_returnsHmacMismatch() {
+        String responseBody = "{\"valid\":true,\"userId\":\"u1\"}";
+        wireMock.stubFor(
+                post(urlPathEqualTo("/api/v1/service-keys/validate"))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withHeader("X-Tollara-Signature", "bad-signature")
+                                .withHeader("X-Tollara-Timestamp", "1700000000")
+                                .withBody(responseBody))
+        );
+
+        ServiceKeyValidationClient.ServiceKeyValidationOutcome outcome =
+                client.validateServiceKeyWithOutcome("k");
+
+        assertThat(outcome.isOk()).isFalse();
+        assertThat(outcome.getFailure().getCode())
+                .isEqualTo(ServiceKeyValidationClient.ValidationFailureCode.HMAC_MISMATCH);
+        assertThat(outcome.getFailure().getHttpStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void validateServiceKeyWithOutcome_returnsNetwork_onConnectionFailure() {
+        ServiceKeyValidationClient deadClient = new ServiceKeyValidationClient(
+                "http://127.0.0.1:1/api/v1", SERVICE_ID, SERVICE_SECRET, HttpClient.newHttpClient());
+
+        ServiceKeyValidationClient.ServiceKeyValidationOutcome outcome =
+                deadClient.validateServiceKeyWithOutcome("k");
+
+        assertThat(outcome.isOk()).isFalse();
+        assertThat(outcome.getFailure().getCode())
+                .isEqualTo(ServiceKeyValidationClient.ValidationFailureCode.NETWORK);
+    }
+
+    @Test
     void estimateUsage_returnsResult_whenCoreReturns200WithValidHmac() throws Exception {
         String responseBody = """
             {"sufficientCredits":true,"wouldExceedCap":false,"wouldAllow":true,"estimatedCost":0.1,"billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":{"unitsRemaining":199,"remainingSpendingCap":20,"isOverLimit":false},"estimateSchemaVersion":3,"timestamp":1700000000}
