@@ -4,6 +4,17 @@ Import via n8n: **Workflow menu → Import from File**.
 
 Requires **`n8n-nodes-tollara@3.3.1+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
 
+## Local fixture (after e2e setup)
+
+1. Run agent-hub provisioning: `:e2e-tests-java:n8nIntegrationSetup -PrunE2eTests`
+2. From `integration-n8n`: `npm run apply:local-fixture -- --fixture <path-to-local-fixture.json>`  
+   Default fixture path: `agent-hub/e2e-tests-java/build/n8n-integration/local-fixture.json` (or set `N8N_LOCAL_FIXTURE_PATH`).
+3. Import workflows from **`example-workflows/local/`** (pre-filled secrets, keys, and Docker API origins).
+4. Run **`npm run repair:workflows`** if **Tollara Verify Request** shows empty parameters after import.
+5. For **backend-echo-non-proxied**, invoke with **`invoke-backend-echo-non-proxied.sh`** in `local/` (Bearer service key from fixture).
+
+The committed files in this directory keep `YOUR_*` placeholders for production/generic use.
+
 ## Error paths (v3.3.0+)
 
 Backend webhooks: **Denied** / **Error** items include `tollaraHttpStatus` (401 / 403 / 503) for **Respond to Webhook**. Subscriber workflows branch on `tollaraOk` / `wouldAllow` → **Format Error**.

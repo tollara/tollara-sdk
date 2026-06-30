@@ -86,6 +86,17 @@ Workflow data persists in the `n8n_data` Docker volume. The Tollara package is l
 
 Stop: `docker compose down` (from the `docker` folder).
 
+### Local fixture from e2e setup (agent-hub)
+
+After running `agent-hub` `:e2e-tests-java:n8nIntegrationSetup -PrunE2eTests`:
+
+```powershell
+cd integration-n8n
+npm run apply:local-fixture -- --fixture ..\agent-hub\e2e-tests-java\build\n8n-integration\local-fixture.json
+```
+
+Import workflows from **`example-workflows/local/`** instead of the generic `example-workflows/` copies. Set `N8N_LOCAL_FIXTURE_PATH` to skip `--fixture`.
+
 ### Troubleshooting: broken Tollara nodes after import
 
 If Tollara nodes appear in the node picker but imported workflows show **“Install this node to use it”**:
