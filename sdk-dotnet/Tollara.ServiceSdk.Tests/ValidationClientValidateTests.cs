@@ -119,7 +119,7 @@ public class ValidationClientValidateTests
     }
 
     [Fact]
-    public async Task ValidateServiceKeyWithOutcomeAsync_ReturnsHttpError_On401()
+    public async Task ValidateServiceKeyWithOutcomeAsync_ReturnsHttpError_On401WithoutJsonBody()
     {
         using var http = new HttpClient(new HttpMessageHandlerStub(HttpStatusCode.Unauthorized, "unauthorized"));
         var outcome = await ValidationClient.ValidateServiceKeyWithOutcomeAsync(http, CoreRoot, "bad", ServiceId, ServiceSecret);
@@ -127,6 +127,33 @@ public class ValidationClientValidateTests
         var failure = Assert.IsType<ServiceKeyValidationOutcome.Failure>(outcome);
         Assert.Equal(ValidationFailureCode.HTTP_ERROR, failure.Error.Code);
         Assert.Equal(401, failure.Error.HttpStatus);
+    }
+
+    [Fact]
+    public async Task ValidateServiceKeyWithOutcomeAsync_ReturnsInvalidKey_OnUnsigned401WithValidFalse()
+    {
+        using var http = new HttpClient(new HttpMessageHandlerStub(
+            HttpStatusCode.Unauthorized,
+            "{\"valid\":false,\"error\":\"Invalid service key\"}"));
+        var outcome = await ValidationClient.ValidateServiceKeyWithOutcomeAsync(http, CoreRoot, "bad", ServiceId, ServiceSecret);
+        Assert.False(outcome.Ok);
+        var failure = Assert.IsType<ServiceKeyValidationOutcome.Failure>(outcome);
+        Assert.Equal(ValidationFailureCode.INVALID_KEY, failure.Error.Code);
+        Assert.Equal("Invalid service key", failure.Error.Message);
+        Assert.Equal(401, failure.Error.HttpStatus);
+    }
+
+    [Fact]
+    public async Task ValidateServiceKeyWithOutcomeAsync_ReturnsHttpError_On500WithValidFalse()
+    {
+        using var http = new HttpClient(new HttpMessageHandlerStub(
+            HttpStatusCode.InternalServerError,
+            "{\"valid\":false,\"error\":\"Internal server error\"}"));
+        var outcome = await ValidationClient.ValidateServiceKeyWithOutcomeAsync(http, CoreRoot, "bad", ServiceId, ServiceSecret);
+        Assert.False(outcome.Ok);
+        var failure = Assert.IsType<ServiceKeyValidationOutcome.Failure>(outcome);
+        Assert.Equal(ValidationFailureCode.HTTP_ERROR, failure.Error.Code);
+        Assert.Equal(500, failure.Error.HttpStatus);
     }
 
     [Fact]

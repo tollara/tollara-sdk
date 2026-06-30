@@ -56,11 +56,21 @@ RSpec.describe TollaraSdk::TollaraClient do
     expect(outcome).to eq({ ok: false, code: "MISSING_KEY" })
   end
 
-  it "returns HTTP_ERROR on 401" do
+  it "returns HTTP_ERROR on 401 without JSON body" do
     stub_post_json(build_response(401, body: "unauthorized"))
     outcome = client.validate_service_key_with_outcome("bad-key")
     expect(outcome[:ok]).to be false
     expect(outcome[:code]).to eq("HTTP_ERROR")
+    expect(outcome[:httpStatus]).to eq(401)
+  end
+
+  it "returns INVALID_KEY on unsigned 401 with valid:false JSON" do
+    body_str = JSON.generate(valid: false, error: "Invalid service key")
+    stub_post_json(build_response(401, body: body_str))
+    outcome = client.validate_service_key_with_outcome("bad-key")
+    expect(outcome[:ok]).to be false
+    expect(outcome[:code]).to eq("INVALID_KEY")
+    expect(outcome[:message]).to eq("Invalid service key")
     expect(outcome[:httpStatus]).to eq(401)
   end
 

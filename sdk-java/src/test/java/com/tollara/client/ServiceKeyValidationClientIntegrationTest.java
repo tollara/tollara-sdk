@@ -198,7 +198,7 @@ class ServiceKeyValidationClientIntegrationTest {
     }
 
     @Test
-    void validateServiceKeyWithOutcome_returnsHttpError_on401() {
+    void validateServiceKeyWithOutcome_returnsHttpError_on401WithoutJsonBody() {
         wireMock.stubFor(
                 post(urlPathEqualTo("/api/v1/service-keys/validate"))
                         .willReturn(aResponse()
@@ -213,6 +213,44 @@ class ServiceKeyValidationClientIntegrationTest {
         assertThat(outcome.getFailure().getCode())
                 .isEqualTo(ServiceKeyValidationClient.ValidationFailureCode.HTTP_ERROR);
         assertThat(outcome.getFailure().getHttpStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void validateServiceKeyWithOutcome_returnsInvalidKey_onUnsigned401WithValidFalse() {
+        wireMock.stubFor(
+                post(urlPathEqualTo("/api/v1/service-keys/validate"))
+                        .willReturn(aResponse()
+                                .withStatus(401)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"valid\":false,\"error\":\"Invalid service key\"}"))
+        );
+
+        ServiceKeyValidationClient.ServiceKeyValidationOutcome outcome =
+                client.validateServiceKeyWithOutcome("bad-key");
+
+        assertThat(outcome.isOk()).isFalse();
+        assertThat(outcome.getFailure().getCode())
+                .isEqualTo(ServiceKeyValidationClient.ValidationFailureCode.INVALID_KEY);
+        assertThat(outcome.getFailure().getMessage()).isEqualTo("Invalid service key");
+        assertThat(outcome.getFailure().getHttpStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void validateServiceKeyWithOutcome_returnsHttpError_on500WithValidFalse() {
+        wireMock.stubFor(
+                post(urlPathEqualTo("/api/v1/service-keys/validate"))
+                        .willReturn(aResponse()
+                                .withStatus(500)
+                                .withBody("{\"valid\":false,\"error\":\"Internal server error\"}"))
+        );
+
+        ServiceKeyValidationClient.ServiceKeyValidationOutcome outcome =
+                client.validateServiceKeyWithOutcome("bad-key");
+
+        assertThat(outcome.isOk()).isFalse();
+        assertThat(outcome.getFailure().getCode())
+                .isEqualTo(ServiceKeyValidationClient.ValidationFailureCode.HTTP_ERROR);
+        assertThat(outcome.getFailure().getHttpStatus()).isEqualTo(500);
     }
 
     @Test

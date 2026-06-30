@@ -49,6 +49,57 @@ export function resolveGatewayApiUrl(credentials: TollaraCredentials): string | 
   return credentials.gatewayApiUrl;
 }
 
+type ApiUrlField = 'coreApiUrl' | 'usageApiUrl' | 'gatewayApiUrl';
+
+const API_URL_LABELS: Record<ApiUrlField, string> = {
+  coreApiUrl: 'Core API URL',
+  usageApiUrl: 'Usage API URL',
+  gatewayApiUrl: 'Gateway API URL',
+};
+
+/**
+ * Throws when Set API Endpoints is enabled but the required URL for this node is blank.
+ * Static seller misconfiguration — fail fast like requireServiceSecret (not a caller-facing Error branch).
+ */
+export function requireApiUrlWhenEndpointsEnabled(
+  executeFunctions: IExecuteFunctions,
+  field: ApiUrlField,
+  itemIndex = 0,
+): void {
+  const setApiEndpoints = executeFunctions.getNodeParameter('setApiEndpoints', itemIndex, false) as boolean;
+  if (!setApiEndpoints) {
+    return;
+  }
+  const creds = tollaraCredentialsFromNodeParameters(executeFunctions, itemIndex);
+  const url = creds[field];
+  if (!url) {
+    throw new Error(
+      `${API_URL_LABELS[field]} is required when Set API Endpoints is enabled — set it on this node`,
+    );
+  }
+}
+
+export function requireCoreApiUrlWhenEndpointsEnabled(
+  executeFunctions: IExecuteFunctions,
+  itemIndex = 0,
+): void {
+  requireApiUrlWhenEndpointsEnabled(executeFunctions, 'coreApiUrl', itemIndex);
+}
+
+export function requireUsageApiUrlWhenEndpointsEnabled(
+  executeFunctions: IExecuteFunctions,
+  itemIndex = 0,
+): void {
+  requireApiUrlWhenEndpointsEnabled(executeFunctions, 'usageApiUrl', itemIndex);
+}
+
+export function requireGatewayApiUrlWhenEndpointsEnabled(
+  executeFunctions: IExecuteFunctions,
+  itemIndex = 0,
+): void {
+  requireApiUrlWhenEndpointsEnabled(executeFunctions, 'gatewayApiUrl', itemIndex);
+}
+
 export function requireServiceSecret(nodeServiceSecret: string | undefined): string {
   const secret = nodeServiceSecret?.trim() ?? '';
   if (!secret) {

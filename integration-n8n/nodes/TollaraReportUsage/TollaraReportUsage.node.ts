@@ -1,6 +1,6 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { reportUsage } from '@tollara/service-sdk';
-import { requireServiceId, requireServiceSecret, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { requireServiceId, requireServiceSecret, requireUsageApiUrlWhenEndpointsEnabled, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { serviceIdNodeProperty, serviceSecretNodeProperty, tollaraUsageEndpointProperties } from '../../lib/nodeProperties';
 
 export class TollaraReportUsage implements INodeType {
@@ -26,6 +26,7 @@ export class TollaraReportUsage implements INodeType {
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
     const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
+    requireUsageApiUrlWhenEndpointsEnabled(this);
     const usageApiUrl = resolveUsageApiUrl(credentialsParsed);
     const userId = this.getNodeParameter('userId', 0) as string;
     const serviceId = requireServiceId(this.getNodeParameter('serviceId', 0) as string);

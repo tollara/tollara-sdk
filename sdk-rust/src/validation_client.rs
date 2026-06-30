@@ -162,6 +162,29 @@ impl ServiceKeyValidationOutcome {
     }
 }
 
+fn invalid_key_from_unsigned_error_body(
+    response_text: &str,
+    http_status: i32,
+) -> Option<ServiceKeyValidationFailure> {
+    if http_status != 401 && http_status != 403 {
+        return None;
+    }
+    let value: serde_json::Value = serde_json::from_str(response_text).ok()?;
+    let valid = value.get("valid")?;
+    if valid.as_bool()? {
+        return None;
+    }
+    let message = value
+        .get("error")
+        .and_then(|e| e.as_str())
+        .map(str::to_owned);
+    Some(ServiceKeyValidationFailure {
+        code: ValidationFailureCode::InvalidKey,
+        message,
+        http_status: Some(http_status),
+    })
+}
+
 /// Validates a service key via the Core service with structured outcome (§2.1.1).
 pub async fn validate_service_key_with_outcome(
     client: &reqwest::Client,
@@ -197,14 +220,38 @@ pub async fn validate_service_key_with_outcome(
         }
     };
     let http_status = i32::from(resp.status().as_u16());
-    if !resp.status().is_success() {
+    let is_success = resp.status().is_success();
+    let signature_header = resp
+        .headers()
+        .get(headers::SIGNATURE)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+    let timestamp_header = resp
+        .headers()
+        .get(headers::TIMESTAMP)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+    let response_text = match resp.text().await {
+        Ok(t) => t,
+        Err(_) => {
+            return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
+                code: ValidationFailureCode::Network,
+                message: None,
+                http_status: Some(http_status),
+            });
+        }
+    };
+    if !is_success {
+        if let Some(failure) = invalid_key_from_unsigned_error_body(&response_text, http_status) {
+            return ServiceKeyValidationOutcome::Failure(failure);
+        }
         return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
             code: ValidationFailureCode::HttpError,
             message: None,
             http_status: Some(http_status),
         });
     }
-    let signature = match resp.headers().get(headers::SIGNATURE).and_then(|v| v.to_str().ok()) {
+    let signature = match signature_header {
         Some(s) => s,
         None => {
             return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
@@ -214,21 +261,11 @@ pub async fn validate_service_key_with_outcome(
             });
         }
     };
-    let timestamp = match resp.headers().get(headers::TIMESTAMP).and_then(|v| v.to_str().ok()) {
+    let timestamp = match timestamp_header {
         Some(t) => t,
         None => {
             return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
                 code: ValidationFailureCode::MissingSignatureHeaders,
-                message: None,
-                http_status: Some(http_status),
-            });
-        }
-    };
-    let response_text = match resp.text().await {
-        Ok(t) => t,
-        Err(_) => {
-            return ServiceKeyValidationOutcome::Failure(ServiceKeyValidationFailure {
-                code: ValidationFailureCode::Network,
                 message: None,
                 http_status: Some(http_status),
             });

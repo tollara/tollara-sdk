@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+import json
 from typing import Any, Dict, List, Literal, Optional, Union
 from uuid import UUID
 
@@ -74,9 +75,6 @@ class UsageEstimateResult:
     http_status: int
 
 
-    http_status: int
-
-
 class ValidationFailureCode(str, Enum):
     MISSING_KEY = "MISSING_KEY"
     NETWORK = "NETWORK"
@@ -113,6 +111,26 @@ def _parse_validation_result(data: Dict[str, Any], service_id: Optional[str]) ->
     )
 
 
+def _invalid_key_from_unsigned_error_body(
+    response_text: str, http_status: int
+) -> Optional[ServiceKeyValidationFailure]:
+    """Unsigned 401/403 from Core: ``{ \"valid\": false, \"error\"?: string }``."""
+    if http_status not in (401, 403):
+        return None
+    try:
+        data = json.loads(response_text)
+    except ValueError:
+        return None
+    if isinstance(data, dict) and data.get("valid") is False:
+        err = data.get("error")
+        return ServiceKeyValidationFailure(
+            code=ValidationFailureCode.INVALID_KEY,
+            message=str(err) if err is not None else None,
+            http_status=http_status,
+        )
+    return None
+
+
 def validate_service_key_with_outcome(
     base_url: str,
     service_key: str,
@@ -137,9 +155,12 @@ def validate_service_key_with_outcome(
     except requests.RequestException:
         return ServiceKeyValidationFailure(code=ValidationFailureCode.NETWORK)
     http_status = resp.status_code
-    if not resp.ok:
-        return ServiceKeyValidationFailure(code=ValidationFailureCode.HTTP_ERROR, http_status=http_status)
     response_text = resp.text
+    if not resp.ok:
+        unsigned_invalid = _invalid_key_from_unsigned_error_body(response_text, http_status)
+        if unsigned_invalid is not None:
+            return unsigned_invalid
+        return ServiceKeyValidationFailure(code=ValidationFailureCode.HTTP_ERROR, http_status=http_status)
     signature = resp.headers.get(TollaraHeaders.SIGNATURE)
     timestamp = resp.headers.get(TollaraHeaders.TIMESTAMP)
     if not signature or not timestamp:
@@ -149,10 +170,10 @@ def validate_service_key_with_outcome(
     if not validate_hmac_signature(signature, response_text + timestamp, service_secret):
         return ServiceKeyValidationFailure(code=ValidationFailureCode.HMAC_MISMATCH, http_status=http_status)
     try:
-        data = resp.json()
+        data = json.loads(response_text)
     except ValueError:
         return ServiceKeyValidationFailure(code=ValidationFailureCode.PARSE_ERROR, http_status=http_status)
-    if not data.get("valid"):
+    if data.get("valid") is False:
         err = data.get("error")
         return ServiceKeyValidationFailure(
             code=ValidationFailureCode.INVALID_KEY,

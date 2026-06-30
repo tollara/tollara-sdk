@@ -73,11 +73,6 @@ public static class ValidationClient
         string serviceSecret, CancellationToken ct = default) =>
         ValidateServiceKeyAsync(http, DefaultCoreServiceRoot(), serviceKey, serviceId, serviceSecret, ct);
 
-    /// <summary>Validate using the SDK default API origin and Core path prefix (same as <see cref="TollaraClient"/>).</summary>
-    public static Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string serviceKey, string? serviceId,
-        string serviceSecret, CancellationToken ct = default) =>
-        ValidateServiceKeyAsync(http, DefaultCoreServiceRoot(), serviceKey, serviceId, serviceSecret, ct);
-
     /// <summary>Validate with structured outcome (§2.1.1).</summary>
     public static Task<ServiceKeyValidationOutcome> ValidateServiceKeyWithOutcomeAsync(HttpClient http, string serviceKey,
         string? serviceId, string serviceSecret, CancellationToken ct = default) =>
@@ -105,11 +100,16 @@ public static class ValidationClient
         }
 
         var httpStatus = (int)res.StatusCode;
+        var responseText = await res.Content.ReadAsStringAsync(ct);
         if (!res.IsSuccessStatusCode)
+        {
+            var unsignedInvalid = TryInvalidKeyFromUnsignedErrorBody(responseText, httpStatus);
+            if (unsignedInvalid != null)
+                return new ServiceKeyValidationOutcome.Failure(unsignedInvalid);
             return new ServiceKeyValidationOutcome.Failure(
                 new ServiceKeyValidationFailure(ValidationFailureCode.HTTP_ERROR, HttpStatus: httpStatus));
+        }
 
-        var responseText = await res.Content.ReadAsStringAsync(ct);
         var signature = res.Headers.TryGetValues(TollaraHeaders.Signature, out var sig) ? string.Join("", sig) : null;
         var timestamp = res.Headers.TryGetValues(TollaraHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp))
@@ -242,6 +242,26 @@ public static class ValidationClient
             root.TryGetProperty("timestamp", out var tsv) && tsv.TryGetInt64(out var tl) ? tl : 0L,
             httpStatus
         );
+    }
+
+    private static ServiceKeyValidationFailure? TryInvalidKeyFromUnsignedErrorBody(string responseText, int httpStatus)
+    {
+        if (httpStatus is not (401 or 403)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(responseText);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("valid", out var valid) && valid.ValueKind == JsonValueKind.False)
+            {
+                var message = ReadString(root, "error");
+                return new ServiceKeyValidationFailure(ValidationFailureCode.INVALID_KEY, message, httpStatus);
+            }
+        }
+        catch (JsonException)
+        {
+            // not JSON
+        }
+        return null;
     }
 
     private static decimal? ReadDecimal(JsonElement root, string name)

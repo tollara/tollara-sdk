@@ -13,13 +13,13 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 
 ## Nodes
 
-- **Tollara Verify Request** (v4) – **Allowed** / **Denied**. Denied items include `tollaraErrorCode`, `tollaraErrorMessage`, and `tollaraHttpStatus` (401 or 403).
+- **Tollara Verify Request** (v4) – **Allowed** / **Denied**. Throws on missing **Service Secret**. Denied items include `tollaraErrorCode`, `tollaraErrorMessage`, and `tollaraHttpStatus` (401 or 403).
 - **Tollara Invoke** – Invoke a service endpoint (sync or async). Emits `tollaraOk`, `statusCode`, and parsed `data`. Branch on `tollaraOk` for subscriber error paths.
 - **Tollara Job Status** – Poll async job status by request ID.
 - **Tollara Job Result** – Fetch async job result by request ID.
 - **Tollara Progress** – Send a progress update (use the `progressUrl` from an async invoke response).
 - **Tollara Complete** – Send completion (use the `callbackUrl` from an async invoke response).
-- **Tollara Validate Key** (v4) – **Allowed** / **Denied** / **Error**. Failure items include `tollaraHttpStatus` (401, 403, or 503; `HTTP_ERROR` may pass through Core status).
+- **Tollara Validate Key** (v4) – **Allowed** / **Denied** / **Error**. **Throws** on static misconfig (missing **Service Secret**, or **Set API Endpoints** without **Core API URL**). **Denied** = caller fault (bad key, no access). **Error** = runtime seller/infra (Core down, wrong service secret on request) — wire to Respond 503. Failure items include `tollaraHttpStatus`.
 - **Tollara Report Usage** – Report usage units for a user and service.
 - **Tollara Estimate Usage** – Estimate usage cost and quota for a service key.
 
@@ -47,7 +47,7 @@ Enable **Raw Body** on the Webhook node for reliable HMAC verification. Point yo
 
 **Production:** leave **Set API Endpoints** disabled on each node. The SDK uses production Tollara URLs automatically. No n8n credential is required.
 
-**Custom / local dev:** on nodes that call Tollara APIs (Invoke, Validate Key, Progress, etc.), enable **Set API Endpoints** and fill in the URLs you need. **Tollara Verify Request** only needs **Service Secret** — it does not call Tollara APIs.
+**Custom / local dev:** on nodes that call Tollara APIs (Invoke, Validate Key, Progress, etc.), enable **Set API Endpoints** and set the matching URL (**Core**, **Usage**, or **Gateway**) — required when the toggle is on. **Tollara Verify Request** only needs **Service Secret** — it does not call Tollara APIs.
 
 Set **Service Secret** and **Service ID** on each Tollara node (required where those fields appear).
 

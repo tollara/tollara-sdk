@@ -17,6 +17,23 @@ export function isInfraValidationFailure(code: ValidationFailureCode): boolean {
   return INFRA_VALIDATION_CODES.has(code);
 }
 
+/** Core unsigned 401 when the service secret on the validate request does not match the listing. */
+export function isSellerSecretValidationFailure(message: string | undefined | null): boolean {
+  const normalized = message?.trim().toLowerCase() ?? '';
+  return normalized === 'invalid agent_secret' || normalized.includes('invalid agent_secret');
+}
+
+/** Route Validate Key failures to the Error output (seller/infra), not Denied (caller). */
+export function isValidateKeyErrorOutcome(
+  code: ValidationFailureCode,
+  message?: string | null,
+): boolean {
+  if (isInfraValidationFailure(code)) {
+    return true;
+  }
+  return code === 'INVALID_KEY' && isSellerSecretValidationFailure(message);
+}
+
 export type TollaraOutcomeFields = {
   tollaraOk: boolean;
   tollaraErrorCode?: TollaraAuthErrorCode;

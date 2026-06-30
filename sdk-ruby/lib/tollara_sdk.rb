@@ -76,13 +76,17 @@ module TollaraSdk
         return { ok: false, code: "NETWORK" }
       end
       http_status = res.code.to_i
-      return { ok: false, code: "HTTP_ERROR", httpStatus: http_status } unless res.is_a?(Net::HTTPSuccess)
+      raw = res.body.to_s
+      unless res.is_a?(Net::HTTPSuccess)
+        unsigned_invalid = invalid_key_from_unsigned_error_body(raw, http_status)
+        return unsigned_invalid if unsigned_invalid
+        return { ok: false, code: "HTTP_ERROR", httpStatus: http_status }
+      end
       sig = res[HEADERS[:signature]]
       ts = res[HEADERS[:timestamp]]
       if sig.to_s.empty? || ts.to_s.empty?
         return { ok: false, code: "MISSING_SIGNATURE_HEADERS", httpStatus: http_status }
       end
-      raw = res.body.to_s
       unless TollaraSdk.validate_hmac_signature(sig, raw + ts, @service_secret)
         return { ok: false, code: "HMAC_MISMATCH", httpStatus: http_status }
       end
@@ -90,15 +94,15 @@ module TollaraSdk
       unless json.is_a?(Hash)
         return { ok: false, code: "PARSE_ERROR", httpStatus: http_status }
       end
-      unless json["valid"]
-        return {
-          ok: false,
-          code: "INVALID_KEY",
-          message: json["error"],
-          httpStatus: http_status,
-        }
+      unless json.key?("valid") && json["valid"] == false
+        return { ok: true, result: ServiceKeyValidationResult.from_hash(json) }
       end
-      { ok: true, result: ServiceKeyValidationResult.from_hash(json) }
+      {
+        ok: false,
+        code: "INVALID_KEY",
+        message: json["error"],
+        httpStatus: http_status,
+      }
     end
 
     def estimate_usage(service_key, estimated_units)
@@ -194,6 +198,20 @@ module TollaraSdk
     end
 
     private
+
+    def invalid_key_from_unsigned_error_body(response_text, http_status)
+      return nil unless [401, 403].include?(http_status)
+      json = JSON.parse(response_text)
+      return nil unless json.is_a?(Hash) && json.key?("valid") && json["valid"] == false
+      {
+        ok: false,
+        code: "INVALID_KEY",
+        message: json["error"],
+        httpStatus: http_status,
+      }
+    rescue JSON::ParserError
+      nil
+    end
 
     def normalize_prefix(prefix)
       p = prefix.to_s.strip
