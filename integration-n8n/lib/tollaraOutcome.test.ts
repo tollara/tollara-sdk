@@ -1,8 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  accessDeniedFields,
   hmacFailureFields,
   invokeOk,
+  isInfraValidationFailure,
   missingKeyFailureFields,
   outcomeFieldsFromValidation,
 } from './tollaraOutcome';
@@ -29,6 +31,18 @@ describe('tollaraOutcome', () => {
 
   it('missing key uses MISSING_KEY', () => {
     assert.equal(missingKeyFailureFields('no bearer').tollaraErrorCode, 'MISSING_KEY');
+  });
+
+  it('access denied uses ACCESS_DENIED', () => {
+    assert.equal(accessDeniedFields('EXPIRED').tollaraErrorCode, 'ACCESS_DENIED');
+    assert.match(accessDeniedFields('EXPIRED').tollaraErrorMessage ?? '', /EXPIRED/);
+  });
+
+  it('classifies infra validation failures', () => {
+    assert.equal(isInfraValidationFailure('NETWORK'), true);
+    assert.equal(isInfraValidationFailure('HTTP_ERROR'), true);
+    assert.equal(isInfraValidationFailure('INVALID_KEY'), false);
+    assert.equal(isInfraValidationFailure('HMAC_MISMATCH'), false);
   });
 
   it('invokeOk checks 2xx', () => {

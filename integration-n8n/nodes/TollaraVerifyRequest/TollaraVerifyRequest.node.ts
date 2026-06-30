@@ -4,7 +4,7 @@ import { requireServiceSecret } from '../../lib/tollaraCredentials';
 import { serviceSecretNodeProperty } from '../../lib/nodeProperties';
 import { headersFromWebhookItem, signedPayloadFromWebhookItem } from '../../lib/webhookPayload';
 import { passthroughItemWithJson, headerUserContextToPassthrough } from '../../lib/passthroughItem';
-import { authFailureItem, hmacFailureFields } from '../../lib/tollaraOutcome';
+import { accessDeniedItem, authFailureItem, hmacFailureFields } from '../../lib/tollaraOutcome';
 
 export class TollaraVerifyRequest implements INodeType {
   description: INodeTypeDescription = {
@@ -12,13 +12,13 @@ export class TollaraVerifyRequest implements INodeType {
     name: 'tollaraVerifyRequest',
     icon: 'file:tollara.png',
     group: ['transform'],
-    version: 2,
+    version: 4,
     description:
-      'Verify Tollara HMAC on output from the n8n Webhook node. Success output adds userContext; Failure output for invalid HMAC.',
+      'Verify Tollara HMAC and subscription access on Webhook output. Allowed = proceed; Denied = invalid HMAC or inactive subscription (see tollaraErrorCode: HMAC_MISMATCH vs ACCESS_DENIED).',
     defaults: { name: 'Tollara Verify Request' },
     inputs: ['main'],
     outputs: ['main', 'main'],
-    outputNames: ['Success', 'Failure'],
+    outputNames: ['Allowed', 'Denied'],
     properties: [
       serviceSecretNodeProperty,
       {
@@ -37,8 +37,8 @@ export class TollaraVerifyRequest implements INodeType {
     const rawBodyBinaryProperty = this.getNodeParameter('rawBodyBinaryProperty', 0, 'data') as string;
 
     const items = this.getInputData();
-    const successData: INodeExecutionData[] = [];
-    const failureData: INodeExecutionData[] = [];
+    const allowedData: INodeExecutionData[] = [];
+    const deniedData: INodeExecutionData[] = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -47,16 +47,21 @@ export class TollaraVerifyRequest implements INodeType {
       const valid = verifySignatureFromHeaders(serviceSecret, headers, payload);
 
       if (!valid) {
-        failureData.push(authFailureItem(item, hmacFailureFields(), i));
+        deniedData.push(authFailureItem(item, hmacFailureFields(), i));
         continue;
       }
 
       const userContext = headerUserContextToPassthrough(getUserContext(headers));
-      successData.push(
+      if (!userContext.grantAccess) {
+        deniedData.push(accessDeniedItem(item, userContext, i));
+        continue;
+      }
+
+      allowedData.push(
         passthroughItemWithJson(item, { tollaraOk: true, userContext }, i),
       );
     }
 
-    return [successData, failureData];
+    return [allowedData, deniedData];
   }
 }

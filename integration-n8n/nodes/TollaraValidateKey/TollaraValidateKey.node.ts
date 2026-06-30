@@ -4,11 +4,14 @@ import { optionalServiceId, requireServiceSecret, resolveCoreApiUrl, tollaraCred
 import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
 import { bearerTokenFromWebhookItem } from '../../lib/webhookPayload';
 import {
+  accessDeniedItem,
   authFailureItem,
+  isInfraValidationFailure,
   missingKeyFailureFields,
   outcomeFieldsFromValidation,
   validateKeySuccessItem,
 } from '../../lib/tollaraOutcome';
+import { validationResultToUserContext } from '../../lib/passthroughItem';
 
 export class TollaraValidateKey implements INodeType {
   description: INodeTypeDescription = {
@@ -16,13 +19,13 @@ export class TollaraValidateKey implements INodeType {
     name: 'tollaraValidateKey',
     icon: 'file:tollara.png',
     group: ['transform'],
-    version: 2,
+    version: 4,
     description:
-      'Validate a service key (typical after Webhook). Success output adds userContext; Failure output adds tollaraErrorCode.',
+      'Validate a service key (typical after Webhook). Allowed = key valid and subscription grants access; Denied = caller auth/authz failure; Error = Core/network/infra failure.',
     defaults: { name: 'Tollara Validate Key' },
     inputs: ['main'],
-    outputs: ['main', 'main'],
-    outputNames: ['Success', 'Failure'],
+    outputs: ['main', 'main', 'main'],
+    outputNames: ['Allowed', 'Denied', 'Error'],
     properties: [
       serviceSecretNodeProperty,
       {
@@ -61,8 +64,9 @@ export class TollaraValidateKey implements INodeType {
     const manualServiceKey = this.getNodeParameter('serviceKey', 0, '') as string;
 
     const items = this.getInputData();
-    const successData: INodeExecutionData[] = [];
-    const failureData: INodeExecutionData[] = [];
+    const allowedData: INodeExecutionData[] = [];
+    const deniedData: INodeExecutionData[] = [];
+    const errorData: INodeExecutionData[] = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -72,7 +76,7 @@ export class TollaraValidateKey implements INodeType {
           : bearerTokenFromWebhookItem(item);
 
       if (!serviceKey?.trim()) {
-        failureData.push(
+        deniedData.push(
           authFailureItem(
             item,
             missingKeyFailureFields(
@@ -93,13 +97,26 @@ export class TollaraValidateKey implements INodeType {
         serviceSecret,
       });
 
-      if (outcome.ok) {
-        successData.push(validateKeySuccessItem(item, outcome, i));
-      } else {
-        failureData.push(authFailureItem(item, outcomeFieldsFromValidation(outcome), i));
+      if (!outcome.ok) {
+        const fields = outcomeFieldsFromValidation(outcome);
+        if (isInfraValidationFailure(outcome.code)) {
+          errorData.push(authFailureItem(item, fields, i));
+        } else {
+          deniedData.push(authFailureItem(item, fields, i));
+        }
+        continue;
       }
+
+      if (!outcome.result.grantAccess) {
+        deniedData.push(
+          accessDeniedItem(item, validationResultToUserContext(outcome.result), i),
+        );
+        continue;
+      }
+
+      allowedData.push(validateKeySuccessItem(item, outcome, i));
     }
 
-    return [successData, failureData];
+    return [allowedData, deniedData, errorData];
   }
 }
