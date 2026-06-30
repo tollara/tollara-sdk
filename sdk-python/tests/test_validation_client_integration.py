@@ -153,7 +153,7 @@ def test_validate_service_key_with_outcome_invalid_key_preserves_message():
 
 
 @responses.activate
-def test_validate_service_key_with_outcome_http_error_on_401():
+def test_validate_service_key_with_outcome_http_error_on_401_without_json_body():
     responses.add(
         responses.POST,
         f"{CORE_BASE}/api/v1/service-keys/validate",
@@ -164,6 +164,36 @@ def test_validate_service_key_with_outcome_http_error_on_401():
     assert isinstance(outcome, ServiceKeyValidationFailure)
     assert outcome.code == ValidationFailureCode.HTTP_ERROR
     assert outcome.http_status == 401
+
+
+@responses.activate
+def test_validate_service_key_with_outcome_invalid_key_on_unsigned_401():
+    responses.add(
+        responses.POST,
+        f"{CORE_BASE}/api/v1/service-keys/validate",
+        body=json.dumps({"valid": False, "error": "Invalid service key"}),
+        status=401,
+        content_type="application/json",
+    )
+    outcome = validate_service_key_with_outcome(CORE_BASE, "bad", SERVICE_SECRET, service_id=SERVICE_ID)
+    assert isinstance(outcome, ServiceKeyValidationFailure)
+    assert outcome.code == ValidationFailureCode.INVALID_KEY
+    assert outcome.message == "Invalid service key"
+    assert outcome.http_status == 401
+
+
+@responses.activate
+def test_validate_service_key_with_outcome_http_error_on_500_with_valid_false():
+    responses.add(
+        responses.POST,
+        f"{CORE_BASE}/api/v1/service-keys/validate",
+        body=json.dumps({"valid": False, "error": "Internal server error"}),
+        status=500,
+    )
+    outcome = validate_service_key_with_outcome(CORE_BASE, "bad", SERVICE_SECRET, service_id=SERVICE_ID)
+    assert isinstance(outcome, ServiceKeyValidationFailure)
+    assert outcome.code == ValidationFailureCode.HTTP_ERROR
+    assert outcome.http_status == 500
 
 
 @responses.activate

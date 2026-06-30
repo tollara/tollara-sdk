@@ -185,7 +185,7 @@ describe('validationClient', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('returns HTTP_ERROR for unsigned 401', async () => {
+    it('returns HTTP_ERROR for unsigned 401 without JSON error body', async () => {
       const fetchMock: typeof fetch = async () => new Response('unauthorized', { status: 401 });
       const outcome = await validateServiceKeyWithOutcome({
         baseUrl: CORE_BASE,
@@ -195,6 +195,42 @@ describe('validationClient', () => {
         fetch: fetchMock,
       });
       expect(outcome).toEqual({ ok: false, code: 'HTTP_ERROR', httpStatus: 401 });
+    });
+
+    it('returns INVALID_KEY for unsigned 401 with valid:false JSON', async () => {
+      const fetchMock: typeof fetch = async () =>
+        new Response(JSON.stringify({ valid: false, error: 'Invalid service key' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'bad',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+      expect(outcome).toEqual({
+        ok: false,
+        code: 'INVALID_KEY',
+        message: 'Invalid service key',
+        httpStatus: 401,
+      });
+    });
+
+    it('returns HTTP_ERROR for 500 with valid:false JSON', async () => {
+      const fetchMock: typeof fetch = async () =>
+        new Response(JSON.stringify({ valid: false, error: 'Internal server error' }), {
+          status: 500,
+        });
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'bad',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+      expect(outcome).toEqual({ ok: false, code: 'HTTP_ERROR', httpStatus: 500 });
     });
 
     it('returns HMAC_MISMATCH for bad signature', async () => {

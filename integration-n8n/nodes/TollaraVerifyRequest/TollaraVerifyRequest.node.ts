@@ -14,7 +14,7 @@ export class TollaraVerifyRequest implements INodeType {
     group: ['transform'],
     version: 4,
     description:
-      'Verify Tollara HMAC and subscription access on Webhook output. Allowed = proceed; Denied = invalid HMAC or inactive subscription (see tollaraErrorCode: HMAC_MISMATCH vs ACCESS_DENIED).',
+      'Verify Tollara HMAC and subscription access on Webhook output. Allowed = proceed; Denied = invalid HMAC or inactive subscription. Throws on missing service secret (static misconfig).',
     defaults: { name: 'Tollara Verify Request' },
     inputs: ['main'],
     outputs: ['main', 'main'],

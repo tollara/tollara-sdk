@@ -132,8 +132,33 @@ async fn validate_service_key_with_outcome_returns_missing_key_without_http() {
     }
 }
 
+async fn validate_service_key_with_outcome_returns_invalid_key_on_unsigned_401() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/validate")
+        .with_status(401)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"valid":false,"error":"Invalid service key"}"#)
+        .create();
+
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client, &core_base, "bad", AGENT_SECRET, Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::InvalidKey);
+            assert_eq!(f.message.as_deref(), Some("Invalid service key"));
+            assert_eq!(f.http_status, Some(401));
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
 #[tokio::test]
-async fn validate_service_key_with_outcome_returns_http_error_on_401() {
+async fn validate_service_key_with_outcome_returns_http_error_on_401_without_json_body() {
     let mut server = mockito::Server::new();
     let core_base = format!("{}/api/v1", server.url());
     let _mock = server

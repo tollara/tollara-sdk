@@ -66,6 +66,30 @@ interface ValidateResponseBody {
   error?: string;
 }
 
+/** Unsigned 401/403 from Core: `{ valid: false, error?: string }`. */
+function invalidKeyFromUnsignedErrorBody(
+  responseText: string,
+  httpStatus: number,
+): ServiceKeyValidationOutcome | null {
+  if (httpStatus !== 401 && httpStatus !== 403) {
+    return null;
+  }
+  try {
+    const data = JSON.parse(responseText) as ValidateResponseBody;
+    if (data.valid === false) {
+      return {
+        ok: false,
+        code: 'INVALID_KEY',
+        message: typeof data.error === 'string' ? data.error : undefined,
+        httpStatus,
+      };
+    }
+  } catch {
+    // not JSON
+  }
+  return null;
+}
+
 function parseValidationResult(
   data: ValidateResponseBody,
   serviceId: string | null,
@@ -122,11 +146,15 @@ export async function validateServiceKeyWithOutcome(params: {
   }
 
   const httpStatus = res.status;
+  const responseText = await res.text();
   if (!res.ok) {
+    const unsignedInvalid = invalidKeyFromUnsignedErrorBody(responseText, httpStatus);
+    if (unsignedInvalid) {
+      return unsignedInvalid;
+    }
     return { ok: false, code: 'HTTP_ERROR', httpStatus };
   }
 
-  const responseText = await res.text();
   const signature = res.headers.get(TollaraHeaders.SIGNATURE);
   const timestamp = res.headers.get(TollaraHeaders.TIMESTAMP);
   if (!signature || !timestamp) {

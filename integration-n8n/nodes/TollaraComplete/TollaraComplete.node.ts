@@ -2,7 +2,7 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 
 import { CompletionStatus, reportCompletion } from '@tollara/service-sdk';
 
-import { requireServiceSecret, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { requireServiceSecret, requireUsageApiUrlWhenEndpointsEnabled, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 
 import { serviceSecretNodeProperty, tollaraUsageEndpointProperties } from '../../lib/nodeProperties';
 
@@ -77,6 +77,7 @@ export class TollaraComplete implements INodeType {
     const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
 
     const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
+    requireUsageApiUrlWhenEndpointsEnabled(this);
 
     const items = this.getInputData();
 

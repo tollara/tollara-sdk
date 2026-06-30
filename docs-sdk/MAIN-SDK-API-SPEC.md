@@ -198,11 +198,11 @@ All language SDKs expose **`validateServiceKeyWithOutcome`** (idiomatic naming p
 |------|------|
 | `MISSING_KEY` | Blank/whitespace service key (no HTTP call) |
 | `NETWORK` | Transport/connection failure |
-| `HTTP_ERROR` | Non-2xx response (typically unsigned empty body per §2.1) |
+| `HTTP_ERROR` | Non-2xx response without a parseable unsigned error body (empty body, non-JSON, 5xx, etc.) |
 | `MISSING_SIGNATURE_HEADERS` | 2xx body but missing `X-Tollara-Signature` or `X-Tollara-Timestamp` |
 | `HMAC_MISMATCH` | Signature verification failed |
-| `INVALID_KEY` | Signed body with `valid: false` — set `message` from Core `error` field when present |
-| `PARSE_ERROR` | Response body not valid JSON |
+| `INVALID_KEY` | `valid: false` — from **unsigned** **401/403** JSON (set `message` from Core `error`), or from **2xx** body after HMAC verify |
+| `PARSE_ERROR` | 2xx response body not valid JSON |
 
 **Not a failure:** `valid: true` with a `subscriptionStatus` where `grantAccess(subscriptionStatus)` is `false` (e.g. `EXPIRED`) — returns success outcome; callers branch on `grantAccess` / subscription status.
 

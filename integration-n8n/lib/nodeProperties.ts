@@ -66,19 +66,19 @@ function urlNodeProperty(
 const coreApiUrlNodeProperty = urlNodeProperty(
   'Core API URL',
   'coreApiUrl',
-  'Optional. Used by Validate Key and Estimate Usage.',
+  'Optional. Required when Set API Endpoints is enabled. Used by Validate Key and Estimate Usage.',
 );
 
 const usageApiUrlNodeProperty = urlNodeProperty(
   'Usage API URL',
   'usageApiUrl',
-  'Used by Report Usage and to rewrite progress/complete URLs when gateway returns production hosts.',
+  'Used by Report Usage and to rewrite progress/complete URLs when gateway returns production hosts. Required when Set API Endpoints is enabled.',
 );
 
 const gatewayApiUrlNodeProperty = urlNodeProperty(
   'Gateway API URL',
   'gatewayApiUrl',
-  'Optional. Used by Invoke, Job Status, and Job Result.',
+  'Optional. Used by Invoke, Job Status, and Job Result. Required when Set API Endpoints is enabled.',
 );
 
 /** Nodes that call core (Validate Key, Estimate Usage). */

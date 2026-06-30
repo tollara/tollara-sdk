@@ -5,6 +5,8 @@ import {
   hmacFailureFields,
   invokeOk,
   isInfraValidationFailure,
+  isSellerSecretValidationFailure,
+  isValidateKeyErrorOutcome,
   missingKeyFailureFields,
   outcomeFieldsFromValidation,
   suggestedHttpStatusForAuthError,
@@ -63,6 +65,18 @@ describe('tollaraOutcome', () => {
     assert.equal(isInfraValidationFailure('HTTP_ERROR'), true);
     assert.equal(isInfraValidationFailure('INVALID_KEY'), false);
     assert.equal(isInfraValidationFailure('HMAC_MISMATCH'), false);
+  });
+
+  it('detects seller secret misconfiguration from Core error message', () => {
+    assert.equal(isSellerSecretValidationFailure('Invalid agent_secret'), true);
+    assert.equal(isSellerSecretValidationFailure('Invalid service key'), false);
+  });
+
+  it('routes validate key outcomes to Error vs Denied', () => {
+    assert.equal(isValidateKeyErrorOutcome('HTTP_ERROR', undefined), true);
+    assert.equal(isValidateKeyErrorOutcome('INVALID_KEY', 'Invalid service key'), false);
+    assert.equal(isValidateKeyErrorOutcome('INVALID_KEY', 'Invalid agent_secret'), true);
+    assert.equal(isValidateKeyErrorOutcome('MISSING_KEY', undefined), false);
   });
 
   it('invokeOk checks 2xx', () => {

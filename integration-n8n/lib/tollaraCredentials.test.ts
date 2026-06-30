@@ -3,8 +3,11 @@ import { describe, it } from 'node:test';
 import {
   getTollaraCredentials,
   optionalServiceId,
+  requireCoreApiUrlWhenEndpointsEnabled,
+  requireGatewayApiUrlWhenEndpointsEnabled,
   requireServiceId,
   requireServiceSecret,
+  requireUsageApiUrlWhenEndpointsEnabled,
   resolveCoreApiUrl,
   resolveGatewayApiUrl,
   resolveUsageApiUrl,
@@ -89,5 +92,50 @@ describe('tollaraCredentials', () => {
     assert.equal(creds.usageApiUrl, 'http://usage:8084');
     assert.equal(creds.gatewayApiUrl, 'http://gateway:8083');
     assert.equal(creds.coreApiUrl, undefined);
+  });
+
+  it('requireApiUrlWhenEndpointsEnabled throws when toggle on and URL missing', () => {
+    const executeFunctions = {
+      getNodeParameter: (name: string) => (name === 'setApiEndpoints' ? true : false),
+      getNode: () => ({ parameters: {} }),
+    };
+    assert.throws(
+      () => requireCoreApiUrlWhenEndpointsEnabled(executeFunctions as never),
+      /Core API URL is required when Set API Endpoints is enabled/,
+    );
+    assert.throws(
+      () => requireUsageApiUrlWhenEndpointsEnabled(executeFunctions as never),
+      /Usage API URL is required when Set API Endpoints is enabled/,
+    );
+    assert.throws(
+      () => requireGatewayApiUrlWhenEndpointsEnabled(executeFunctions as never),
+      /Gateway API URL is required when Set API Endpoints is enabled/,
+    );
+  });
+
+  it('requireApiUrlWhenEndpointsEnabled does not throw when toggle off', () => {
+    const executeFunctions = {
+      getNodeParameter: (_name: string, _index: number, defaultValue?: unknown) => defaultValue ?? false,
+      getNode: () => ({ parameters: {} }),
+    };
+    requireCoreApiUrlWhenEndpointsEnabled(executeFunctions as never);
+    requireUsageApiUrlWhenEndpointsEnabled(executeFunctions as never);
+    requireGatewayApiUrlWhenEndpointsEnabled(executeFunctions as never);
+  });
+
+  it('requireApiUrlWhenEndpointsEnabled does not throw when toggle on and URL set', () => {
+    const executeFunctions = {
+      getNodeParameter: (name: string) => (name === 'setApiEndpoints' ? true : false),
+      getNode: () => ({
+        parameters: {
+          coreApiUrl: 'http://core:8081',
+          usageApiUrl: 'http://usage:8084',
+          gatewayApiUrl: 'http://gateway:8083',
+        },
+      }),
+    };
+    requireCoreApiUrlWhenEndpointsEnabled(executeFunctions as never);
+    requireUsageApiUrlWhenEndpointsEnabled(executeFunctions as never);
+    requireGatewayApiUrlWhenEndpointsEnabled(executeFunctions as never);
   });
 });

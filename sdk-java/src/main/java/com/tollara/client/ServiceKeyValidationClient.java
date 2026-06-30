@@ -2,6 +2,7 @@ package com.tollara.client;
 
 import com.tollara.client.model.UsageEstimateResult;
 import com.tollara.common.util.HmacUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -150,11 +151,16 @@ public class ServiceKeyValidationClient {
             String bodyJson = objectMapper.writeValueAsString(request);
             HttpResponse<String> response = HttpSupport.postJson(httpClient, validateUrl, bodyJson, Map.of());
             int httpStatus = response.statusCode();
+            String responseText = response.body();
             if (httpStatus < 200 || httpStatus >= 300) {
+                ServiceKeyValidationOutcome unsignedInvalid =
+                        tryInvalidKeyFromUnsignedErrorBody(responseText, httpStatus);
+                if (unsignedInvalid != null) {
+                    return unsignedInvalid;
+                }
                 return ServiceKeyValidationOutcome.failure(
                         ValidationFailureCode.HTTP_ERROR, null, httpStatus);
             }
-            String responseText = response.body();
             String signature = response.headers().firstValue(TollaraHeaders.SIGNATURE).orElse(null);
             String timestampStr = response.headers().firstValue(TollaraHeaders.TIMESTAMP).orElse(null);
             if (signature == null || timestampStr == null) {
@@ -390,6 +396,26 @@ public class ServiceKeyValidationClient {
         private long timestamp;
         private String error;
         private Integer validationSchemaVersion;
+    }
+
+    /** Unsigned 401/403 from Core: {@code { "valid": false, "error"?: string }}. */
+    private ServiceKeyValidationOutcome tryInvalidKeyFromUnsignedErrorBody(String responseText, int httpStatus) {
+        if (httpStatus != 401 && httpStatus != 403) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(responseText);
+            if (node.has("valid") && !node.get("valid").asBoolean()) {
+                String error = node.has("error") && !node.get("error").isNull()
+                        ? node.get("error").asText()
+                        : null;
+                return ServiceKeyValidationOutcome.failure(
+                        ValidationFailureCode.INVALID_KEY, error, httpStatus);
+            }
+        } catch (IOException ignored) {
+            // not JSON
+        }
+        return null;
     }
 
     @Data
