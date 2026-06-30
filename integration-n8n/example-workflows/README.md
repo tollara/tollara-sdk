@@ -2,11 +2,11 @@
 
 Import via n8n: **Workflow menu → Import from File**.
 
-Requires **`n8n-nodes-tollara@3.3.0+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
+Requires **`n8n-nodes-tollara@3.3.1+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
 
 ## Error paths (v3.3.0+)
 
-Backend webhooks: **Verify Request** **Denied** → single Respond with 401/403 from `tollaraErrorCode`; **Validate Key** **Denied** → 401/403, **Error** → 503. Subscriber workflows branch on `tollaraOk` / `wouldAllow` → **Format Error**.
+Backend webhooks: **Denied** / **Error** items include `tollaraHttpStatus` (401 / 403 / 503) for **Respond to Webhook**. Subscriber workflows branch on `tollaraOk` / `wouldAllow` → **Format Error**.
 
 **Auth nodes (v4):** **Tollara Verify Request** — **Allowed** / **Denied**. **Tollara Validate Key** — **Allowed** / **Denied** / **Error**.
 

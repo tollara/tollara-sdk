@@ -43,8 +43,8 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { status: 'error', message: $json.tollaraErrorMessage ?? 'Request denied', code: $json.tollaraErrorCode, subscriptionStatus: $json.userContext?.subscriptionStatus } }}",
-        "options": { "responseCode": "={{ $json.tollaraErrorCode === 'ACCESS_DENIED' ? 403 : 401 }}" }
+        "responseBody": "={{ { status: 'error', message: $json.tollaraErrorMessage ?? 'Request denied', code: $json.tollaraErrorCode, httpStatus: $json.tollaraHttpStatus, subscriptionStatus: $json.userContext?.subscriptionStatus } }}",
+        "options": { "responseCode": "={{ $json.tollaraHttpStatus ?? 401 }}" }
       },
       "id": "b2c3d4e5-0002-4000-8000-00000000001e",
       "name": "Respond Denied",

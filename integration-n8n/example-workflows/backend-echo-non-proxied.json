@@ -119,9 +119,9 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { status: 'error', message: $json.tollaraErrorMessage ?? 'Request denied', code: $json.tollaraErrorCode, subscriptionStatus: $json.userContext?.subscriptionStatus } }}",
+        "responseBody": "={{ { status: 'error', message: $json.tollaraErrorMessage ?? 'Request denied', code: $json.tollaraErrorCode, httpStatus: $json.tollaraHttpStatus, subscriptionStatus: $json.userContext?.subscriptionStatus } }}",
         "options": {
-          "responseCode": "={{ $json.tollaraErrorCode === 'ACCESS_DENIED' ? 403 : 401 }}"
+          "responseCode": "={{ $json.tollaraHttpStatus ?? 401 }}"
         }
       },
       "id": "c3d4e5f6-0003-4000-8000-000000000016",
@@ -133,9 +133,9 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { status: 'error', message: $json.tollaraErrorMessage ?? 'Service validation failed', code: $json.tollaraErrorCode } }}",
+        "responseBody": "={{ { status: 'error', message: $json.tollaraErrorMessage ?? 'Service validation failed', code: $json.tollaraErrorCode, httpStatus: $json.tollaraHttpStatus } }}",
         "options": {
-          "responseCode": 503
+          "responseCode": "={{ $json.tollaraHttpStatus ?? 503 }}"
         }
       },
       "id": "c3d4e5f6-0003-4000-8000-000000000017",
