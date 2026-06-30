@@ -49,24 +49,36 @@ final class TollaraClient
     /** @return ServiceKeyValidationResult|null */
     public function validateServiceKey(string $serviceKey): ?ServiceKeyValidationResult
     {
+        $outcome = $this->validateServiceKeyWithOutcome($serviceKey);
+        return $outcome->ok ? $outcome->result : null;
+    }
+
+    public function validateServiceKeyWithOutcome(string $serviceKey): ServiceKeyValidationOutcome
+    {
+        if (trim($serviceKey) === '') {
+            return ServiceKeyValidationOutcome::failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode::MISSING_KEY),
+            );
+        }
         $body = ['serviceKey' => $serviceKey, 'serviceSecret' => $this->serviceSecret];
         if ($this->serviceId !== '') {
             $body['serviceId'] = $this->serviceId;
         }
         $res = $this->requestJson('POST', $this->coreApiUrl . $this->corePathPrefix . '/service-keys/validate', $body);
-        if ($res['status'] < 200 || $res['status'] >= 300) {
-            return null;
+        if ($res['status'] === 0) {
+            return ServiceKeyValidationOutcome::failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode::NETWORK),
+            );
         }
-        $sig = $this->headerGetCi($res['headers'], TollaraHeaders::SIGNATURE);
-        $ts = $this->headerGetCi($res['headers'], TollaraHeaders::TIMESTAMP);
-        if ($sig === '' || $ts === '' || !Hmac::validateHmacSignature($sig, $res['body'] . $ts, $this->serviceSecret)) {
-            return null;
-        }
-        $json = json_decode($res['body'], true);
-        if (!is_array($json) || empty($json['valid'])) {
-            return null;
-        }
-        return ServiceKeyValidationResult::fromArray($json);
+        $fallbackServiceId = $this->serviceId !== '' ? $this->serviceId : null;
+
+        return ValidationClient::outcomeFromValidateResponse(
+            $res['status'],
+            $res['body'],
+            $res['headers'],
+            $this->serviceSecret,
+            $fallbackServiceId,
+        );
     }
 
     /** @return UsageEstimateResult|null */

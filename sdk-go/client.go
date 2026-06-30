@@ -3,6 +3,7 @@ package sdk
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -156,28 +157,14 @@ func NewTollaraClient(opts TollaraClientOptions) (*TollaraClient, error) {
 }
 
 func (c *TollaraClient) ValidateServiceKey(serviceKey string) (*ServiceKeyValidationResult, error) {
-	body := map[string]interface{}{"serviceKey": serviceKey, "serviceSecret": c.ServiceSecret}
-	if c.ServiceID != "" {
-		body["serviceId"] = c.ServiceID
+	outcome := c.ValidateServiceKeyWithOutcome(serviceKey)
+	if outcome.OK {
+		return outcome.Result, nil
 	}
-	url := c.CoreBaseURL + c.CorePathPrefix + "/service-keys/validate"
-	respBody, headers, status, err := c.doJSON("POST", url, body, map[string]string{"Content-Type": "application/json"})
-	if err != nil || status < 200 || status >= 300 {
-		return nil, err
+	if outcome.Failure != nil && outcome.Failure.Code == ValidationFailureNetwork {
+		return nil, errors.New("network error")
 	}
-	sig := headerGetCI(headers, HeaderSignature)
-	ts := headerGetCI(headers, HeaderTimestamp)
-	if sig == "" || ts == "" || !ValidateHmacSignature(sig, respBody+ts, c.ServiceSecret) {
-		return nil, nil
-	}
-	var raw struct {
-		Valid bool `json:"valid"`
-		ServiceKeyValidationResult
-	}
-	if json.Unmarshal([]byte(respBody), &raw) != nil || !raw.Valid {
-		return nil, nil
-	}
-	return &raw.ServiceKeyValidationResult, nil
+	return nil, nil
 }
 
 func (c *TollaraClient) EstimateUsage(serviceKey string, estimatedUnits float64) (*UsageEstimateResult, error) {
