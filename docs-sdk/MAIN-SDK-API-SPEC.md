@@ -173,6 +173,13 @@ Used by both callers and backends to validate a service key and get user/entitle
 | `timestamp` | number | Unix epoch seconds (same as header). |
 | `error` | string | Present only on error (e.g. invalid key). |
 
+**Common unsigned `error` strings (401, `valid: false`):**
+
+| `error` | Meaning |
+|---------|---------|
+| `Invalid service key` | Unknown or invalid caller service key (caller fault). |
+| `Invalid service secret` | `serviceSecret` in the validate request does not match the listing (seller fault). |
+
 **Response (error)**
 
 - **Status:** typically **`401 Unauthorized`** with body `valid: false` and `error` message. **`500 Internal Server Error`** may occur with `valid: false` and `error` (e.g. internal failure). Response may still include HMAC headers; verify if present.

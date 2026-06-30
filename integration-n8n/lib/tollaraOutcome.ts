@@ -20,7 +20,15 @@ export function isInfraValidationFailure(code: ValidationFailureCode): boolean {
 /** Core unsigned 401 when the service secret on the validate request does not match the listing. */
 export function isSellerSecretValidationFailure(message: string | undefined | null): boolean {
   const normalized = message?.trim().toLowerCase() ?? '';
-  return normalized === 'invalid agent_secret' || normalized.includes('invalid agent_secret');
+  if (!normalized) {
+    return false;
+  }
+  // Core: "Invalid service secret" (current). Legacy: "Invalid agent_secret".
+  return (
+    normalized.includes('invalid service secret') ||
+    normalized.includes('invalid agent_secret') ||
+    normalized.includes('invalid service_secret')
+  );
 }
 
 /** Route Validate Key failures to the Error output (seller/infra), not Denied (caller). */
