@@ -13,13 +13,13 @@ The `@tollara/service-sdk` dependency is installed from npm automatically.
 
 ## Nodes
 
-- **Tollara Verify Request** (v4) – Verify Tollara HMAC and subscription access on webhook output. **Allowed** → `userContext`; **Denied** → `HMAC_MISMATCH`, `ACCESS_DENIED`, etc. (use `tollaraErrorCode`: 401 vs 403 on Respond).
+- **Tollara Verify Request** (v4) – **Allowed** / **Denied**. Denied items include `tollaraErrorCode`, `tollaraErrorMessage`, and `tollaraHttpStatus` (401 or 403).
 - **Tollara Invoke** – Invoke a service endpoint (sync or async). Emits `tollaraOk`, `statusCode`, and parsed `data`. Branch on `tollaraOk` for subscriber error paths.
 - **Tollara Job Status** – Poll async job status by request ID.
 - **Tollara Job Result** – Fetch async job result by request ID.
 - **Tollara Progress** – Send a progress update (use the `progressUrl` from an async invoke response).
 - **Tollara Complete** – Send completion (use the `callbackUrl` from an async invoke response).
-- **Tollara Validate Key** (v4) – Validate a service key after Webhook. **Allowed** → `userContext`; **Denied** → caller auth/authz (`INVALID_KEY`, `HMAC_MISMATCH`, `ACCESS_DENIED`); **Error** → Core/network/infra (`NETWORK`, `HTTP_ERROR`, …). Wire Denied → 401/403; Error → 503.
+- **Tollara Validate Key** (v4) – **Allowed** / **Denied** / **Error**. Failure items include `tollaraHttpStatus` (401, 403, or 503; `HTTP_ERROR` may pass through Core status).
 - **Tollara Report Usage** – Report usage units for a user and service.
 - **Tollara Estimate Usage** – Estimate usage cost and quota for a service key.
 

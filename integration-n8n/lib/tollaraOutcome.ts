@@ -21,7 +21,22 @@ export type TollaraOutcomeFields = {
   tollaraOk: boolean;
   tollaraErrorCode?: TollaraAuthErrorCode;
   tollaraErrorMessage?: string;
+  /** Suggested HTTP status for Respond to Webhook (401 / 403 / 503). */
+  tollaraHttpStatus?: number;
 };
+
+/** Maps auth error codes to a webhook response status. */
+export function suggestedHttpStatusForAuthError(
+  code: TollaraAuthErrorCode,
+  coreHttpStatus?: number,
+): number {
+  if (code === 'ACCESS_DENIED') return 403;
+  if (code === 'HTTP_ERROR' && coreHttpStatus != null && coreHttpStatus >= 400) {
+    return coreHttpStatus;
+  }
+  if (isInfraValidationFailure(code as ValidationFailureCode)) return 503;
+  return 401;
+}
 
 export function outcomeFieldsFromValidation(
   outcome: ServiceKeyValidationOutcome,
@@ -33,6 +48,7 @@ export function outcomeFieldsFromValidation(
     tollaraOk: false,
     tollaraErrorCode: outcome.code,
     tollaraErrorMessage: outcome.message,
+    tollaraHttpStatus: suggestedHttpStatusForAuthError(outcome.code, outcome.httpStatus),
   };
 }
 
@@ -41,6 +57,7 @@ export function hmacFailureFields(): TollaraOutcomeFields {
     tollaraOk: false,
     tollaraErrorCode: 'HMAC_MISMATCH',
     tollaraErrorMessage: 'Invalid HMAC signature',
+    tollaraHttpStatus: 401,
   };
 }
 
@@ -49,6 +66,7 @@ export function missingKeyFailureFields(message: string): TollaraOutcomeFields {
     tollaraOk: false,
     tollaraErrorCode: 'MISSING_KEY',
     tollaraErrorMessage: message,
+    tollaraHttpStatus: 401,
   };
 }
 
@@ -58,6 +76,7 @@ export function accessDeniedFields(subscriptionStatus: string | null | undefined
     tollaraOk: false,
     tollaraErrorCode: 'ACCESS_DENIED',
     tollaraErrorMessage: `Subscription status '${status}' does not grant access`,
+    tollaraHttpStatus: 403,
   };
 }
 
