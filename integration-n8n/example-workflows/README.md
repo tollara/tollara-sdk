@@ -2,13 +2,13 @@
 
 Import via n8n: **Workflow menu → Import from File**.
 
-Requires **`n8n-nodes-tollara@3.1.0+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
+Requires **`n8n-nodes-tollara@3.3.0+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
 
-## Error paths (v3.1.0+)
+## Error paths (v3.3.0+)
 
-Backend webhooks wire auth node **Failure** → 401, Success + `!userContext.grantAccess` → 403. Subscriber workflows branch on `tollaraOk` / `wouldAllow` → **Format Error**. See example workflow sticky notes.
+Backend webhooks: **Verify Request** **Denied** → single Respond with 401/403 from `tollaraErrorCode`; **Validate Key** **Denied** → 401/403, **Error** → 503. Subscriber workflows branch on `tollaraOk` / `wouldAllow` → **Format Error**.
 
-**Auth nodes (v2):** **Tollara Validate Key** and **Tollara Verify Request** expose **Success** and **Failure** outputs — connect both in the canvas.
+**Auth nodes (v4):** **Tollara Verify Request** — **Allowed** / **Denied**. **Tollara Validate Key** — **Allowed** / **Denied** / **Error**.
 
 **n8n import quirk:** **Tollara Verify Request** may import with empty parameters and a broken/generic icon. This is an n8n editor bug (other Tollara nodes are unaffected). After every workflow import, run **`npm run repair:workflows`**, then close and reopen the workflow tab (hard refresh if needed).
 
