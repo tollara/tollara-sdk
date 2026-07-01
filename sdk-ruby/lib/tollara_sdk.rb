@@ -13,6 +13,48 @@ module TollaraSdk
   DEFAULT_GATEWAY_PATH_PREFIX = "/api"
   DEFAULT_USAGE_PATH_PREFIX = "/api/usage"
 
+  ECS_CORE_PATH_PREFIX = "/core/api/v1"
+  ECS_GATEWAY_PATH_PREFIX = "/gateway/api/v1"
+  ECS_USAGE_PATH_PREFIX = "/usage/api/v1"
+
+  module PathPrefixes
+    module_function
+
+    def self.hosted_tollara_api_origin?(origin)
+      uri = URI.parse(origin.to_s.strip)
+      host = uri.host&.downcase
+      return false if host.nil? || host.empty?
+      return true if host == "api.tollara.ai" || host.end_with?(".api.tollara.ai")
+      host == "api.ppe.tollara.ai" || host.end_with?(".api.ppe.tollara.ai")
+    rescue URI::InvalidURIError
+      false
+    end
+
+    def self.resolve_origin(base_url)
+      url = base_url.to_s.strip
+      return DEFAULT_API_URL if url.empty?
+      url.sub(%r{/\z}, "")
+    end
+
+    def self.resolve_gateway_path_prefix(base_url, override = nil)
+      return override.to_s.strip unless override.nil? || override.to_s.strip.empty?
+      origin = resolve_origin(base_url)
+      hosted_tollara_api_origin?(origin) ? ECS_GATEWAY_PATH_PREFIX : DEFAULT_GATEWAY_PATH_PREFIX
+    end
+
+    def self.resolve_core_path_prefix(base_url, override = nil)
+      return override.to_s.strip unless override.nil? || override.to_s.strip.empty?
+      origin = resolve_origin(base_url)
+      hosted_tollara_api_origin?(origin) ? ECS_CORE_PATH_PREFIX : DEFAULT_CORE_PATH_PREFIX
+    end
+
+    def self.resolve_usage_path_prefix(base_url, override = nil)
+      return override.to_s.strip unless override.nil? || override.to_s.strip.empty?
+      origin = resolve_origin(base_url)
+      hosted_tollara_api_origin?(origin) ? ECS_USAGE_PATH_PREFIX : DEFAULT_USAGE_PATH_PREFIX
+    end
+  end
+
   UsageCallbackResult = Struct.new(
     :success, :http_status, :http_status_text, :request_url, :response_body, :network_error,
     keyword_init: true
@@ -42,16 +84,16 @@ module TollaraSdk
 
     def initialize(
       api_url: nil, core_api_url: nil, gateway_api_url: nil, usage_api_url: nil,
-      core_path_prefix: DEFAULT_CORE_PATH_PREFIX, gateway_path_prefix: DEFAULT_GATEWAY_PATH_PREFIX,
-      usage_path_prefix: DEFAULT_USAGE_PATH_PREFIX, service_id: nil, service_secret: nil
+      core_path_prefix: nil, gateway_path_prefix: nil,
+      usage_path_prefix: nil, service_id: nil, service_secret: nil
     )
       @api_url = (api_url || ENV["TOLLARA_API_URL"] || DEFAULT_API_URL).to_s.sub(%r{/\z}, "")
       @core_api_url = (core_api_url || @api_url).to_s.sub(%r{/\z}, "")
       @gateway_api_url = (gateway_api_url || @api_url).to_s.sub(%r{/\z}, "")
       @usage_api_url = (usage_api_url || @api_url).to_s.sub(%r{/\z}, "")
-      @core_path_prefix = normalize_prefix(core_path_prefix)
-      @gateway_path_prefix = normalize_prefix(gateway_path_prefix)
-      @usage_path_prefix = normalize_prefix(usage_path_prefix)
+      @core_path_prefix = normalize_prefix(PathPrefixes.resolve_core_path_prefix(@core_api_url, core_path_prefix))
+      @gateway_path_prefix = normalize_prefix(PathPrefixes.resolve_gateway_path_prefix(@gateway_api_url, gateway_path_prefix))
+      @usage_path_prefix = normalize_prefix(PathPrefixes.resolve_usage_path_prefix(@usage_api_url, usage_path_prefix))
       @service_id = (service_id || ENV["TOLLARA_SERVICE_ID"]).to_s
       @service_secret = (service_secret || ENV["TOLLARA_SERVICE_SECRET"]).to_s
       raise ArgumentError, "service_secret is required" if @service_secret.strip.empty?

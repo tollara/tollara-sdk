@@ -9,8 +9,13 @@ public static class GatewayClient
     /// <summary>Poll status using the SDK default API origin and gateway path prefix (same as <see cref="TollaraClient"/>).</summary>
     public static Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(HttpClient http, string requestId,
         string serviceKey, CancellationToken ct = default) =>
-        GetRequestStatusAsync(http, TollaraClient.DefaultApiUrl, TollaraClient.DefaultGatewayPathPrefix, requestId,
-            serviceKey, ct);
+        GetRequestStatusAsync(
+            http,
+            TollaraClient.DefaultApiUrl,
+            PathPrefixes.ResolveGatewayPathPrefix(TollaraClient.DefaultApiUrl, null),
+            requestId,
+            serviceKey,
+            ct);
 
     /// <summary>Poll status against explicit gateway base and path prefix (for custom or local stacks).</summary>
     public static async Task<(bool Ok, int StatusCode, string Body)> GetRequestStatusAsync(
@@ -28,8 +33,13 @@ public static class GatewayClient
     /// <summary>Fetch result using the SDK default API origin and gateway path prefix (same as <see cref="TollaraClient"/>).</summary>
     public static Task<(bool Ok, int StatusCode, string Body)> GetRequestResultAsync(HttpClient http, string requestId,
         string serviceKey, CancellationToken ct = default) =>
-        GetRequestResultAsync(http, TollaraClient.DefaultApiUrl, TollaraClient.DefaultGatewayPathPrefix, requestId,
-            serviceKey, ct);
+        GetRequestResultAsync(
+            http,
+            TollaraClient.DefaultApiUrl,
+            PathPrefixes.ResolveGatewayPathPrefix(TollaraClient.DefaultApiUrl, null),
+            requestId,
+            serviceKey,
+            ct);
 
     /// <summary>Fetch result against explicit gateway base and path prefix (for custom or local stacks).</summary>
     public static async Task<(bool Ok, int StatusCode, string Body)> GetRequestResultAsync(

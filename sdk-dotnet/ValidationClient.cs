@@ -279,7 +279,9 @@ public static class ValidationClient
     }
 
     private static string DefaultCoreServiceRoot() =>
-        JoinBaseAndPrefix(TollaraClient.DefaultApiUrl, TollaraClient.DefaultCorePathPrefix);
+        JoinBaseAndPrefix(
+            TollaraClient.DefaultApiUrl,
+            PathPrefixes.ResolveCorePathPrefix(TollaraClient.DefaultApiUrl, null));
 
     private static string JoinBaseAndPrefix(string baseUrl, string pathPrefix)
     {

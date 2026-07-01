@@ -30,7 +30,9 @@ public static class UsageClient
     public static string BuildUsageReportUrl(string usageServiceUrl, string? usagePathPrefix)
     {
         var baseUrl = usageServiceUrl.TrimEnd('/');
-        var p = string.IsNullOrWhiteSpace(usagePathPrefix) ? DefaultUsagePathPrefix : usagePathPrefix.Trim();
+        var p = string.IsNullOrWhiteSpace(usagePathPrefix)
+            ? PathPrefixes.ResolveUsagePathPrefix(usageServiceUrl, null)
+            : usagePathPrefix.Trim();
         if (!p.StartsWith('/')) p = "/" + p;
         p = p.TrimEnd('/');
         return $"{baseUrl}{p}/report";

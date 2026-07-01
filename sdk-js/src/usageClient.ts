@@ -1,6 +1,7 @@
 import { TollaraHeaders } from './tollaraHeaders';
 import { CompletionStatus } from './completionStatus';
-import { DEFAULT_API_URL, DEFAULT_USAGE_PATH_PREFIX } from './constants';
+import { DEFAULT_API_URL } from './constants';
+import { resolveUsagePathPrefix } from './pathPrefixes';
 import { calculateHmacWithTimestamp } from './hmac';
 import { parseUsageBreakdown, type UsageBreakdown } from './usageBreakdown';
 import { resolveBaseUrl } from './urls';
@@ -22,10 +23,10 @@ function usageReportInstantAndEpochSeconds(timestamp?: number | Date | null): { 
 
 export { DEFAULT_USAGE_PATH_PREFIX } from './constants';
 
-/** Builds `{baseUrl}/api/usage/report` using the default usage path. */
+/** Builds usage report URL for the given API origin (Docker or hosted ECS). */
 export function buildUsageReportUrl(baseUrl: string): string {
   const base = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
-  let p = DEFAULT_USAGE_PATH_PREFIX.trim();
+  let p = resolveUsagePathPrefix(baseUrl).trim();
   if (!p.startsWith('/')) p = `/${p}`;
   p = p.replace(/\/$/, '');
   return `${base}${p}/report`;

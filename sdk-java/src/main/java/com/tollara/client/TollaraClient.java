@@ -72,9 +72,9 @@ public final class TollaraClient {
         String gwBase = TollaraUrls.trimTrailingSlashes(firstNonBlank(b.gatewayApiUrl, resolved));
         String usageBase = TollaraUrls.trimTrailingSlashes(firstNonBlank(b.usageApiUrl, resolved));
 
-        String corePrefix = b.corePathPrefix != null ? b.corePathPrefix : DEFAULT_CORE_PATH_PREFIX;
-        this.gatewayPathPrefix = b.gatewayPathPrefix != null ? b.gatewayPathPrefix : DEFAULT_GATEWAY_PATH_PREFIX;
-        String usagePrefix = b.usagePathPrefix != null ? b.usagePathPrefix : DEFAULT_USAGE_PATH_PREFIX;
+        String corePrefix = TollaraPathPrefixes.resolveCorePathPrefix(coreBase, b.corePathPrefix);
+        this.gatewayPathPrefix = TollaraPathPrefixes.resolveGatewayPathPrefix(gwBase, b.gatewayPathPrefix);
+        String usagePrefix = TollaraPathPrefixes.resolveUsagePathPrefix(usageBase, b.usagePathPrefix);
 
         String coreRoot = TollaraUrls.join(coreBase, corePrefix);
         this.gatewayBaseUrl = gwBase;

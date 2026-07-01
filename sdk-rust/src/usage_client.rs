@@ -68,7 +68,13 @@ pub const DEFAULT_USAGE_PATH_PREFIX: &str = "/api/usage";
 #[must_use]
 pub fn build_usage_report_url(usage_base_url: &str, usage_path_prefix: Option<&str>) -> String {
     let base = usage_base_url.trim_end_matches('/');
-    let mut p = usage_path_prefix.unwrap_or(DEFAULT_USAGE_PATH_PREFIX).trim();
+    let mut p = crate::path_prefixes::resolve_usage_path_prefix(
+        Some(usage_base_url),
+        "https://api.tollara.ai",
+        DEFAULT_USAGE_PATH_PREFIX,
+        usage_path_prefix,
+    );
+    let mut p = p.trim();
     if p.is_empty() {
         p = DEFAULT_USAGE_PATH_PREFIX;
     }

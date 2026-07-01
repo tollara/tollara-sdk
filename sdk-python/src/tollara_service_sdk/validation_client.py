@@ -8,13 +8,14 @@ from .tollara_headers import TollaraHeaders
 from .hmac_utils import validate_hmac_signature
 from .usage_breakdown import UsageBreakdown, parse_usage_breakdown
 from .verifier import grant_access
+from .path_prefixes import resolve_core_path_prefix
 
 DEFAULT_CORE_PATH_PREFIX = "/api/v1"
 
 
 def _core_service_keys_url(base_url: str, core_path_prefix: Optional[str], suffix: str) -> str:
     base = base_url.rstrip("/")
-    p = (core_path_prefix or DEFAULT_CORE_PATH_PREFIX).strip()
+    p = resolve_core_path_prefix(base_url, core_path_prefix).strip()
     if not p.startswith("/"):
         p = "/" + p
     p = p.rstrip("/")

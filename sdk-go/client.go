@@ -139,15 +139,18 @@ func NewTollaraClient(opts TollaraClientOptions) (*TollaraClient, error) {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 60 * time.Second}
 	}
-	corePrefix := firstNonBlank(opts.CorePathPrefix, DefaultCorePathPrefix)
-	gatewayPrefix := firstNonBlank(opts.GatewayPathPrefix, DefaultGatewayPathPrefix)
-	usagePrefix := firstNonBlank(opts.UsagePathPrefix, DefaultUsagePathPrefix)
+	coreBase := trimTrailingSlash(firstNonBlank(opts.CoreBaseURL, apiURL))
+	gatewayBase := trimTrailingSlash(firstNonBlank(opts.GatewayBaseURL, apiURL))
+	usageBase := trimTrailingSlash(firstNonBlank(opts.UsageBaseURL, apiURL))
+	corePrefix := ResolveCorePathPrefix(coreBase, opts.CorePathPrefix)
+	gatewayPrefix := ResolveGatewayPathPrefix(gatewayBase, opts.GatewayPathPrefix)
+	usagePrefix := ResolveUsagePathPrefix(usageBase, opts.UsagePathPrefix)
 	return &TollaraClient{
 		HTTPClient:        httpClient,
 		APIURL:            trimTrailingSlash(apiURL),
-		CoreBaseURL:       trimTrailingSlash(firstNonBlank(opts.CoreBaseURL, apiURL)),
-		GatewayBaseURL:    trimTrailingSlash(firstNonBlank(opts.GatewayBaseURL, apiURL)),
-		UsageBaseURL:      trimTrailingSlash(firstNonBlank(opts.UsageBaseURL, apiURL)),
+		CoreBaseURL:       coreBase,
+		GatewayBaseURL:    gatewayBase,
+		UsageBaseURL:      usageBase,
 		CorePathPrefix:    normalizePrefix(corePrefix),
 		GatewayPathPrefix: normalizePrefix(gatewayPrefix),
 		UsagePathPrefix:   normalizePrefix(usagePrefix),

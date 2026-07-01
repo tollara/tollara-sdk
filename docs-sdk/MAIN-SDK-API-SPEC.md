@@ -20,6 +20,8 @@ This document specifies the exact HTTP APIs that the Tollara SDK calls. Base URL
 
 Full URL = `{baseUrl}{pathPrefix}{path}`. Example: Core validate = `{coreBaseUrl}/api/v1/service-keys/validate` (default) or `{coreBaseUrl}/core/api/v1/service-keys/validate` (ECS).
 
+**Hosted API auto-prefix (sdk-js 3.0+, all SDKs):** When the API origin is `api.tollara.ai`, `api.ppe.tollara.ai`, or branded `*.api.tollara.ai`, SDKs use ECS path prefixes automatically unless explicit `*PathPrefix` overrides are set. Local Docker origins (`localhost`, `host.docker.internal`, etc.) keep default `/api`, `/api/v1`, `/api/usage`.
+
 **Docker / no servlet context-path:** Some core deployments use `context-path: /`. In that case paths are still exposed as `/api/v1/service-keys/validate`, `/api/v1/service-keys/estimate-usage`, etc. (single segment after the host:port base URL). Do not duplicate `/api/v1` if your configured `coreBaseUrl` already ends with it.
 
 ---
@@ -481,6 +483,7 @@ Public marketplace and workspace list/detail responses that serialize **`Service
 
 | Date | Summary |
 |------|---------|
+| 2026-06-30 | **Hosted API path prefixes:** All SDKs auto-select ECS prefixes (`/gateway/api/v1`, `/core/api/v1`, `/usage/api/v1`) when base URL is hosted Tollara (`api.tollara.ai`, `api.ppe.tollara.ai`, `*.api.tollara.ai`); Docker/local origins keep `/api`, `/api/v1`, `/api/usage`. Explicit `*PathPrefix` overrides unchanged. |
 | 2026-06-28 | **§2.1.1 validate outcome:** All SDKs expose `validateServiceKeyWithOutcome` with canonical failure codes (`MISSING_KEY`, `NETWORK`, `HTTP_ERROR`, etc.); `validateServiceKey` unchanged (returns null on failure). |
 | 2026-06-28 | **Validation/gateway v3 + unified usage:** Validate `validationSchemaVersion: 3` with `serviceProductId`, `subscriptionStatus`; remove `plan`, `quotaRemaining`, `subscriptionActive`. Gateway HMAC v3 (`X-Tollara-Signing-Version: 3`, `X-Tollara-Service-Product-ID`, `X-Tollara-Subscription-Status`). Estimate `estimateSchemaVersion: 3` — balances/caps on `breakdown` only (`breakdown.remainingCredits` for PREPAID). Report `reportSchemaVersion: 2` with identity + `breakdown`. SDK `grantAccess(subscriptionStatus)`. §2.1–§2.3, §3.1, §4, §6. |
 | 2026-06-23 | **§3 / §6 HMAC verification:** Documented that usage service **progress** and **completion** endpoints verify HMAC against the **raw HTTP request body**, not re-serialized JSON after parse. SDKs must sign the exact bytes they send. |

@@ -9,6 +9,7 @@ from .tollara_headers import TollaraHeaders
 from .completion_status import CompletionStatus
 from .hmac_utils import calculate_hmac_with_timestamp
 from .usage_breakdown import UsageBreakdown, parse_usage_breakdown
+from .path_prefixes import resolve_usage_path_prefix
 
 DEFAULT_USAGE_PATH_PREFIX = "/api/usage"
 
@@ -27,7 +28,7 @@ def _usage_report_iso_and_epoch_sec(timestamp: Optional[float]) -> tuple[str, st
 
 def _usage_report_url(base_url: str, usage_path_prefix: Optional[str]) -> str:
     base = base_url.rstrip("/")
-    p = (usage_path_prefix or DEFAULT_USAGE_PATH_PREFIX).strip()
+    p = resolve_usage_path_prefix(base_url, usage_path_prefix).strip()
     if not p.startswith("/"):
         p = "/" + p
     p = p.rstrip("/")

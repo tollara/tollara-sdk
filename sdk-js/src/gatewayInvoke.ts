@@ -1,4 +1,5 @@
-import { DEFAULT_API_URL, DEFAULT_GATEWAY_PATH_PREFIX } from './constants';
+import { DEFAULT_API_URL } from './constants';
+import { resolveGatewayPathPrefix } from './pathPrefixes';
 import { resolveBaseUrl } from './urls';
 
 function normalizePrefix(prefix: string): string {
@@ -47,7 +48,7 @@ export async function invokeService(params: {
     fetch: fetchFn = fetch,
   } = params;
   const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
-  const prefix = normalizePrefix((gatewayPathPrefix ?? DEFAULT_GATEWAY_PATH_PREFIX).trim());
+  const prefix = normalizePrefix(resolveGatewayPathPrefix(baseUrl, gatewayPathPrefix));
   const path = `${prefix}/service/${serviceId}/endpoint/${endpointId}/invoke${isAsync ? '/async' : ''}`;
   const url = `${origin}${path}`;
   const m = method.toUpperCase() as GatewayHttpMethod;

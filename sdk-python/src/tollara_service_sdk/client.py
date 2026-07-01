@@ -23,6 +23,11 @@ from .usage_client import (
     UsageCallbackResult,
     UsageReportResponse,
 )
+from .path_prefixes import (
+    resolve_core_path_prefix,
+    resolve_gateway_path_prefix,
+    resolve_usage_path_prefix,
+)
 from .validation_client import (
     DEFAULT_CORE_PATH_PREFIX,
     ServiceKeyValidationResult,
@@ -111,9 +116,9 @@ class TollaraClient:
         gw_base = _trim_trailing_slashes(_first_non_blank(gateway_api_url, resolved))
         usage_base = _trim_trailing_slashes(_first_non_blank(usage_api_url, resolved))
 
-        cp = core_path_prefix if core_path_prefix is not None else DEFAULT_CORE_PATH_PREFIX
-        gp = gateway_path_prefix if gateway_path_prefix is not None else DEFAULT_GATEWAY_PATH_PREFIX
-        up = usage_path_prefix if usage_path_prefix is not None else DEFAULT_USAGE_PATH_PREFIX
+        cp = resolve_core_path_prefix(core_base, core_path_prefix)
+        gp = resolve_gateway_path_prefix(gw_base, gateway_path_prefix)
+        up = resolve_usage_path_prefix(usage_base, usage_path_prefix)
 
         sec = _first_non_blank(service_secret, os.environ.get(ENV_SERVICE_SECRET))
         if not sec:

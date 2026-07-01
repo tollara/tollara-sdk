@@ -53,7 +53,7 @@ public class TollaraClientTests
 
         await client.GetRequestStatusAsync("job-1", ServiceKey);
 
-        Assert.Equal("https://api.tollara.ai/api/requests/job-1/status", handler.LastUri);
+        Assert.Equal("https://api.tollara.ai/gateway/api/v1/requests/job-1/status", handler.LastUri);
     }
 
     [Fact]
