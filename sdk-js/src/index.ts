@@ -57,3 +57,14 @@ export {
   ENV_API_URL,
   type TollaraClientOptions,
 } from './tollaraClient';
+export {
+  ECS_CORE_PATH_PREFIX,
+  ECS_GATEWAY_PATH_PREFIX,
+  ECS_USAGE_PATH_PREFIX,
+} from './constants';
+export {
+  isHostedTollaraApiOrigin,
+  resolveCorePathPrefix,
+  resolveGatewayPathPrefix,
+  resolveUsagePathPrefix,
+} from './pathPrefixes';

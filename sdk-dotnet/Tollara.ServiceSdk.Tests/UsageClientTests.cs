@@ -22,6 +22,14 @@ public class UsageClientTests
     }
 
     [Fact]
+    public void BuildUsageReportUrl_HostedProdUsesEcsPrefix()
+    {
+        Assert.Equal(
+            "https://api.tollara.ai/usage/api/v1/report",
+            UsageClient.BuildUsageReportUrl("https://api.tollara.ai", null));
+    }
+
+    [Fact]
     public void BuildUsageReportUrl_DefaultPrefix()
     {
         Assert.Equal(

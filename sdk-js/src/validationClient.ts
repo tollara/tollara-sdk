@@ -1,5 +1,6 @@
 import { TollaraHeaders } from './tollaraHeaders';
-import { DEFAULT_API_URL, DEFAULT_CORE_PATH_PREFIX } from './constants';
+import { DEFAULT_API_URL } from './constants';
+import { resolveCorePathPrefix } from './pathPrefixes';
 import { calculateHmac, constantTimeEquals, validateHmacSignature } from './hmac';
 import { joinUrl, resolveBaseUrl } from './urls';
 import { grantAccess } from './grantAccess';
@@ -131,7 +132,7 @@ export async function validateServiceKeyWithOutcome(params: {
   }
 
   const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
-  const url = `${joinUrl(origin, DEFAULT_CORE_PATH_PREFIX)}/service-keys/validate`;
+  const url = `${joinUrl(origin, resolveCorePathPrefix(baseUrl))}/service-keys/validate`;
   const body = JSON.stringify({ serviceKey, serviceId, serviceSecret });
 
   let res: Response;
@@ -234,7 +235,7 @@ export async function estimateUsage(params: {
   if (estimatedUnits == null || !Number.isFinite(estimatedUnits) || estimatedUnits <= 0) return null;
 
   const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
-  const url = `${joinUrl(origin, DEFAULT_CORE_PATH_PREFIX)}/service-keys/estimate-usage`;
+  const url = `${joinUrl(origin, resolveCorePathPrefix(baseUrl))}/service-keys/estimate-usage`;
   const body = JSON.stringify({ serviceKey, serviceId, serviceSecret, estimatedUnits });
 
   let res: Response;
@@ -292,7 +293,7 @@ export async function estimateUsageWithJwt(params: {
   if (estimatedUnits == null || !Number.isFinite(estimatedUnits) || estimatedUnits <= 0) return null;
 
   const origin = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
-  const prefix = (corePathPrefix ?? DEFAULT_CORE_PATH_PREFIX).trim();
+  const prefix = resolveCorePathPrefix(baseUrl, corePathPrefix);
   const url = `${joinUrl(origin, prefix)}/billing/usage/estimate`;
   const body = JSON.stringify({ userId, serviceId, estimatedUnits });
 

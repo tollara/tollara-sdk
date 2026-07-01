@@ -1,6 +1,9 @@
 //! Unified HTTP client aligned with Java `TollaraClient` (env vars, path prefixes, split bases).
 
 use crate::gateway_client;
+use crate::path_prefixes::{
+    resolve_core_path_prefix, resolve_gateway_path_prefix, resolve_usage_path_prefix,
+};
 use crate::usage_client;
 use crate::validation_client;
 
@@ -15,6 +18,7 @@ pub const DEFAULT_API_URL: &str = "https://api.tollara.ai";
 
 pub const DEFAULT_CORE_PATH_PREFIX: &str = "/api/v1";
 pub const DEFAULT_GATEWAY_PATH_PREFIX: &str = "/api";
+pub const DEFAULT_USAGE_PATH_PREFIX: &str = "/api/usage";
 
 fn trim_trailing_slashes(s: &str) -> String {
     let mut t = s.trim().to_string();
@@ -105,14 +109,18 @@ impl TollaraClient {
             Some(&resolved),
         ));
 
-        let core_prefix = config
-            .core_path_prefix
-            .as_deref()
-            .unwrap_or(DEFAULT_CORE_PATH_PREFIX);
-        let gw_prefix = config
-            .gateway_path_prefix
-            .as_deref()
-            .unwrap_or(DEFAULT_GATEWAY_PATH_PREFIX);
+        let core_prefix = resolve_core_path_prefix(
+            Some(&core_base),
+            DEFAULT_API_URL,
+            DEFAULT_CORE_PATH_PREFIX,
+            config.core_path_prefix.as_deref(),
+        );
+        let gw_prefix = resolve_gateway_path_prefix(
+            Some(&gw_base),
+            DEFAULT_API_URL,
+            DEFAULT_GATEWAY_PATH_PREFIX,
+            config.gateway_path_prefix.as_deref(),
+        );
 
         let service_secret = first_non_blank(
             config.service_secret.as_deref(),

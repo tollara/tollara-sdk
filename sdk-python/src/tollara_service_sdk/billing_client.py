@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Union
 
-from .validation_client import DEFAULT_CORE_PATH_PREFIX, UsageEstimateResult
+from .validation_client import UsageEstimateResult
 from .usage_breakdown import parse_usage_breakdown
+from .path_prefixes import resolve_core_path_prefix
 
 if TYPE_CHECKING:
     import requests
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 
 def _billing_estimate_url(base_url: str, core_path_prefix: Optional[str]) -> str:
     base = base_url.rstrip("/")
-    p = (core_path_prefix or DEFAULT_CORE_PATH_PREFIX).strip()
+    p = resolve_core_path_prefix(base_url, core_path_prefix).strip()
     if not p.startswith("/"):
         p = "/" + p
     p = p.rstrip("/")

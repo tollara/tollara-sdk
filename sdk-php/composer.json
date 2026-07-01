@@ -13,7 +13,9 @@
       "@php tests/hmac_test.php",
       "@php tests/usage_client_test.php",
       "@php tests/contract_test.php",
-      "@php tests/validation_outcome_test.php"
+      "@php tests/validation_outcome_test.php",
+      "@php tests/path_prefixes_test.php"
+    ]
     ]
   }
 }

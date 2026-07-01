@@ -28,17 +28,17 @@ final class TollaraClient
         ?string $coreApiUrl = null,
         ?string $gatewayApiUrl = null,
         ?string $usageApiUrl = null,
-        string $corePathPrefix = self::DEFAULT_CORE_PATH_PREFIX,
-        string $gatewayPathPrefix = self::DEFAULT_GATEWAY_PATH_PREFIX,
-        string $usagePathPrefix = self::DEFAULT_USAGE_PATH_PREFIX,
+        ?string $corePathPrefix = null,
+        ?string $gatewayPathPrefix = null,
+        ?string $usagePathPrefix = null,
     ) {
         $this->apiUrl = rtrim($apiUrl ?: (getenv('TOLLARA_API_URL') ?: self::DEFAULT_API_URL), '/');
         $this->coreApiUrl = rtrim($coreApiUrl ?: $this->apiUrl, '/');
         $this->gatewayApiUrl = rtrim($gatewayApiUrl ?: $this->apiUrl, '/');
         $this->usageApiUrl = rtrim($usageApiUrl ?: $this->apiUrl, '/');
-        $this->corePathPrefix = $this->normalizePrefix($corePathPrefix);
-        $this->gatewayPathPrefix = $this->normalizePrefix($gatewayPathPrefix);
-        $this->usagePathPrefix = $this->normalizePrefix($usagePathPrefix);
+        $this->corePathPrefix = $this->normalizePrefix(PathPrefixes::resolveCorePathPrefix($this->coreApiUrl, $corePathPrefix));
+        $this->gatewayPathPrefix = $this->normalizePrefix(PathPrefixes::resolveGatewayPathPrefix($this->gatewayApiUrl, $gatewayPathPrefix));
+        $this->usagePathPrefix = $this->normalizePrefix(PathPrefixes::resolveUsagePathPrefix($this->usageApiUrl, $usagePathPrefix));
         $this->serviceId = trim((string) ($serviceId ?: getenv('TOLLARA_SERVICE_ID') ?: ''));
         $this->serviceSecret = trim((string) ($serviceSecret ?: getenv('TOLLARA_SERVICE_SECRET') ?: ''));
         if ($this->serviceSecret === '') {

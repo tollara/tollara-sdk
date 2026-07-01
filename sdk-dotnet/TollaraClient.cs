@@ -77,9 +77,9 @@ public sealed class TollaraClient
         var gwBase = TrimTrailingSlashes(FirstNonBlank(options.GatewayApiUrl, resolved));
         var usageBase = TrimTrailingSlashes(FirstNonBlank(options.UsageApiUrl, resolved));
 
-        var corePrefix = options.CorePathPrefix ?? DefaultCorePathPrefix;
-        var gwPrefix = options.GatewayPathPrefix ?? DefaultGatewayPathPrefix;
-        var usagePrefix = options.UsagePathPrefix;
+        var corePrefix = PathPrefixes.ResolveCorePathPrefix(coreBase, options.CorePathPrefix);
+        var gwPrefix = PathPrefixes.ResolveGatewayPathPrefix(gwBase, options.GatewayPathPrefix);
+        var usagePrefix = PathPrefixes.ResolveUsagePathPrefix(usageBase, options.UsagePathPrefix);
 
         var secret = FirstNonBlank(options.ServiceSecret, Environment.GetEnvironmentVariable(EnvServiceSecret));
         if (string.IsNullOrEmpty(secret))

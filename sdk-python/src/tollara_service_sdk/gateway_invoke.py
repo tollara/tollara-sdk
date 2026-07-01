@@ -6,7 +6,8 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from .gateway_client import DEFAULT_GATEWAY_PATH_PREFIX, _build_url
+from .gateway_client import _build_url
+from .path_prefixes import resolve_gateway_path_prefix
 
 if TYPE_CHECKING:
     import requests
@@ -35,7 +36,7 @@ def invoke_service(
     *,
     body: Optional[str] = None,
     async_: bool = False,
-    gateway_path_prefix: str = DEFAULT_GATEWAY_PATH_PREFIX,
+    gateway_path_prefix: Optional[str] = None,
     session: Optional["requests.Session"] = None,
 ) -> Optional[GatewayInvokeResult]:
     """Invoke gateway ``…/service/{serviceId}/endpoint/{endpointId}/invoke`` (or ``…/invoke/async``). Requires ``requests``."""
@@ -43,10 +44,11 @@ def invoke_service(
         import requests
     except ImportError:
         raise ImportError("invoke_service requires 'requests'. pip install requests")
+    prefix = resolve_gateway_path_prefix(gateway_base_url, gateway_path_prefix)
     suffix = f"/service/{service_id}/endpoint/{endpoint_id}/invoke"
     if async_:
         suffix += "/async"
-    url = _build_url(gateway_base_url, gateway_path_prefix, suffix)
+    url = _build_url(gateway_base_url, prefix, suffix)
     m = (method or "GET").strip().upper()
     headers: Dict[str, str] = {"Authorization": f"Bearer {service_key}"}
     payload = body or None

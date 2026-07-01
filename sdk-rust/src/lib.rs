@@ -2,6 +2,7 @@
 
 mod headers;
 mod hmac;
+mod path_prefixes;
 
 pub use headers::{
     BILLING_MODEL, MEASUREMENT_TYPE, PLAN, QUOTA_REMAINING, ROLES, SERVICE_PRODUCT_ID, SIGNATURE,

@@ -45,9 +45,9 @@ Enable **Raw Body** on the Webhook node for reliable HMAC verification. Point yo
 
 ## API endpoints (optional)
 
-**Production:** leave **Set API Endpoints** disabled on each node. The SDK uses production Tollara URLs automatically. No n8n credential is required.
+**Production:** leave **Set API Endpoints** disabled on each node. The SDK uses `https://api.tollara.ai` with **ECS path prefixes** automatically (`/gateway/api/v1`, `/core/api/v1`, `/usage/api/v1`). No n8n credential is required.
 
-**Custom / local dev:** on nodes that call Tollara APIs (Invoke, Validate Key, Progress, etc.), enable **Set API Endpoints** and set the matching URL (**Core**, **Usage**, or **Gateway**) — required when the toggle is on. **Tollara Verify Request** only needs **Service Secret** — it does not call Tollara APIs.
+**Custom / local dev:** on nodes that call Tollara APIs, enable **Set API Endpoints** and set service **origins** only (e.g. `http://host.docker.internal:8083`) — the SDK adds Docker path prefixes (`/api`, `/api/v1`, `/api/usage`).
 
 Set **Service Secret** and **Service ID** on each Tollara node (required where those fields appear).
 
