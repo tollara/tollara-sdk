@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { verifySignatureFromHeaders, getUserContext } from '@tollara/service-sdk';
+import { verifySignatureFromHeaders, getUserContext } from '../../lib/tollaraSdk';
 import { requireServiceSecret } from '../../lib/tollaraCredentials';
 import { serviceSecretNodeProperty } from '../../lib/nodeProperties';
 import { headersFromWebhookItem, signedPayloadFromWebhookItem } from '../../lib/webhookPayload';
@@ -10,7 +10,8 @@ export class TollaraVerifyRequest implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Verify Request',
     name: 'tollaraVerifyRequest',
-    icon: 'file:tollara.png',
+    icon: 'file:tollara.svg',
+    usableAsTool: true,
     group: ['transform'],
     version: 4,
     description:

@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
-import { invokeService, type GatewayHttpMethod } from '@tollara/service-sdk';
+import { invokeService, type GatewayHttpMethod } from '../../lib/tollaraSdk';
 import { resolveGatewayApiUrl, requireGatewayApiUrlWhenEndpointsEnabled, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { tollaraGatewayEndpointProperties } from '../../lib/nodeProperties';
 import { parseJsonBody } from '../../lib/parseJsonBody';
@@ -9,7 +9,8 @@ export class TollaraInvoke implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Invoke',
     name: 'tollaraInvoke',
-    icon: 'file:tollara.png',
+    icon: 'file:tollara.svg',
+    usableAsTool: true,
     group: ['transform'],
     version: 1,
     description: 'Invoke an agent on the gateway',

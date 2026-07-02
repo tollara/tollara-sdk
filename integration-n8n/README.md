@@ -2,7 +2,7 @@
 
 n8n nodes for [Tollara](https://tollara.ai): verify inbound gateway traffic, invoke listed services, poll async jobs, and report usage.
 
-**Package:** [`n8n-nodes-tollara`](https://www.npmjs.com/package/n8n-nodes-tollara) (uses [`@tollara/service-sdk`](https://www.npmjs.com/package/@tollara/service-sdk))
+**Package:** [`n8n-nodes-tollara`](https://www.npmjs.com/package/n8n-nodes-tollara) (bundles [`@tollara/service-sdk`](https://www.npmjs.com/package/@tollara/service-sdk) at build time — no separate install)
 
 ## Install in n8n
 

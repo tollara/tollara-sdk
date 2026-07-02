@@ -1,24 +1,27 @@
 {
   "name": "n8n-nodes-tollara",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "n8n community nodes for Tollara: Verify Request, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
-  "keywords": [
-    "n8n-community-node-package",
-    "n8n",
-    "tollara"
-  ],
+  "keywords": ["n8n-community-node-package", "n8n", "tollara"],
   "license": "MIT",
-  "homepage": "https://github.com/tollara/tollara-sdk",
-  "author": {},
+  "homepage": "https://github.com/tollara/tollara-sdk/tree/master/integration-n8n",
+  "author": { "name": "Tollara", "email": "engineering@tollara.ai" },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tollara/tollara-sdk.git"
+    "url": "https://github.com/tollara/tollara-sdk.git",
+    "directory": "integration-n8n"
   },
+  "engines": { "node": ">=20.15.0" },
   "main": "index.js",
   "scripts": {
-    "build": "node scripts/clean-dist.mjs && tsc && node scripts/copy-icons.mjs",
+    "build": "node scripts/clean-dist.mjs && tsc && node scripts/bundle-sdk.mjs && node scripts/copy-icons.mjs",
+    "build:tests": "tsc -p ../tests/integration-n8n/tsconfig.json",
     "dev": "tsc --watch",
-    "test": "npm run build && node --test dist/lib/tollaraCredentials.test.js dist/lib/webhookPayload.test.js dist/lib/usageUrls.test.js dist/lib/tollaraOutcome.test.js scripts/apply-local-fixture.test.mjs",
+    "lint": "n8n-node lint",
+    "lint:fix": "n8n-node lint --fix",
+    "test": "npm run build && npm run build:tests && node scripts/run-tests.mjs",
+    "release": "node scripts/release.mjs",
+    "prepublishOnly": "n8n-node prerelease",
     "apply:local-fixture": "node scripts/apply-local-fixture.mjs",
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./deploy-local.ps1",
     "repair:workflows": "powershell -ExecutionPolicy Bypass -File ./docker/strip-stale-credentials.ps1"
@@ -27,13 +30,13 @@
     "dist",
     "index.js",
     "example-workflows/*.json",
-    "example-workflows/README.md"
+    "example-workflows/README.md",
+    "LICENSE"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/TollaraApi.credentials.js"
-    ],
+    "strict": true,
+    "credentials": [],
     "nodes": [
       "dist/nodes/TollaraVerifyRequest/TollaraVerifyRequest.node.js",
       "dist/nodes/TollaraInvoke/TollaraInvoke.node.js",
@@ -48,14 +51,39 @@
     "packageId": "n8n-nodes-tollara"
   },
   "devDependencies": {
+    "@n8n/node-cli": "^0.23.0",
+    "@tollara/service-sdk": "^0.0.2",
     "@types/node": "^20.11.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.39.0",
     "n8n-workflow": "^1.0.0",
+    "release-it": "^20.0.0",
     "typescript": "^5.3.3"
   },
-  "dependencies": {
-    "@tollara/service-sdk": "^0.0.2"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
+  "peerDependencies": { "n8n-workflow": "*" },
+  "release-it": {
+    "git": {
+      "tagName": "n8n-nodes-tollara-v${version}",
+      "commitMessage": "chore(n8n-nodes-tollara): release ${version}",
+      "requireBranch": "master",
+      "requireCleanWorkingDir": true,
+      "requireUpstream": true,
+      "requireCommits": true,
+      "commit": true,
+      "tag": true,
+      "push": true,
+      "changelog": "npx auto-changelog --stdout --unreleased --commit-limit false -u --hide-credit"
+    },
+    "github": {
+      "release": true
+    },
+    "npm": {
+      "publishPath": ".",
+      "publish": false
+    },
+    "hooks": {
+      "before:init": "npm run lint && npm run build",
+      "after:bump": "npx auto-changelog -p"
+    }
   }
 }

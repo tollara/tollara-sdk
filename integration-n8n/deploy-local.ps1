@@ -127,7 +127,7 @@ Write-Host ""
 Write-Host '==> Verifying community package loads in container'
 docker exec $containerName node /home/node/.n8n/nodes/node_modules/n8n-nodes-tollara/scripts/verify-package-load.mjs
 if ($LASTEXITCODE -ne 0) {
-    throw 'Community package verification failed — check index.js, dist/, and @tollara/service-sdk dependency'
+    throw 'Community package verification failed — check index.js, dist/, and bundled tollaraSdk.js'
 }
 
 Write-Host ""

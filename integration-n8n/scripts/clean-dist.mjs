@@ -4,3 +4,4 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 rmSync(join(root, 'dist'), { recursive: true, force: true });
+rmSync(join(root, 'test-dist'), { recursive: true, force: true });
