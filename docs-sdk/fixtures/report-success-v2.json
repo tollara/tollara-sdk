@@ -1,0 +1,19 @@
+{
+  "reportSchemaVersion": 2,
+  "status": "ok",
+  "warning": null,
+  "userId": "user-1",
+  "serviceId": "550e8400-e29b-41d4-a716-446655440000",
+  "billingModelType": "SUBSCRIPTION",
+  "measurementType": "PER_REQUEST",
+  "unitLabel": "request",
+  "breakdown": {
+    "unitsUsed": 1,
+    "unitsRemaining": 99,
+    "remainingSpendingCap": 20,
+    "totalUnitsUsedThisCycle": 1,
+    "isOverLimit": false,
+    "isOverage": false,
+    "isOverageAllowed": true
+  }
+}

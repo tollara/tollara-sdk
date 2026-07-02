@@ -7,6 +7,7 @@ import {
   verifySignatureFromHeadersAndGetUserContext,
   buildGatewayUserContextString,
   buildGatewayUserContextStringV2,
+  buildGatewayUserContextStringV3,
 } from './verifier';
 import { calculateHmac } from './hmac';
 
@@ -15,6 +16,36 @@ describe('verifier', () => {
 
   const extendedUcs = (subActive: boolean) =>
     buildGatewayUserContextString('user1', 'plan1', ['role1', 'role2'], 10, subActive, null, null, null);
+
+  it('verifySignatureFromHeaders accepts gateway HMAC v3 when signing version is 3', () => {
+    const payload = '';
+    const timestamp = '1700000000';
+    const ucs = buildGatewayUserContextStringV3(
+      'user1',
+      'prod-1',
+      ['role1', 'role2'],
+      'ACTIVE',
+      null,
+      null,
+      null
+    );
+    const signature = calculateHmac(payload + timestamp + ucs, secret);
+    expect(
+      verifySignatureFromHeaders(
+        secret,
+        {
+          [TollaraHeaders.SIGNATURE.toLowerCase()]: signature,
+          [TollaraHeaders.TIMESTAMP.toLowerCase()]: timestamp,
+          [TollaraHeaders.SIGNING_VERSION.toLowerCase()]: '3',
+          'x-tollara-user-id': 'user1',
+          'x-tollara-service-product-id': 'prod-1',
+          'x-tollara-roles': 'role1,role2',
+          'x-tollara-subscription-status': 'ACTIVE',
+        },
+        payload
+      )
+    ).toBe(true);
+  });
 
   it('verifySignatureFromHeaders accepts gateway HMAC v2 when signing version is 2', () => {
     const payload = '';
@@ -226,6 +257,20 @@ describe('verifier', () => {
       subscriptionActive: false,
     });
     expect(valid).toBe(false);
+  });
+
+  it('getUserContext parses v3 headers', () => {
+    const ctx = getUserContext({
+      'x-tollara-user-id': 'u1',
+      'x-tollara-service-product-id': 'prod-1',
+      'x-tollara-roles': 'r1,r2',
+      'x-tollara-subscription-status': 'ACTIVE',
+      'x-tollara-billing-model': 'SUBSCRIPTION',
+    });
+    expect(ctx.userId).toBe('u1');
+    expect(ctx.serviceProductId).toBe('prod-1');
+    expect(ctx.subscriptionStatus).toBe('ACTIVE');
+    expect(ctx.roles).toEqual(['r1', 'r2']);
   });
 
   it('getUserContext parses lowercase headers', () => {

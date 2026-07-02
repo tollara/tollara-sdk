@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tollara\AgentSdk;
+namespace Tollara\ServiceSdk;
 
 final class TollaraClient
 {
@@ -28,17 +28,17 @@ final class TollaraClient
         ?string $coreApiUrl = null,
         ?string $gatewayApiUrl = null,
         ?string $usageApiUrl = null,
-        string $corePathPrefix = self::DEFAULT_CORE_PATH_PREFIX,
-        string $gatewayPathPrefix = self::DEFAULT_GATEWAY_PATH_PREFIX,
-        string $usagePathPrefix = self::DEFAULT_USAGE_PATH_PREFIX,
+        ?string $corePathPrefix = null,
+        ?string $gatewayPathPrefix = null,
+        ?string $usagePathPrefix = null,
     ) {
         $this->apiUrl = rtrim($apiUrl ?: (getenv('TOLLARA_API_URL') ?: self::DEFAULT_API_URL), '/');
         $this->coreApiUrl = rtrim($coreApiUrl ?: $this->apiUrl, '/');
         $this->gatewayApiUrl = rtrim($gatewayApiUrl ?: $this->apiUrl, '/');
         $this->usageApiUrl = rtrim($usageApiUrl ?: $this->apiUrl, '/');
-        $this->corePathPrefix = $this->normalizePrefix($corePathPrefix);
-        $this->gatewayPathPrefix = $this->normalizePrefix($gatewayPathPrefix);
-        $this->usagePathPrefix = $this->normalizePrefix($usagePathPrefix);
+        $this->corePathPrefix = $this->normalizePrefix(PathPrefixes::resolveCorePathPrefix($this->coreApiUrl, $corePathPrefix));
+        $this->gatewayPathPrefix = $this->normalizePrefix(PathPrefixes::resolveGatewayPathPrefix($this->gatewayApiUrl, $gatewayPathPrefix));
+        $this->usagePathPrefix = $this->normalizePrefix(PathPrefixes::resolveUsagePathPrefix($this->usageApiUrl, $usagePathPrefix));
         $this->serviceId = trim((string) ($serviceId ?: getenv('TOLLARA_SERVICE_ID') ?: ''));
         $this->serviceSecret = trim((string) ($serviceSecret ?: getenv('TOLLARA_SERVICE_SECRET') ?: ''));
         if ($this->serviceSecret === '') {
@@ -46,31 +46,43 @@ final class TollaraClient
         }
     }
 
-    /** @return array<string,mixed>|null */
-    public function validateServiceKey(string $serviceKey): ?array
+    /** @return ServiceKeyValidationResult|null */
+    public function validateServiceKey(string $serviceKey): ?ServiceKeyValidationResult
     {
+        $outcome = $this->validateServiceKeyWithOutcome($serviceKey);
+        return $outcome->ok ? $outcome->result : null;
+    }
+
+    public function validateServiceKeyWithOutcome(string $serviceKey): ServiceKeyValidationOutcome
+    {
+        if (trim($serviceKey) === '') {
+            return ServiceKeyValidationOutcome::failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode::MISSING_KEY),
+            );
+        }
         $body = ['serviceKey' => $serviceKey, 'serviceSecret' => $this->serviceSecret];
         if ($this->serviceId !== '') {
             $body['serviceId'] = $this->serviceId;
         }
         $res = $this->requestJson('POST', $this->coreApiUrl . $this->corePathPrefix . '/service-keys/validate', $body);
-        if ($res['status'] < 200 || $res['status'] >= 300) {
-            return null;
+        if ($res['status'] === 0) {
+            return ServiceKeyValidationOutcome::failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode::NETWORK),
+            );
         }
-        $sig = $this->headerGetCi($res['headers'], TollaraHeaders::SIGNATURE);
-        $ts = $this->headerGetCi($res['headers'], TollaraHeaders::TIMESTAMP);
-        if ($sig === '' || $ts === '' || !Hmac::validateHmacSignature($sig, $res['body'] . $ts, $this->serviceSecret)) {
-            return null;
-        }
-        $json = json_decode($res['body'], true);
-        if (!is_array($json) || empty($json['valid'])) {
-            return null;
-        }
-        return $json;
+        $fallbackServiceId = $this->serviceId !== '' ? $this->serviceId : null;
+
+        return ValidationClient::outcomeFromValidateResponse(
+            $res['status'],
+            $res['body'],
+            $res['headers'],
+            $this->serviceSecret,
+            $fallbackServiceId,
+        );
     }
 
-    /** @return array<string,mixed>|null */
-    public function estimateUsage(string $serviceKey, float $estimatedUnits): ?array
+    /** @return UsageEstimateResult|null */
+    public function estimateUsage(string $serviceKey, float $estimatedUnits): ?UsageEstimateResult
     {
         $body = ['serviceKey' => $serviceKey, 'serviceSecret' => $this->serviceSecret, 'estimatedUnits' => $estimatedUnits];
         if ($this->serviceId !== '') {
@@ -89,12 +101,11 @@ final class TollaraClient
         if (!is_array($json)) {
             return null;
         }
-        $json['httpStatus'] = $res['status'];
-        return $json;
+        return UsageEstimateResult::fromArray($json, $res['status']);
     }
 
-    /** @return array<string,mixed>|null */
-    public function estimateUsageWithJwt(string $bearerToken, string $userId, string $serviceId, float $estimatedUnits): ?array
+    /** @return UsageEstimateResult|null */
+    public function estimateUsageWithJwt(string $bearerToken, string $userId, string $serviceId, float $estimatedUnits): ?UsageEstimateResult
     {
         $res = $this->requestJson('POST', $this->coreApiUrl . $this->corePathPrefix . '/billing/usage/estimate', [
             'userId' => $userId,
@@ -110,8 +121,7 @@ final class TollaraClient
         if (!is_array($json)) {
             return null;
         }
-        $json['httpStatus'] = $res['status'];
-        return $json;
+        return UsageEstimateResult::fromArray($json, $res['status']);
     }
 
     /** @return array{statusCode:int,body:string,asyncEnvelope:?array<string,mixed>}|null */
@@ -136,14 +146,14 @@ final class TollaraClient
         return $out;
     }
 
-    /** @return array<string,mixed>|null */
-    public function reportUsage(string $userId, string $serviceId, float $unitsUsed): ?array
+    /** @return UsageReportResponse|null */
+    public function reportUsage(string $userId, string $serviceId, float $unitsUsed): ?UsageReportResponse
     {
         return $this->reportUsageAt($userId, $serviceId, $unitsUsed, null);
     }
 
-    /** @return array<string,mixed>|null */
-    public function reportUsageAt(string $userId, string $serviceId, float $unitsUsed, ?\DateTimeInterface $timestamp): ?array
+    /** @return UsageReportResponse|null */
+    public function reportUsageAt(string $userId, string $serviceId, float $unitsUsed, ?\DateTimeInterface $timestamp): ?UsageReportResponse
     {
         $t = $timestamp ?: new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $headerTs = (string) $t->getTimestamp();
@@ -162,30 +172,20 @@ final class TollaraClient
             return null;
         }
         $json = json_decode($res['body'], true);
-        return is_array($json) ? $json : null;
+        return is_array($json) ? UsageReportResponse::fromArray($json) : null;
     }
 
-    public function sendProgressUpdate(string $progressUrl, string $requestId, string $stage, int $percentageComplete, ?string $errorMessage = null): bool
+    public function sendProgressUpdate(string $progressUrl, string $requestId, string $stage, int $percentageComplete, ?string $errorMessage = null): UsageCallbackResult
     {
-        [$baseUrl, $ts] = $this->splitTimestampUrl($progressUrl);
-        if ($ts === null) {
-            return false;
-        }
         $bodyArr = ['stage' => $stage, 'percentageComplete' => $percentageComplete, 'timestamp' => gmdate('c')];
         if ($errorMessage !== null) {
             $bodyArr['errorMessage'] = $errorMessage;
         }
         $body = json_encode($bodyArr, JSON_UNESCAPED_SLASHES);
         if (!is_string($body)) {
-            return false;
+            return new UsageCallbackResult(false, 0, 'Network error', '', null, 'Failed to encode progress body');
         }
-        $sig = Hmac::calculateHmacWithTimestamp($body, $ts, $this->serviceSecret);
-        $res = $this->requestRaw('POST', $baseUrl, $body, [
-            'Content-Type: application/json',
-            TollaraHeaders::SIGNATURE . ': ' . $sig,
-            TollaraHeaders::TIMESTAMP . ': ' . $ts,
-        ]);
-        return $res !== null && $res['status'] >= 200 && $res['status'] < 300;
+        return $this->postSignedUsageCallback($progressUrl, $body);
     }
 
     public function sendCompletion(
@@ -196,11 +196,7 @@ final class TollaraClient
         ?string $result = null,
         ?string $resultUrl = null,
         ?string $contentType = null
-    ): bool {
-        [$baseUrl, $ts] = $this->splitTimestampUrl($callbackUrl);
-        if ($ts === null) {
-            return false;
-        }
+    ): UsageCallbackResult {
         $bodyArr = ['status' => strtoupper($status), 'timestamp' => gmdate('c'), 'units' => $units];
         if ($result !== null) {
             $bodyArr['result'] = $result;
@@ -213,7 +209,19 @@ final class TollaraClient
         }
         $body = json_encode($bodyArr, JSON_UNESCAPED_SLASHES);
         if (!is_string($body)) {
-            return false;
+            return new UsageCallbackResult(false, 0, 'Network error', '', null, 'Failed to encode completion body');
+        }
+        return $this->postSignedUsageCallback($callbackUrl, $body);
+    }
+
+    private function postSignedUsageCallback(string $urlWithQuery, string $body): UsageCallbackResult
+    {
+        [$baseUrl, $ts] = $this->splitTimestampUrl($urlWithQuery);
+        if ($ts === null) {
+            $statusText = $urlWithQuery === ''
+                ? 'Missing or invalid callback/progress URL'
+                : 'Missing timestamp query parameter in URL';
+            return new UsageCallbackResult(false, 0, $statusText, $baseUrl);
         }
         $sig = Hmac::calculateHmacWithTimestamp($body, $ts, $this->serviceSecret);
         $res = $this->requestRaw('POST', $baseUrl, $body, [
@@ -221,7 +229,13 @@ final class TollaraClient
             TollaraHeaders::SIGNATURE . ': ' . $sig,
             TollaraHeaders::TIMESTAMP . ': ' . $ts,
         ]);
-        return $res !== null && $res['status'] >= 200 && $res['status'] < 300;
+        if ($res === null) {
+            return new UsageCallbackResult(false, 0, 'Network error', $baseUrl, null, 'Request failed');
+        }
+        $success = $res['status'] >= 200 && $res['status'] < 300;
+        $statusText = $success ? 'OK' : ('HTTP ' . $res['status']);
+        $responseBody = $res['body'] !== '' ? $res['body'] : null;
+        return new UsageCallbackResult($success, $res['status'], $statusText, $baseUrl, $responseBody);
     }
 
     /** @return array{ok:bool,status:int,body:string} */

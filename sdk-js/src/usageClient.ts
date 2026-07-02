@@ -1,7 +1,9 @@
 import { TollaraHeaders } from './tollaraHeaders';
 import { CompletionStatus } from './completionStatus';
-import { DEFAULT_API_URL, DEFAULT_USAGE_PATH_PREFIX } from './constants';
+import { DEFAULT_API_URL } from './constants';
+import { resolveUsagePathPrefix } from './pathPrefixes';
 import { calculateHmacWithTimestamp } from './hmac';
+import { parseUsageBreakdown, type UsageBreakdown } from './usageBreakdown';
 import { resolveBaseUrl } from './urls';
 
 function usageReportInstantAndEpochSeconds(timestamp?: number | Date | null): { iso: string; epochSec: string } {
@@ -21,16 +23,19 @@ function usageReportInstantAndEpochSeconds(timestamp?: number | Date | null): { 
 
 export { DEFAULT_USAGE_PATH_PREFIX } from './constants';
 
-/** Builds `{baseUrl}/api/usage/report` using the default usage path. */
+/** Builds usage report URL for the given API origin (Docker or hosted ECS). */
 export function buildUsageReportUrl(baseUrl: string): string {
   const base = resolveBaseUrl(baseUrl, DEFAULT_API_URL);
-  let p = DEFAULT_USAGE_PATH_PREFIX.trim();
+  let p = resolveUsagePathPrefix(baseUrl).trim();
   if (!p.startsWith('/')) p = `/${p}`;
   p = p.replace(/\/$/, '');
   return `${base}${p}/report`;
 }
 
 function parseUrlParams(url: string): { baseUrl: string; signature: string | null; timestamp: string | null } {
+  if (url == null || typeof url !== 'string') {
+    return { baseUrl: '', signature: null, timestamp: null };
+  }
   let baseUrl = url;
   let signature: string | null = null;
   let timestamp: string | null = null;
@@ -44,33 +49,31 @@ function parseUrlParams(url: string): { baseUrl: string; signature: string | nul
   return { baseUrl, signature, timestamp };
 }
 
-export type ReportProgressParams = {
-  progressUrl: string;
-  requestId: string;
-  stage: string;
-  percentageComplete: number;
-  /** Omit or leave unset when there is no error (avoids passing null). */
-  errorMessage?: string | null;
-  serviceSecret: string;
-  fetch?: typeof globalThis.fetch;
+export type UsageCallbackResult = {
+  success: boolean;
+  httpStatus: number;
+  httpStatusText: string;
+  requestUrl: string;
+  responseBody?: string;
+  networkError?: string;
 };
 
-/**
- * POST to progressUrl with signed body (optional errorMessage).
- */
-export async function reportProgress(params: ReportProgressParams): Promise<boolean> {
-  const { progressUrl, requestId, stage, percentageComplete, errorMessage, serviceSecret, fetch: fetchFn = fetch } = params;
-  const { baseUrl, timestamp } = parseUrlParams(progressUrl);
-  if (!timestamp) return false;
+async function postSignedUsageCallback(
+  urlWithQuery: string,
+  bodyString: string,
+  serviceSecret: string,
+  fetchFn: typeof globalThis.fetch,
+): Promise<UsageCallbackResult> {
+  const { baseUrl, timestamp } = parseUrlParams(urlWithQuery);
+  if (!timestamp) {
+    return {
+      success: false,
+      httpStatus: 0,
+      httpStatusText: urlWithQuery ? 'Missing timestamp query parameter in URL' : 'Missing or invalid callback/progress URL',
+      requestUrl: baseUrl,
+    };
+  }
 
-  const body: Record<string, unknown> = {
-    stage,
-    percentageComplete,
-    timestamp: new Date().toISOString(),
-  };
-  if (errorMessage != null) body.errorMessage = errorMessage;
-
-  const bodyString = JSON.stringify(body);
   const signature = calculateHmacWithTimestamp(bodyString, timestamp, serviceSecret);
 
   try {
@@ -83,10 +86,49 @@ export async function reportProgress(params: ReportProgressParams): Promise<bool
       },
       body: bodyString,
     });
-    return res.ok;
-  } catch {
-    return false;
+    const responseBody = await res.text();
+    return {
+      success: res.ok,
+      httpStatus: res.status,
+      httpStatusText: res.statusText,
+      requestUrl: baseUrl,
+      responseBody: responseBody || undefined,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      httpStatus: 0,
+      httpStatusText: 'Network error',
+      requestUrl: baseUrl,
+      networkError: message,
+    };
   }
+}
+
+export type ReportProgressParams = {
+  progressUrl: string;
+  requestId: string;
+  stage: string;
+  percentageComplete: number;
+  /** Omit or leave unset when there is no error (avoids passing null). */
+  errorMessage?: string | null;
+  serviceSecret: string;
+  fetch?: typeof globalThis.fetch;
+};
+
+/** POST to progressUrl with signed body (optional errorMessage). */
+export async function reportProgress(params: ReportProgressParams): Promise<UsageCallbackResult> {
+  const { progressUrl, stage, percentageComplete, errorMessage, serviceSecret, fetch: fetchFn = fetch } = params;
+
+  const body: Record<string, unknown> = {
+    stage,
+    percentageComplete,
+    timestamp: new Date().toISOString(),
+  };
+  if (errorMessage != null) body.errorMessage = errorMessage;
+
+  return postSignedUsageCallback(progressUrl, JSON.stringify(body), serviceSecret, fetchFn);
 }
 
 export type ReportCompletionParams = {
@@ -101,33 +143,9 @@ export type ReportCompletionParams = {
   fetch?: typeof globalThis.fetch;
 };
 
-/**
- * POST completion with status and optional units (defaults to 0).
- */
-export async function reportCompletion(
-  params: Pick<ReportCompletionParams, 'callbackUrl' | 'requestId' | 'status' | 'serviceSecret' | 'fetch'> & {
-    units?: number | null;
-  }
-): Promise<boolean> {
-  return reportCompletionFull({ ...params, units: params.units ?? 0 });
-}
-
-/**
- * POST completion with inline result text.
- */
-export async function reportCompletionWithResult(
-  params: Pick<ReportCompletionParams, 'callbackUrl' | 'requestId' | 'status' | 'result' | 'units' | 'serviceSecret' | 'fetch'>
-): Promise<boolean> {
-  return reportCompletionFull({ ...params, units: params.units ?? 0 });
-}
-
-/**
- * POST to callbackUrl with signed body (all optional fields).
- */
-export async function reportCompletionFull(params: ReportCompletionParams): Promise<boolean> {
+/** POST to callbackUrl with signed completion body. */
+export async function reportCompletion(params: ReportCompletionParams): Promise<UsageCallbackResult> {
   const { callbackUrl, status, result, resultUrl, contentType, units, serviceSecret, fetch: fetchFn = fetch } = params;
-  const { baseUrl, timestamp } = parseUrlParams(callbackUrl);
-  if (!timestamp) return false;
 
   const body: Record<string, unknown> = {
     status: status as string,
@@ -138,33 +156,19 @@ export async function reportCompletionFull(params: ReportCompletionParams): Prom
   if (resultUrl != null) body.resultUrl = resultUrl;
   if (contentType != null) body.contentType = contentType;
 
-  const bodyString = JSON.stringify(body);
-  const signature = calculateHmacWithTimestamp(bodyString, timestamp, serviceSecret);
-
-  try {
-    const res = await fetchFn(baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        [TollaraHeaders.SIGNATURE]: signature,
-        [TollaraHeaders.TIMESTAMP]: timestamp,
-      },
-      body: bodyString,
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
+  return postSignedUsageCallback(callbackUrl, JSON.stringify(body), serviceSecret, fetchFn);
 }
 
 export interface UsageReportResponse {
+  reportSchemaVersion?: number;
   status?: string;
-  warning?: string;
-  isOverLimit?: boolean;
-  remainingRequestsPerPeriod?: number;
-  remainingTimeUnitsPerPeriod?: number;
-  remainingSpendingCap?: number;
-  overageRate?: number;
+  warning?: string | null;
+  userId?: string;
+  serviceId?: string;
+  billingModelType?: string | null;
+  measurementType?: string | null;
+  unitLabel?: string | null;
+  breakdown?: UsageBreakdown | null;
 }
 
 /**
@@ -212,5 +216,16 @@ export async function reportUsage(
   if (!res.ok) {
     throw new Error(`Usage report failed: ${res.status} ${res.statusText}`);
   }
-  return (await res.json()) as UsageReportResponse;
+  const json = (await res.json()) as Record<string, unknown>;
+  return {
+    reportSchemaVersion: typeof json.reportSchemaVersion === 'number' ? json.reportSchemaVersion : undefined,
+    status: typeof json.status === 'string' ? json.status : undefined,
+    warning: typeof json.warning === 'string' ? json.warning : json.warning === null ? null : undefined,
+    userId: typeof json.userId === 'string' ? json.userId : undefined,
+    serviceId: typeof json.serviceId === 'string' ? json.serviceId : undefined,
+    billingModelType: typeof json.billingModelType === 'string' ? json.billingModelType : null,
+    measurementType: typeof json.measurementType === 'string' ? json.measurementType : null,
+    unitLabel: typeof json.unitLabel === 'string' ? json.unitLabel : null,
+    breakdown: parseUsageBreakdown(json.breakdown),
+  };
 }

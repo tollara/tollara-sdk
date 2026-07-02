@@ -1,6 +1,6 @@
 # Tollara SDK (.NET)
 
-**Package:** `Tollara.ServiceSdk` (NuGet), **version** `0.0.1`.
+**Package:** `Tollara.ServiceSdk` (NuGet), **version** `3.0.0`.
 
 Verify HMAC, validate service keys, run usage pre-flight (service-key **and** JWT), **gateway invoke**, report usage, progress, completion, and poll job status on the gateway.
 
@@ -17,8 +17,11 @@ On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve
 ## HMAC (aligned with other SDKs)
 
 - **Usage service** (report / progress / completion) and **signed Core JSON responses** (validate, service-key usage estimate): canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; **`timestamp`** in **`X-Tollara-Timestamp`** is **Unix epoch seconds**). For **report**, the JSON body’s **`timestamp`** field is an **ISO-8601** instant. Then **`Base64(HMAC-SHA256(canonical, serviceSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp`.
+- **Progress / completion:** sign exactly the bytes you POST. The usage service verifies HMAC against the **raw HTTP request body** (spec §3).
 - **JWT usage estimate**: **not** HMAC-signed; do not expect signature headers.
-- **Gateway → service inbound:** canonical = `payload + timestamp + userContextString`. Verification defaults to v2 via **`BuildGatewayUserContextStringV2`** (leading `2`, no quota segment). `Verifier.BuildGatewayUserContextString` remains the legacy suffix.
+- **Gateway → service inbound:** canonical = `payload + timestamp + userContextString`. Production uses **v3** via **`BuildGatewayUserContextStringV3`** when `X-Tollara-Signing-Version` is `"3"`. **v2** and legacy v1 remain for backward-compat tests only.
+
+Progress and completion return **`UsageCallbackResult`** (`Success`, `HttpStatus`, `HttpStatusText`, `RequestUrl`, optional `ResponseBody` / `NetworkError`).
 
 ## Completion status (async completion payloads)
 
@@ -46,7 +49,7 @@ var (ok, code, body) = await client.GetRequestStatusAsync(requestId, serviceKey)
 
 ```csharp
 var ctx = Verifier.VerifyInboundHmacAndGetUserContext(serviceSecret, headers, payload);
-if (ctx is not null) { /* trusted */ }
+if (ctx is not null && Verifier.GrantAccess(ctx.SubscriptionStatus)) { /* trusted + invoke-eligible */ }
 ```
 
 ## Install
@@ -72,11 +75,13 @@ bool valid = Verifier.VerifySignatureFromHeaders(serviceSecret, headers, payload
 var ctx = Verifier.GetUserContext(headers);
 ```
 
-### Inbound DTO
+### Inbound DTO (v3)
 
 ```csharp
-var signed = new SignedUserContext("user1", "plan1", new[] { "r1" }, 10m, subscriptionActive: false);
-var req = new InboundHmacRequest(sig, ts, payload, signed, SigningVersion: "2"); // v2 default/recommended
+var signed = new SignedUserContext(
+    "user1", "prod-uuid-1", new[] { "r1" }, "ACTIVE",
+    BillingModelType: "SUBSCRIPTION", MeasurementType: "PER_REQUEST", UnitLabel: "request");
+var req = new InboundHmacRequest(sig, ts, payload, signed, SigningVersion: Verifier.SigningVersionV3);
 bool ok = Verifier.VerifyInboundHmac(serviceSecret, req);
 ```
 
@@ -90,7 +95,14 @@ dotnet test Tollara.ServiceSdk.Tests/Tollara.ServiceSdk.Tests.csproj
 
 ## Changelog (high level)
 
-### 0.0.6 (current)
+### 3.0.0 (current)
+
+- **Breaking:** Validation **v3** — `serviceProductId`, `subscriptionStatus`, `validationSchemaVersion: 3`; removed `plan`, `quotaRemaining`, `subscriptionActive`; **`GrantAccess(subscriptionStatus)`** for invoke eligibility.
+- **Breaking:** Gateway HMAC **v3** — `BuildGatewayUserContextStringV3`, headers `X-Tollara-Service-Product-ID`, `X-Tollara-Subscription-Status`, signing version `"3"`.
+- **Breaking:** Estimate **v3** — balances/caps on **`breakdown`** only (`estimateSchemaVersion: 3`).
+- **Breaking:** Report **v2** — identity + **`breakdown`** (`reportSchemaVersion: 2`).
+
+### 0.0.6
 
 - **Environment variables:** `TollaraClient.Create` uses `TOLLARA_SERVICE_ID` / `TOLLARA_SERVICE_SECRET` when options are omitted.
 
@@ -111,7 +123,7 @@ dotnet test Tollara.ServiceSdk.Tests/Tollara.ServiceSdk.Tests.csproj
 
 ## Release (NuGet.org)
 
-1. **Version** — Set `<Version>` in `Tollara.ServiceSdk.csproj` to a new **SemVer** value (e.g. `0.0.6`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
+1. **Version** — Set `<Version>` in `Tollara.ServiceSdk.csproj` to a new **SemVer** value (e.g. `3.0.1`). NuGet does not allow republishing the same version. Keep the version line at the top of this README in sync if you maintain it there.
 2. **Verify** — Run tests (command above).
 3. **Pack** — From `sdk-dotnet`:
 

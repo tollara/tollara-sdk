@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     import requests
 
+from .path_prefixes import resolve_gateway_path_prefix
+
 DEFAULT_GATEWAY_PATH_PREFIX = "/api"
 
 
@@ -38,7 +40,7 @@ def get_request_status(
     request_id: str,
     service_key: str,
     *,
-    gateway_path_prefix: str = DEFAULT_GATEWAY_PATH_PREFIX,
+    gateway_path_prefix: Optional[str] = None,
     session: Optional["requests.Session"] = None,
 ) -> GatewayPollResult:
     """GET .../requests/{request_id}/status with Bearer service key."""
@@ -46,7 +48,8 @@ def get_request_status(
         import requests
     except ImportError as e:
         raise ImportError("get_request_status requires 'requests'. pip install requests") from e
-    url = _build_url(base_url, gateway_path_prefix, f"/requests/{request_id}/status")
+    prefix = resolve_gateway_path_prefix(base_url, gateway_path_prefix)
+    url = _build_url(base_url, prefix, f"/requests/{request_id}/status")
     sess = session or requests.Session()
     resp = sess.get(url, headers={"Authorization": f"Bearer {service_key}"}, timeout=60)
     return GatewayPollResult(ok=resp.ok, status_code=resp.status_code, body=resp.text or "")
@@ -57,7 +60,7 @@ def get_request_result(
     request_id: str,
     service_key: str,
     *,
-    gateway_path_prefix: str = DEFAULT_GATEWAY_PATH_PREFIX,
+    gateway_path_prefix: Optional[str] = None,
     session: Optional["requests.Session"] = None,
 ) -> GatewayPollResult:
     """GET .../requests/{request_id}/result with Bearer service key."""
@@ -65,7 +68,8 @@ def get_request_result(
         import requests
     except ImportError as e:
         raise ImportError("get_request_result requires 'requests'. pip install requests") from e
-    url = _build_url(base_url, gateway_path_prefix, f"/requests/{request_id}/result")
+    prefix = resolve_gateway_path_prefix(base_url, gateway_path_prefix)
+    url = _build_url(base_url, prefix, f"/requests/{request_id}/result")
     sess = session or requests.Session()
     resp = sess.get(url, headers={"Authorization": f"Bearer {service_key}"}, timeout=60)
     return GatewayPollResult(ok=resp.ok, status_code=resp.status_code, body=resp.text or "")

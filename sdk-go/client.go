@@ -3,6 +3,7 @@ package sdk
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -45,42 +46,73 @@ type TollaraClientOptions struct {
 }
 
 type ServiceKeyValidationResult struct {
-	UserID             string   `json:"userId"`
-	ServiceID          string   `json:"serviceId"`
-	ServiceKeyID       string   `json:"serviceKeyId"`
-	Plan               string   `json:"plan"`
-	Roles              []string `json:"roles"`
-	QuotaRemaining     *float64 `json:"quotaRemaining"`
-	SubscriptionActive bool     `json:"subscriptionActive"`
-	BillingModelType   string   `json:"billingModelType"`
-	MeasurementType    string   `json:"measurementType"`
-	UnitLabel          string   `json:"unitLabel"`
+	UserID                   string   `json:"userId"`
+	ServiceID                string   `json:"serviceId"`
+	ServiceKeyID             string   `json:"serviceKeyId"`
+	ServiceProductID         string   `json:"serviceProductId"`
+	Roles                    []string `json:"roles"`
+	SubscriptionStatus       string   `json:"subscriptionStatus"`
+	ValidationSchemaVersion  int      `json:"validationSchemaVersion"`
+	BillingModelType         string   `json:"billingModelType"`
+	MeasurementType          string   `json:"measurementType"`
+	UnitLabel                string   `json:"unitLabel"`
+}
+
+func (r *ServiceKeyValidationResult) GrantAccess() bool {
+	return GrantAccess(r.SubscriptionStatus)
+}
+
+type UsageBreakdown struct {
+	UnitsUsed               *float64 `json:"unitsUsed,omitempty"`
+	BaseUnitsUsed           *float64 `json:"baseUnitsUsed,omitempty"`
+	OverageUnits            *float64 `json:"overageUnits,omitempty"`
+	ChargeableOverageUnits  *float64 `json:"chargeableOverageUnits,omitempty"`
+	SurplusOverageUnits     *float64 `json:"surplusOverageUnits,omitempty"`
+	OverageCost             *float64 `json:"overageCost,omitempty"`
+	TotalOverageCost        *float64 `json:"totalOverageCost,omitempty"`
+	UnitsRemaining          *float64 `json:"unitsRemaining,omitempty"`
+	RemainingCredits        *float64 `json:"remainingCredits,omitempty"`
+	RemainingSpendingCap    *float64 `json:"remainingSpendingCap,omitempty"`
+	TotalUnitsUsedThisCycle *float64 `json:"totalUnitsUsedThisCycle,omitempty"`
+	OverLimit               *bool    `json:"isOverLimit,omitempty"`
+	Overage                 *bool    `json:"isOverage,omitempty"`
+	OverageAllowed          *bool    `json:"isOverageAllowed,omitempty"`
 }
 
 type UsageEstimateResult struct {
-	SufficientCredits    bool                   `json:"sufficientCredits"`
-	WouldExceedCap       bool                   `json:"wouldExceedCap"`
-	WouldAllow           bool                   `json:"wouldAllow"`
-	EstimatedCost        *float64               `json:"estimatedCost"`
-	RemainingCredits     *float64               `json:"remainingCredits"`
-	RemainingSpendingCap *float64               `json:"remainingSpendingCap"`
-	BillingModelType     string                 `json:"billingModelType"`
-	MeasurementType      string                 `json:"measurementType"`
-	UnitLabel            string                 `json:"unitLabel"`
-	Breakdown            map[string]interface{} `json:"breakdown"`
-	EstimateSchemaVersion int                   `json:"estimateSchemaVersion"`
-	Timestamp            int64                  `json:"timestamp"`
-	HTTPStatus           int                    `json:"-"`
+	SufficientCredits       bool            `json:"sufficientCredits"`
+	WouldExceedCap          bool            `json:"wouldExceedCap"`
+	WouldAllow              bool            `json:"wouldAllow"`
+	EstimatedCost           *float64        `json:"estimatedCost"`
+	BillingModelType        string          `json:"billingModelType"`
+	MeasurementType         string          `json:"measurementType"`
+	UnitLabel               string          `json:"unitLabel"`
+	Breakdown               *UsageBreakdown `json:"breakdown"`
+	EstimateSchemaVersion   int             `json:"estimateSchemaVersion"`
+	Timestamp               int64           `json:"timestamp"`
+	HTTPStatus              int             `json:"-"`
 }
 
 type UsageReportResponse struct {
-	Status                    string   `json:"status"`
-	Warning                   string   `json:"warning"`
-	IsOverLimit               bool     `json:"isOverLimit"`
-	RemainingRequestsPerPeriod int64   `json:"remainingRequestsPerPeriod"`
-	RemainingTimeUnitsPerPeriod *float64 `json:"remainingTimeUnitsPerPeriod"`
-	RemainingSpendingCap      *float64 `json:"remainingSpendingCap"`
-	OverageRate               *float64 `json:"overageRate"`
+	ReportSchemaVersion int             `json:"reportSchemaVersion"`
+	Status              string          `json:"status"`
+	Warning             string          `json:"warning"`
+	UserID              string          `json:"userId"`
+	ServiceID           string          `json:"serviceId"`
+	BillingModelType    string          `json:"billingModelType"`
+	MeasurementType     string          `json:"measurementType"`
+	UnitLabel           string          `json:"unitLabel"`
+	Breakdown           *UsageBreakdown `json:"breakdown"`
+}
+
+// UsageCallbackResult is the result of a progress or completion callback POST.
+type UsageCallbackResult struct {
+	Success        bool
+	HTTPStatus     int
+	HTTPStatusText string
+	RequestURL     string
+	ResponseBody   string
+	NetworkError   string
 }
 
 type GatewayInvokeAsyncEnvelope struct {
@@ -107,15 +139,18 @@ func NewTollaraClient(opts TollaraClientOptions) (*TollaraClient, error) {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 60 * time.Second}
 	}
-	corePrefix := firstNonBlank(opts.CorePathPrefix, DefaultCorePathPrefix)
-	gatewayPrefix := firstNonBlank(opts.GatewayPathPrefix, DefaultGatewayPathPrefix)
-	usagePrefix := firstNonBlank(opts.UsagePathPrefix, DefaultUsagePathPrefix)
+	coreBase := trimTrailingSlash(firstNonBlank(opts.CoreBaseURL, apiURL))
+	gatewayBase := trimTrailingSlash(firstNonBlank(opts.GatewayBaseURL, apiURL))
+	usageBase := trimTrailingSlash(firstNonBlank(opts.UsageBaseURL, apiURL))
+	corePrefix := ResolveCorePathPrefix(coreBase, opts.CorePathPrefix)
+	gatewayPrefix := ResolveGatewayPathPrefix(gatewayBase, opts.GatewayPathPrefix)
+	usagePrefix := ResolveUsagePathPrefix(usageBase, opts.UsagePathPrefix)
 	return &TollaraClient{
 		HTTPClient:        httpClient,
 		APIURL:            trimTrailingSlash(apiURL),
-		CoreBaseURL:       trimTrailingSlash(firstNonBlank(opts.CoreBaseURL, apiURL)),
-		GatewayBaseURL:    trimTrailingSlash(firstNonBlank(opts.GatewayBaseURL, apiURL)),
-		UsageBaseURL:      trimTrailingSlash(firstNonBlank(opts.UsageBaseURL, apiURL)),
+		CoreBaseURL:       coreBase,
+		GatewayBaseURL:    gatewayBase,
+		UsageBaseURL:      usageBase,
 		CorePathPrefix:    normalizePrefix(corePrefix),
 		GatewayPathPrefix: normalizePrefix(gatewayPrefix),
 		UsagePathPrefix:   normalizePrefix(usagePrefix),
@@ -125,28 +160,14 @@ func NewTollaraClient(opts TollaraClientOptions) (*TollaraClient, error) {
 }
 
 func (c *TollaraClient) ValidateServiceKey(serviceKey string) (*ServiceKeyValidationResult, error) {
-	body := map[string]interface{}{"serviceKey": serviceKey, "serviceSecret": c.ServiceSecret}
-	if c.ServiceID != "" {
-		body["serviceId"] = c.ServiceID
+	outcome := c.ValidateServiceKeyWithOutcome(serviceKey)
+	if outcome.OK {
+		return outcome.Result, nil
 	}
-	url := c.CoreBaseURL + c.CorePathPrefix + "/service-keys/validate"
-	respBody, headers, status, err := c.doJSON("POST", url, body, map[string]string{"Content-Type": "application/json"})
-	if err != nil || status < 200 || status >= 300 {
-		return nil, err
+	if outcome.Failure != nil && outcome.Failure.Code == ValidationFailureNetwork {
+		return nil, errors.New("network error")
 	}
-	sig := headerGetCI(headers, HeaderSignature)
-	ts := headerGetCI(headers, HeaderTimestamp)
-	if sig == "" || ts == "" || !ValidateHmacSignature(sig, respBody+ts, c.ServiceSecret) {
-		return nil, nil
-	}
-	var raw struct {
-		Valid bool `json:"valid"`
-		ServiceKeyValidationResult
-	}
-	if json.Unmarshal([]byte(respBody), &raw) != nil || !raw.Valid {
-		return nil, nil
-	}
-	return &raw.ServiceKeyValidationResult, nil
+	return nil, nil
 }
 
 func (c *TollaraClient) EstimateUsage(serviceKey string, estimatedUnits float64) (*UsageEstimateResult, error) {
@@ -245,46 +266,78 @@ func (c *TollaraClient) ReportUsageAt(userID, serviceID string, unitsUsed float6
 	return &out, nil
 }
 
-func (c *TollaraClient) SendProgressUpdate(progressURL, requestID, stage string, percentageComplete int, errorMessage *string) (bool, error) {
-	base, ts := splitURLTimestamp(progressURL)
-	if ts == "" {
-		return false, nil
-	}
+func (c *TollaraClient) SendProgressUpdate(progressURL, requestID, stage string, percentageComplete int, errorMessage *string) UsageCallbackResult {
 	body := map[string]interface{}{
 		"stage": stage, "percentageComplete": percentageComplete, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	if errorMessage != nil {
 		body["errorMessage"] = *errorMessage
 	}
-	bodyBytes, _ := json.Marshal(body)
-	sig := CalculateHmacWithTimestamp(string(bodyBytes), ts, c.ServiceSecret)
-	_, _, status, err := c.doRaw("POST", base, string(bodyBytes), map[string]string{
-		"Content-Type":  "application/json",
-		HeaderSignature: sig,
-		HeaderTimestamp: ts,
-	})
-	return err == nil && status >= 200 && status < 300, err
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		base, _ := splitURLTimestamp(progressURL)
+		return UsageCallbackResult{
+			Success: false, HTTPStatus: 0, HTTPStatusText: "Network error", RequestURL: base, NetworkError: err.Error(),
+		}
+	}
+	return c.postSignedUsageCallback(progressURL, string(bodyBytes))
 }
 
-func (c *TollaraClient) SendCompletion(callbackURL, requestID, status string, units float64, result, resultURL, contentType *string) (bool, error) {
-	base, ts := splitURLTimestamp(callbackURL)
-	if ts == "" {
-		return false, nil
-	}
+func (c *TollaraClient) SendCompletion(callbackURL, requestID, status string, units float64, result, resultURL, contentType *string) UsageCallbackResult {
 	body := map[string]interface{}{
 		"status": strings.ToUpper(status), "timestamp": time.Now().UTC().Format(time.RFC3339Nano), "units": units,
 	}
-	if result != nil { body["result"] = *result }
-	if resultURL != nil { body["resultUrl"] = *resultURL }
-	if contentType != nil { body["contentType"] = *contentType }
-	bodyBytes, _ := json.Marshal(body)
-	sig := CalculateHmacWithTimestamp(string(bodyBytes), ts, c.ServiceSecret)
-	_, _, code, err := c.doRaw("POST", base, string(bodyBytes), map[string]string{
-		"Content-Type":  "application/json",
-		HeaderSignature: sig,
-		HeaderTimestamp: ts,
+	if result != nil {
+		body["result"] = *result
+	}
+	if resultURL != nil {
+		body["resultUrl"] = *resultURL
+	}
+	if contentType != nil {
+		body["contentType"] = *contentType
+	}
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		base, _ := splitURLTimestamp(callbackURL)
+		return UsageCallbackResult{
+			Success: false, HTTPStatus: 0, HTTPStatusText: "Network error", RequestURL: base, NetworkError: err.Error(),
+		}
+	}
+	return c.postSignedUsageCallback(callbackURL, string(bodyBytes))
+}
+
+func (c *TollaraClient) postSignedUsageCallback(urlWithQuery, bodyString string) UsageCallbackResult {
+	base, ts := splitURLTimestamp(urlWithQuery)
+	if ts == "" {
+		statusText := "Missing or invalid callback/progress URL"
+		if strings.TrimSpace(urlWithQuery) != "" {
+			statusText = "Missing timestamp query parameter in URL"
+		}
+		return UsageCallbackResult{Success: false, HTTPStatus: 0, HTTPStatusText: statusText, RequestURL: base}
+	}
+	sig := CalculateHmacWithTimestamp(bodyString, ts, c.ServiceSecret)
+	respBody, _, status, err := c.doRaw("POST", base, bodyString, map[string]string{
+		"Content-Type":    "application/json",
+		HeaderSignature:   sig,
+		HeaderTimestamp:   ts,
 	})
-	return err == nil && code >= 200 && code < 300, err
+	if err != nil {
+		return UsageCallbackResult{
+			Success: false, HTTPStatus: 0, HTTPStatusText: "Network error", RequestURL: base, NetworkError: err.Error(),
+		}
+	}
+	success := status >= 200 && status < 300
+	statusText := http.StatusText(status)
+	if statusText == "" {
+		if success {
+			statusText = "OK"
+		} else {
+			statusText = fmt.Sprintf("HTTP %d", status)
+		}
+	}
+	return UsageCallbackResult{
+		Success: success, HTTPStatus: status, HTTPStatusText: statusText, RequestURL: base, ResponseBody: respBody,
+	}
 }
 
 func (c *TollaraClient) GetRequestStatus(requestID, serviceKey string) (bool, int, string, error) {
@@ -344,6 +397,9 @@ func firstNonBlank(values ...string) string {
 	return ""
 }
 func splitURLTimestamp(raw string) (string, string) {
+	if strings.TrimSpace(raw) == "" {
+		return "", ""
+	}
 	parts := strings.SplitN(raw, "?", 2)
 	if len(parts) != 2 {
 		return raw, ""

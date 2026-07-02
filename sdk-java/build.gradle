@@ -18,7 +18,7 @@ if (System.getProperty('os.name')?.toLowerCase(Locale.ROOT)?.contains('windows')
 }
 
 group = 'com.tollara'
-version = '0.0.1'
+version = '3.0.0'
 
 repositories {
     mavenCentral()

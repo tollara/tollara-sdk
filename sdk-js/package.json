@@ -1,6 +1,6 @@
 {
   "name": "@tollara/service-sdk",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Tollara SDK - verify HMAC, validate keys, report usage, progress, completion",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

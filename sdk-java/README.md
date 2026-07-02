@@ -20,7 +20,9 @@ Use **`TollaraClient`** with one API origin.
 
 **Progress / completion** still use the **full** `progressUrl` / `callbackUrl` strings from the gateway (including query params).
 
-**Usage report signing (Usage §3):** the JSON body includes an ISO-8601 **`timestamp`** field; **`X-Tollara-Timestamp`** is **Unix epoch seconds** (same value concatenated to the raw body string for HMAC). Progress/completion use the **timestamp from the URL** query string for signing, as returned by the platform.
+**Usage report signing (Usage §3):** the JSON body includes an ISO-8601 **`timestamp`** field; **`X-Tollara-Timestamp`** is **Unix epoch seconds** (same value concatenated to the raw body string for HMAC). Progress/completion use the **timestamp from the URL** query string for signing, as returned by the platform. **Sign exactly the bytes you POST** — the usage service verifies progress/completion HMAC against the raw HTTP request body (see spec §3).
+
+Progress and completion return **`UsageCallbackResult`** (`success`, `httpStatus`, `httpStatusText`, `requestUrl`, optional `responseBody` / `networkError`) instead of a bare boolean.
 
 ### Environment variables
 
@@ -41,7 +43,7 @@ Use the same version as `version` in [`build.gradle`](build.gradle) (below match
 **Gradle:**
 
 ```kotlin
-implementation("com.tollara:service-sdk:0.0.1")
+implementation("com.tollara:service-sdk:3.0.0")
 ```
 
 **Maven:**
@@ -50,7 +52,7 @@ implementation("com.tollara:service-sdk:0.0.1")
 <dependency>
   <groupId>com.tollara</groupId>
   <artifactId>service-sdk</artifactId>
-  <version>0.0.1</version>
+  <version>3.0.0</version>
 </dependency>
 ```
 
@@ -127,7 +129,7 @@ Open [central.sonatype.com/publishing](https://central.sonatype.com/publishing):
 
 ### Verify inbound HMAC (service backend)
 
-Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-Tollara-*` headers using the canonical names from `TollaraHeaders`, and falls back to lowercase names when needed. Verification defaults to HMAC user-context **v2** (leading `"2"`, no quota segment).
+Pass your framework’s header accessor and the **raw UTF-8 body** the gateway signed (same bytes as in the canonical string). The SDK reads all `X-Tollara-*` headers using the canonical names from `TollaraHeaders`, and falls back to lowercase names when needed. Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `"3"` (`serviceProductId`, `subscriptionStatus`); **v2** when `"2"` (no quota segment); legacy v1 otherwise.
 
 ```java
 import com.tollara.client.TollaraRequestVerifier;
@@ -143,7 +145,10 @@ String rawBody = rawRequestBodyUtf8;
 Optional<TollaraRequestVerifier.UserContext> verified =
         verifier.verifyInboundHmacAndGetUserContext(request::getHeader, rawBody);
 verified.ifPresent(ctx -> {
-    // ctx.getUserId(), ctx.getPlan(), …
+    // ctx.getUserId(), ctx.getServiceProductId(), ctx.getSubscriptionStatus(), …
+    if (TollaraRequestVerifier.grantAccess(ctx.getSubscriptionStatus())) {
+        // invoke-eligible subscription
+    }
 });
 
 // Or verify and read separately:
@@ -179,6 +184,7 @@ TollaraClient client = TollaraClient.builder()
 // Validate a caller’s service key; verify response HMAC inside the client.
 var validation = client.validateServiceKey("bearer-token");
 // validation.getServiceKeyId() — Core key row id when present (validate success, §2.1).
+// validation.getServiceProductId(), getSubscriptionStatus(), grantAccess() for v3 validate.
 
 // Pre-flight: Core POST /service-keys/estimate-usage (same body trust as validate; no Bearer).
 // Verifies response HMAC on 200 / 403 / 429 when signature headers are present.
@@ -186,7 +192,7 @@ UsageEstimateResult estimate = client.estimateUsage("bearer-token", new BigDecim
 if (estimate != null) {
     boolean allowed = estimate.isWouldAllow(); // would Tollara allow the task to complete based on available usage limits?
     int status = estimate.getHttpStatus();
-    // estimate.getSufficientCredits(), getWouldExceedCap(), getBreakdown(), …
+    // estimate.getSufficientCredits(), getWouldExceedCap(), getBreakdown().getRemainingCredits(), …
 }
 
 // JWT usage estimate (Core POST …/billing/usage/estimate) — unsigned response; pass a Bearer JWT.
@@ -198,12 +204,16 @@ GatewayInvokeResult inv = client.invokeService("POST", serviceId, endpointId, se
 
 // Record billed units for a user/service (signed with service secret; body timestamp ISO, header epoch seconds).
 UsageReportResponse usageResp = client.reportUsage(userId, serviceId, BigDecimal.ONE);
+// usageResp.getBreakdown().getUnitsRemaining(), getBreakdown().getOverLimit(), … (reportSchemaVersion 2)
 
 // Give progress update (use the full progressUrl from the gateway/async payload).
-client.sendProgressUpdate(progressUrl, requestId, "some processing info", 50);
+UsageCallbackResult progress = client.sendProgressUpdate(progressUrl, requestId, "some processing info", 50);
+if (!progress.isSuccess()) {
+    System.err.println(progress.getHttpStatus() + " " + progress.getResponseBody());
+}
 
 // Job finished (use the full callbackUrl from the gateway/async payload).
-client.sendCompletion(callbackUrl, requestId, CompletionStatus.COMPLETED, "some result", java.math.BigDecimal.ONE);
+UsageCallbackResult complete = client.sendCompletion(callbackUrl, requestId, CompletionStatus.COMPLETED, "some result", java.math.BigDecimal.ONE);
 
 // Poll async job status (Bearer service key).
 GatewayHttpResponse status = client.getRequestStatus(requestId, serviceKey);

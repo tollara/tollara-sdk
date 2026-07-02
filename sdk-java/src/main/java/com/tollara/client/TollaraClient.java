@@ -1,6 +1,7 @@
 package com.tollara.client;
 
 import com.tollara.client.model.CompletionStatus;
+import com.tollara.client.model.UsageCallbackResult;
 import com.tollara.client.model.UsageReportResponse;
 
 import com.tollara.client.model.UsageEstimateResult;
@@ -71,9 +72,9 @@ public final class TollaraClient {
         String gwBase = TollaraUrls.trimTrailingSlashes(firstNonBlank(b.gatewayApiUrl, resolved));
         String usageBase = TollaraUrls.trimTrailingSlashes(firstNonBlank(b.usageApiUrl, resolved));
 
-        String corePrefix = b.corePathPrefix != null ? b.corePathPrefix : DEFAULT_CORE_PATH_PREFIX;
-        this.gatewayPathPrefix = b.gatewayPathPrefix != null ? b.gatewayPathPrefix : DEFAULT_GATEWAY_PATH_PREFIX;
-        String usagePrefix = b.usagePathPrefix != null ? b.usagePathPrefix : DEFAULT_USAGE_PATH_PREFIX;
+        String corePrefix = TollaraPathPrefixes.resolveCorePathPrefix(coreBase, b.corePathPrefix);
+        this.gatewayPathPrefix = TollaraPathPrefixes.resolveGatewayPathPrefix(gwBase, b.gatewayPathPrefix);
+        String usagePrefix = TollaraPathPrefixes.resolveUsagePathPrefix(usageBase, b.usagePathPrefix);
 
         String coreRoot = TollaraUrls.join(coreBase, corePrefix);
         this.gatewayBaseUrl = gwBase;
@@ -118,6 +119,10 @@ public final class TollaraClient {
         return core.validateServiceKey(serviceKey);
     }
 
+    public ServiceKeyValidationClient.ServiceKeyValidationOutcome validateServiceKeyWithOutcome(String serviceKey) {
+        return core.validateServiceKeyWithOutcome(serviceKey);
+    }
+
     /**
      * Usage pre-check for a service key (Core {@code /service-keys/estimate-usage}). See {@link ServiceKeyValidationClient#estimateUsage(String, BigDecimal)}.
      */
@@ -145,25 +150,25 @@ public final class TollaraClient {
         return usage.reportUsage(userId, serviceId, unitsUsed, timestamp);
     }
 
-    public boolean sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete) {
+    public UsageCallbackResult sendProgressUpdate(String progressUrl, String requestId, String stage, int percentageComplete) {
         return usage.sendProgressUpdate(progressUrl, requestId, stage, percentageComplete);
     }
 
-    public boolean sendProgressUpdate(
+    public UsageCallbackResult sendProgressUpdate(
             String progressUrl, String requestId, String stage, int percentageComplete, String errorMessage) {
         return usage.sendProgressUpdate(progressUrl, requestId, stage, percentageComplete, errorMessage);
     }
 
-    public boolean sendCompletion(String callbackUrl, String requestId, CompletionStatus status, BigDecimal units) {
+    public UsageCallbackResult sendCompletion(String callbackUrl, String requestId, CompletionStatus status, BigDecimal units) {
         return usage.sendCompletion(callbackUrl, requestId, status, units);
     }
 
-    public boolean sendCompletion(
+    public UsageCallbackResult sendCompletion(
             String callbackUrl, String requestId, CompletionStatus status, String result, BigDecimal units) {
         return usage.sendCompletion(callbackUrl, requestId, status, result, units);
     }
 
-    public boolean sendCompletion(
+    public UsageCallbackResult sendCompletion(
             String callbackUrl,
             String requestId,
             CompletionStatus status,

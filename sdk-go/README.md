@@ -24,10 +24,15 @@ Use these environment variable names in your app config:
 
 ### Verify HMAC and trusted user context in one call
 
+Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `"3"` (`serviceProductId`, `subscriptionStatus`); **v2** when `"2"`; legacy v1 otherwise.
+
 ```go
 ctx, ok := sdk.VerifyInboundHMACFromHeadersAndGetUserContext(serviceSecret, r.Header, string(bodyBytes))
 if ok {
     _ = ctx.UserID // trusted only when ok is true
+    if sdk.GrantAccess(ctx.SubscriptionStatus) {
+        // invoke-eligible subscription
+    }
 }
 ```
 
@@ -45,15 +50,16 @@ import "github.com/tollara/service-sdk-go"
 // From net/http (package name is sdk):
 ok := sdk.VerifyInboundHMACFromHeaders(serviceSecret, r.Header, string(bodyBytes))
 
-// Or explicit struct:
+// Or explicit struct (v3):
 req := &sdk.InboundHmacRequest{
-    Signature: sig,
-    Timestamp: ts,
-    Payload:   string(body),
-    UserID:    "user1",
-    Plan:      "plan1",
-    Roles:     []string{"role1", "role2"},
-    QuotaRemaining: "10",
+    Signature:          sig,
+    Timestamp:          ts,
+    Payload:            string(body),
+    UserID:             "user1",
+    ServiceProductID:   "prod-uuid-1",
+    Roles:              []string{"role1", "role2"},
+    SubscriptionStatus: "ACTIVE",
+    SigningVersion:     "3",
 }
 ok = sdk.VerifyInboundHMAC(serviceSecret, req)
 
@@ -71,13 +77,13 @@ client, err := sdk.NewTollaraClient(sdk.TollaraClientOptions{
 })
 if err != nil { panic(err) }
 
-_, _ = client.ValidateServiceKey(serviceKey)
-_, _ = client.EstimateUsage(serviceKey, 1)
-_, _ = client.EstimateUsageWithJWT(bearerJwt, coreUserID, serviceID, 1)
-_, _ = client.InvokeService("POST", serviceID, endpointID, serviceKey, "{}", false)
-_, _ = client.ReportUsage(userID, serviceID, 1)
-_, _ = client.SendProgressUpdate(progressURL, requestID, "processing", 50, nil)
-_, _ = client.SendCompletion(callbackURL, requestID, "COMPLETED", 1, nil, nil, nil)
+_, _ = client.ValidateServiceKey(serviceKey) // validationSchemaVersion 3: serviceProductId, subscriptionStatus
+est, _ := client.EstimateUsage(serviceKey, 1) // estimateSchemaVersion 3: breakdown.remainingCredits / remainingSpendingCap
+rep, _ := client.ReportUsage(userID, serviceID, 1) // reportSchemaVersion 2 + breakdown
+result := client.SendProgressUpdate(progressURL, requestID, "processing", 50, nil)
+if !result.Success { /* handle callback failure */ }
+complete := client.SendCompletion(callbackURL, requestID, "COMPLETED", 1, nil, nil, nil)
+if !complete.Success { /* handle callback failure */ }
 ok, code, body, _ := client.GetRequestStatus(requestID, serviceKey)
 _ = []any{ok, code, body}
 ```

@@ -1,0 +1,106 @@
+{
+  "name": "Tollara Demo — Subscriber Proxied Sync Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Subscriber — Proxied sync agent\n\nInvokes **proxied-agent** (`agents/proxied-agent`, Docker `:9090`) via the **gateway** — no n8n backend workflow required.\n\n**Listing endpoint:** proxied, sync, POST, `realUrl` = `http://host.docker.internal:9090/api/test/sync`, service secret = agent `AGENT_SECRET`.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `YOUR_SERVICE_ID`, `YOUR_PROXIED_SYNC_ENDPOINT_ID`.\n\n**Local Docker:** enable **Set API Endpoints** on **Tollara Invoke** → Gateway URL `http://host.docker.internal:8083`.\n\n**Prerequisites:** gateway, core, usage + `proxied-service-local` (`docker-compose.e2e-agents.yml --profile local`).",
+        "height": 280,
+        "width": 520
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, -220]
+    },
+    {
+      "parameters": {},
+      "id": "d1e2f3a4-0004-4000-8000-000000000010",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    serviceKey: 'YOUR_SERVICE_KEY',\n    serviceId: 'YOUR_SERVICE_ID',\n    endpointId: 'YOUR_PROXIED_SYNC_ENDPOINT_ID',\n    invokeBody: JSON.stringify({ message: 'Hello from n8n proxied sync' }),\n  },\n}];"
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000011",
+      "name": "Set Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "async": false,
+        "serviceKey": "={{ $('Set Config').item.json.serviceKey }}",
+        "serviceId": "={{ $('Set Config').item.json.serviceId }}",
+        "endpointId": "={{ $('Set Config').item.json.endpointId }}",
+        "body": "={{ $('Set Config').item.json.invokeBody }}"
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000012",
+      "name": "Tollara Invoke",
+      "type": "n8n-nodes-tollara.tollaraInvoke",
+      "typeVersion": 1,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-invoke-ok",
+            "leftValue": "={{ $json.tollaraOk }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000014",
+      "name": "Invoke OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoke = $('Tollara Invoke').first().json;\nconst data = invoke.data ?? {};\nreturn [{\n  json: {\n    statusCode: invoke.statusCode,\n    message: data.message,\n    receivedPayload: data.receivedPayload,\n    userId: data.userId,\n    raw: data,\n  },\n}];"
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000013",
+      "name": "Format Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoke = $('Tollara Invoke').first().json;\nreturn [{ json: { status: 'error', message: 'Invoke failed', statusCode: invoke.statusCode, tollaraOk: invoke.tollaraOk, body: invoke.body ?? invoke.data } }];"
+      },
+      "id": "d1e2f3a4-0004-4000-8000-000000000015",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 440]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Set Config", "type": "main", "index": 0 }]] },
+    "Set Config": { "main": [[{ "node": "Tollara Invoke", "type": "main", "index": 0 }]] },
+    "Tollara Invoke": { "main": [[{ "node": "Invoke OK?", "type": "main", "index": 0 }]] },
+    "Invoke OK?": {
+      "main": [
+        [{ "node": "Format Result", "type": "main", "index": 0 }],
+        [{ "node": "Format Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "meta": { "templateCredsSetupCompleted": false }
+}

@@ -17,18 +17,25 @@ from .gateway_invoke import GatewayInvokeResult, invoke_service as gateway_invok
 from .usage_client import (
     DEFAULT_USAGE_PATH_PREFIX,
     report_completion,
-    report_completion_full,
     report_progress,
     report_usage,
     report_usage_at,
+    UsageCallbackResult,
     UsageReportResponse,
+)
+from .path_prefixes import (
+    resolve_core_path_prefix,
+    resolve_gateway_path_prefix,
+    resolve_usage_path_prefix,
 )
 from .validation_client import (
     DEFAULT_CORE_PATH_PREFIX,
     ServiceKeyValidationResult,
+    ServiceKeyValidationOutcome,
     UsageEstimateResult,
     estimate_usage,
     validate_service_key,
+    validate_service_key_with_outcome,
 )
 
 if TYPE_CHECKING:
@@ -109,9 +116,9 @@ class TollaraClient:
         gw_base = _trim_trailing_slashes(_first_non_blank(gateway_api_url, resolved))
         usage_base = _trim_trailing_slashes(_first_non_blank(usage_api_url, resolved))
 
-        cp = core_path_prefix if core_path_prefix is not None else DEFAULT_CORE_PATH_PREFIX
-        gp = gateway_path_prefix if gateway_path_prefix is not None else DEFAULT_GATEWAY_PATH_PREFIX
-        up = usage_path_prefix if usage_path_prefix is not None else DEFAULT_USAGE_PATH_PREFIX
+        cp = resolve_core_path_prefix(core_base, core_path_prefix)
+        gp = resolve_gateway_path_prefix(gw_base, gateway_path_prefix)
+        up = resolve_usage_path_prefix(usage_base, usage_path_prefix)
 
         sec = _first_non_blank(service_secret, os.environ.get(ENV_SERVICE_SECRET))
         if not sec:
@@ -139,6 +146,16 @@ class TollaraClient:
 
     def validate_service_key(self, service_key: str) -> Optional[ServiceKeyValidationResult]:
         return validate_service_key(
+            self._core_base,
+            service_key,
+            self._service_secret,
+            self._service_id,
+            core_path_prefix=self._core_path_prefix,
+            session=self._session,
+        )
+
+    def validate_service_key_with_outcome(self, service_key: str) -> ServiceKeyValidationOutcome:
+        return validate_service_key_with_outcome(
             self._core_base,
             service_key,
             self._service_secret,
@@ -251,7 +268,7 @@ class TollaraClient:
         error_message: Optional[str] = None,
         *,
         session: Optional["requests.Session"] = None,
-    ) -> bool:
+    ) -> UsageCallbackResult:
         return report_progress(
             progress_url,
             request_id,
@@ -273,27 +290,17 @@ class TollaraClient:
         result_url: Optional[str] = None,
         content_type: Optional[str] = None,
         session: Optional["requests.Session"] = None,
-    ) -> bool:
-        sess = session or self._session
-        if result is not None or result_url is not None or content_type is not None:
-            return report_completion_full(
-                callback_url,
-                request_id,
-                status,
-                self._service_secret,
-                result=result,
-                result_url=result_url,
-                content_type=content_type,
-                units=units,
-                session=sess,
-            )
+    ) -> UsageCallbackResult:
         return report_completion(
             callback_url,
             request_id,
             status,
             self._service_secret,
+            result=result,
+            result_url=result_url,
+            content_type=content_type,
             units=units,
-            session=sess,
+            session=session or self._session,
         )
 
     def get_request_status(

@@ -5,17 +5,30 @@ from typing import Any, Dict, List, Optional, Union
 from .tollara_headers import TollaraHeaders
 from .hmac_utils import calculate_hmac, constant_time_equals
 
+SIGNING_VERSION_V3 = "3"
+_INVOKE_ELIGIBLE_STATUSES = frozenset({"ACTIVE", "TRIAL", "CANCELLING", "CANCELLING_PENDING"})
+
+
+def grant_access(subscription_status: Optional[str]) -> bool:
+    """True when subscription_status is invoke-eligible (ACTIVE, TRIAL, CANCELLING, CANCELLING_PENDING)."""
+    if subscription_status is None or not str(subscription_status).strip():
+        return False
+    return str(subscription_status).strip().upper() in _INVOKE_ELIGIBLE_STATUSES
+
 
 @dataclass
 class UserContext:
     user_id: Optional[str]
-    plan: Optional[str]
+    service_product_id: Optional[str]
     roles: List[str]
-    quota_remaining: Optional[Union[int, float]]
-    subscription_active: bool
+    subscription_status: Optional[str]
     billing_model_type: Optional[str]
     measurement_type: Optional[str]
     unit_label: Optional[str]
+    # v1/v2 only
+    plan: Optional[str] = None
+    quota_remaining: Optional[Union[int, float]] = None
+    subscription_active: bool = False
 
 
 @dataclass
@@ -23,13 +36,16 @@ class SignedUserContext:
     """Fields that participate in inbound HMAC userContextString (docs/hmac-spec.md)."""
 
     user_id: Optional[str] = None
-    plan: Optional[str] = None
+    service_product_id: Optional[str] = None
     roles: List[str] = field(default_factory=list)
-    quota_remaining: Optional[Union[int, float]] = None
-    subscription_active: bool = False
+    subscription_status: Optional[str] = None
     billing_model_type: Optional[str] = None
     measurement_type: Optional[str] = None
     unit_label: Optional[str] = None
+    # v1/v2 only
+    plan: Optional[str] = None
+    quota_remaining: Optional[Union[int, float]] = None
+    subscription_active: bool = False
 
 
 @dataclass
@@ -47,6 +63,12 @@ def _header_get_ci(headers: Dict[str, Optional[str]], canonical_name: str) -> Op
         if k is not None and k.lower() == target:
             return v
     return None
+
+
+def _empty_to_none(value: Optional[str]) -> Optional[str]:
+    if value is None or value == "":
+        return None
+    return value
 
 
 def _format_quota(quota_remaining: Optional[Union[int, float, str]]) -> str:
@@ -84,6 +106,12 @@ def _parse_subscription_active(raw: Optional[str]) -> bool:
         return False
     t = raw.strip()
     return t.lower() == "true" or t == "1"
+
+
+def _parse_roles_list(roles_header: Optional[str]) -> List[str]:
+    if roles_header is None or roles_header == "":
+        return []
+    return [s.strip() for s in roles_header.split(",") if s.strip()]
 
 
 def build_gateway_user_context_string(
@@ -127,8 +155,67 @@ def build_gateway_user_context_string_v2(
     return "2" + u + p + r + sub + b + m + ul
 
 
+def build_gateway_user_context_string_v3(
+    user_id: Optional[str],
+    service_product_id: Optional[str],
+    roles: List[str],
+    subscription_status: Optional[str],
+    billing_model_type: Optional[str],
+    measurement_type: Optional[str],
+    unit_label: Optional[str],
+) -> str:
+    """Gateway HMAC user-context v3: leading ``3``, serviceProductId and subscriptionStatus."""
+    u = user_id or ""
+    sp = service_product_id or ""
+    r = ",".join(roles) if roles else ""
+    ss = subscription_status or ""
+    b = billing_model_type or ""
+    m = measurement_type or ""
+    ul = unit_label or ""
+    return "3" + u + sp + r + ss + b + m + ul
+
+
+def _parse_signed_user_context_from_headers(
+    headers: Dict[str, Optional[str]],
+) -> SignedUserContext:
+    roles_str = _header_get_ci(headers, TollaraHeaders.ROLES) or ""
+    roles = _parse_roles_list(roles_str)
+    q_raw = _header_get_ci(headers, TollaraHeaders.QUOTA_REMAINING)
+    quota_remaining = _parse_quota_raw(q_raw)
+    sub_raw = _header_get_ci(headers, TollaraHeaders.SUBSCRIPTION_ACTIVE)
+    bm = _header_get_ci(headers, TollaraHeaders.BILLING_MODEL)
+    mt = _header_get_ci(headers, TollaraHeaders.MEASUREMENT_TYPE)
+    ul = _header_get_ci(headers, TollaraHeaders.UNIT_LABEL)
+    return SignedUserContext(
+        user_id=_header_get_ci(headers, TollaraHeaders.USER_ID),
+        service_product_id=_empty_to_none(_header_get_ci(headers, TollaraHeaders.SERVICE_PRODUCT_ID)),
+        roles=roles,
+        subscription_status=_empty_to_none(_header_get_ci(headers, TollaraHeaders.SUBSCRIPTION_STATUS)),
+        billing_model_type=_empty_to_none(bm),
+        measurement_type=_empty_to_none(mt),
+        unit_label=_empty_to_none(ul),
+        plan=_header_get_ci(headers, TollaraHeaders.PLAN),
+        quota_remaining=quota_remaining,
+        subscription_active=_parse_subscription_active(sub_raw),
+    )
+
+
 def verify_inbound_hmac(service_secret: str, request: InboundHmacRequest) -> bool:
     s = request.signed_user_context
+    if request.signing_version == SIGNING_VERSION_V3:
+        return verify_signature_v3(
+            service_secret,
+            request.signature,
+            request.timestamp,
+            request.payload,
+            s.user_id,
+            s.service_product_id,
+            s.roles,
+            s.subscription_status,
+            s.billing_model_type,
+            s.measurement_type,
+            s.unit_label,
+        )
     return verify_signature(
         service_secret,
         request.signature,
@@ -155,24 +242,7 @@ def verify_signature_from_headers(
     timestamp = _header_get_ci(headers, TollaraHeaders.TIMESTAMP) or ""
     if not signature or not timestamp:
         return False
-    roles_str = _header_get_ci(headers, TollaraHeaders.ROLES) or ""
-    roles = [s.strip() for s in roles_str.split(",") if s.strip()]
-    q_raw = _header_get_ci(headers, TollaraHeaders.QUOTA_REMAINING)
-    quota_remaining = _parse_quota_raw(q_raw)
-    sub_raw = _header_get_ci(headers, TollaraHeaders.SUBSCRIPTION_ACTIVE)
-    bm = _header_get_ci(headers, TollaraHeaders.BILLING_MODEL)
-    mt = _header_get_ci(headers, TollaraHeaders.MEASUREMENT_TYPE)
-    ul = _header_get_ci(headers, TollaraHeaders.UNIT_LABEL)
-    signed = SignedUserContext(
-        user_id=_header_get_ci(headers, TollaraHeaders.USER_ID),
-        plan=_header_get_ci(headers, TollaraHeaders.PLAN),
-        roles=roles,
-        quota_remaining=quota_remaining,
-        subscription_active=_parse_subscription_active(sub_raw),
-        billing_model_type=bm if bm else None,
-        measurement_type=mt if mt else None,
-        unit_label=ul if ul else None,
-    )
+    signed = _parse_signed_user_context_from_headers(headers)
     sv = _header_get_ci(headers, TollaraHeaders.SIGNING_VERSION)
     return verify_inbound_hmac(
         service_secret,
@@ -201,6 +271,8 @@ def verify_signature(
     unit_label: Optional[str] = None,
     signing_version: Optional[str] = None,
 ) -> bool:
+    if signing_version == SIGNING_VERSION_V3:
+        return False
     if not signature or not timestamp or not service_secret:
         return False
     try:
@@ -233,6 +305,39 @@ def verify_signature(
         return False
 
 
+def verify_signature_v3(
+    service_secret: str,
+    signature: str,
+    timestamp: str,
+    payload: Any,
+    user_id: Optional[str],
+    service_product_id: Optional[str],
+    roles: List[str],
+    subscription_status: Optional[str],
+    billing_model_type: Optional[str] = None,
+    measurement_type: Optional[str] = None,
+    unit_label: Optional[str] = None,
+) -> bool:
+    if not signature or not timestamp or not service_secret:
+        return False
+    try:
+        payload_string = "" if payload is None else (payload if isinstance(payload, str) else json.dumps(payload))
+        user_context_string = build_gateway_user_context_string_v3(
+            user_id,
+            service_product_id,
+            roles,
+            subscription_status,
+            billing_model_type,
+            measurement_type,
+            unit_label,
+        )
+        data_to_sign = payload_string + timestamp + user_context_string
+        expected = calculate_hmac(data_to_sign, service_secret)
+        return constant_time_equals(expected, signature)
+    except Exception:
+        return False
+
+
 def verify_inbound_context(
     service_secret: str,
     headers: Dict[str, Optional[str]],
@@ -250,7 +355,7 @@ verify_signature_from_headers_and_get_user_context = verify_inbound_context
 
 def get_user_context(headers: Dict[str, Optional[str]]) -> UserContext:
     roles_str = _header_get_ci(headers, TollaraHeaders.ROLES) or ""
-    roles = [s.strip() for s in roles_str.split(",") if s.strip()]
+    roles = _parse_roles_list(roles_str)
     q = _header_get_ci(headers, TollaraHeaders.QUOTA_REMAINING)
     quota_remaining = _parse_quota_raw(q)
     sub = _header_get_ci(headers, TollaraHeaders.SUBSCRIPTION_ACTIVE)
@@ -262,11 +367,13 @@ def get_user_context(headers: Dict[str, Optional[str]]) -> UserContext:
     ul = _header_get_ci(headers, TollaraHeaders.UNIT_LABEL)
     return UserContext(
         user_id=uid,
-        plan=plan,
+        service_product_id=_empty_to_none(_header_get_ci(headers, TollaraHeaders.SERVICE_PRODUCT_ID)),
         roles=roles,
+        subscription_status=_empty_to_none(_header_get_ci(headers, TollaraHeaders.SUBSCRIPTION_STATUS)),
+        billing_model_type=_empty_to_none(bm),
+        measurement_type=_empty_to_none(mt),
+        unit_label=_empty_to_none(ul),
+        plan=plan,
         quota_remaining=quota_remaining,
         subscription_active=subscription_active,
-        billing_model_type=bm if bm else None,
-        measurement_type=mt if mt else None,
-        unit_label=ul if ul else None,
     )

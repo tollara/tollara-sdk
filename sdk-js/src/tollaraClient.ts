@@ -9,15 +9,17 @@ import { getRequestResult, getRequestStatus, type GatewayPollResult } from './ga
 import { invokeService, type GatewayHttpMethod, type GatewayInvokeResult } from './gatewayInvoke';
 import {
   reportCompletion,
-  reportCompletionFull,
   reportProgress,
   reportUsage,
+  type UsageCallbackResult,
   type UsageReportResponse,
 } from './usageClient';
 import {
   estimateUsage,
   estimateUsageWithJwt,
   validateServiceKey,
+  validateServiceKeyWithOutcome,
+  type ServiceKeyValidationOutcome,
   type ServiceKeyValidationResult,
   type UsageEstimateResult,
 } from './validationClient';
@@ -102,6 +104,16 @@ export class TollaraClient {
     });
   }
 
+  async validateServiceKeyWithOutcome(serviceKey: string): Promise<ServiceKeyValidationOutcome> {
+    return validateServiceKeyWithOutcome({
+      baseUrl: this.apiOrigin,
+      serviceKey,
+      serviceId: this.serviceId,
+      serviceSecret: this.serviceSecret,
+      fetch: this.fetchFn,
+    });
+  }
+
   async estimateUsage(serviceKey: string, estimatedUnits: number): Promise<UsageEstimateResult | null> {
     return estimateUsage({
       baseUrl: this.apiOrigin,
@@ -171,7 +183,7 @@ export class TollaraClient {
     stage: string,
     percentageComplete: number,
     errorMessage?: string | null
-  ): Promise<boolean> {
+  ): Promise<UsageCallbackResult> {
     return reportProgress({
       progressUrl,
       requestId,
@@ -189,25 +201,15 @@ export class TollaraClient {
     status: CompletionStatus,
     units: number,
     options?: { result?: string | null; resultUrl?: string | null; contentType?: string | null }
-  ): Promise<boolean> {
+  ): Promise<UsageCallbackResult> {
     const { result, resultUrl, contentType } = options ?? {};
-    if (result != null || resultUrl != null || contentType != null) {
-      return reportCompletionFull({
-        callbackUrl,
-        requestId,
-        status,
-        result,
-        resultUrl,
-        contentType,
-        units,
-        serviceSecret: this.serviceSecret,
-        fetch: this.fetchFn,
-      });
-    }
     return reportCompletion({
       callbackUrl,
       requestId,
       status,
+      result,
+      resultUrl,
+      contentType,
       units,
       serviceSecret: this.serviceSecret,
       fetch: this.fetchFn,

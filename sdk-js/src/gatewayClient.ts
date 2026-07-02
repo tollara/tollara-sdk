@@ -2,7 +2,8 @@
  * Caller-side gateway polling for async jobs.
  */
 
-import { DEFAULT_API_URL, DEFAULT_GATEWAY_PATH_PREFIX } from './constants';
+import { DEFAULT_API_URL } from './constants';
+import { resolveGatewayPathPrefix } from './pathPrefixes';
 import { resolveBaseUrl } from './urls';
 
 function normalizePrefix(prefix: string): string {
@@ -33,7 +34,11 @@ export async function getRequestStatus(params: {
   fetch?: typeof globalThis.fetch;
 }): Promise<GatewayPollResult> {
   const { baseUrl, requestId, serviceKey, fetch: fetchFn = fetch } = params;
-  const url = buildUrl(baseUrl ?? DEFAULT_API_URL, DEFAULT_GATEWAY_PATH_PREFIX, `/requests/${requestId}/status`);
+  const url = buildUrl(
+    baseUrl ?? DEFAULT_API_URL,
+    resolveGatewayPathPrefix(baseUrl),
+    `/requests/${requestId}/status`,
+  );
   try {
     const res = await fetchFn(url, {
       method: 'GET',
@@ -57,7 +62,11 @@ export async function getRequestResult(params: {
   fetch?: typeof globalThis.fetch;
 }): Promise<GatewayPollResult> {
   const { baseUrl, requestId, serviceKey, fetch: fetchFn = fetch } = params;
-  const url = buildUrl(baseUrl ?? DEFAULT_API_URL, DEFAULT_GATEWAY_PATH_PREFIX, `/requests/${requestId}/result`);
+  const url = buildUrl(
+    baseUrl ?? DEFAULT_API_URL,
+    resolveGatewayPathPrefix(baseUrl),
+    `/requests/${requestId}/result`,
+  );
   try {
     const res = await fetchFn(url, {
       method: 'GET',

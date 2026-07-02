@@ -1,0 +1,211 @@
+{
+  "name": "Tollara Demo — Subscriber Proxied Async Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Subscriber — Proxied async agent\n\nInvokes **proxied-agent** async (`agents/proxied-agent`, Docker `:9090/api/test/async`) via gateway.\n\n**Wait 10s** → **Job Status** → **Job Result** (agent default job ~10s via `X-Run-For`).\n\n**Listing:** proxied, **async** (`isAsync`), POST, `realUrl` = `http://host.docker.internal:9090/api/test/async`.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `YOUR_SERVICE_ID`, `YOUR_PROXIED_ASYNC_ENDPOINT_ID`.\n\n**Local Docker:** **Set API Endpoints** on Invoke / Job Status / Job Result → Gateway `http://host.docker.internal:8083`.\n\n**Prerequisites:** gateway, core, usage + `proxied-service-local`. No n8n backend workflow required.",
+        "height": 280,
+        "width": 520
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, -220]
+    },
+    {
+      "parameters": {},
+      "id": "e3f4a5b6-0006-4000-8000-000000000010",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    serviceKey: 'YOUR_SERVICE_KEY',\n    serviceId: 'YOUR_SERVICE_ID',\n    endpointId: 'YOUR_PROXIED_ASYNC_ENDPOINT_ID',\n    invokeBody: JSON.stringify({ message: 'Hello from n8n proxied async' }),\n  },\n}];"
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000011",
+      "name": "Set Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "async": true,
+        "serviceKey": "={{ $('Set Config').item.json.serviceKey }}",
+        "serviceId": "={{ $('Set Config').item.json.serviceId }}",
+        "endpointId": "={{ $('Set Config').item.json.endpointId }}",
+        "body": "={{ $('Set Config').item.json.invokeBody }}"
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000012",
+      "name": "Tollara Invoke",
+      "type": "n8n-nodes-tollara.tollaraInvoke",
+      "typeVersion": 1,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-async-202",
+            "leftValue": "={{ $json.tollaraOk && $json.statusCode === 202 }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000024",
+      "name": "Invoke OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst invoke = $('Tollara Invoke').first()?.json;\nconst status = (row.jobStatus ?? row.data?.status ?? '').toString().toUpperCase();\nlet message = 'Async invoke or result request failed';\nif (status === 'FAILED' || status === 'ERROR') {\n  message = 'Async job failed';\n} else if (status === 'PENDING' || status === 'IN_PROGRESS' || status === 'RUNNING') {\n  message = 'Async job not finished after 10s wait';\n} else if (status) {\n  message = `Async job ended with status ${status}`;\n}\nreturn [{ json: { status: 'error', message, jobStatus: status, statusCode: row.statusCode, tollaraOk: row.tollaraOk, body: row.data ?? row.body, requestId: invoke?.requestId } }];"
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000020",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 440]
+    },
+    {
+      "parameters": { "amount": 10 },
+      "id": "e3f4a5b6-0006-4000-8000-000000000013",
+      "name": "Wait 10s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1200, 200],
+      "webhookId": "f4a5b6c7-0006-4000-8000-poll1"
+    },
+    {
+      "parameters": {
+        "serviceKey": "={{ $('Set Config').item.json.serviceKey }}",
+        "requestId": "={{ $('Tollara Invoke').item.json.requestId }}"
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000014",
+      "name": "Tollara Job Status",
+      "type": "n8n-nodes-tollara.tollaraJobStatus",
+      "typeVersion": 1,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst status = (row.data?.status ?? '').toString().toUpperCase();\nconst terminal = status === 'COMPLETED' || status === 'FAILED' || status === 'ERROR';\nreturn [{ json: { ...row, jobStatus: status, jobTerminal: terminal } }];"
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000015",
+      "name": "Normalize Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{
+            "id": "cond-terminal",
+            "leftValue": "={{ $json.jobTerminal }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000016",
+      "name": "Job Done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2100, 200]
+    },
+    {
+      "parameters": {
+        "serviceKey": "={{ $('Set Config').item.json.serviceKey }}",
+        "requestId": "={{ $('Tollara Invoke').item.json.requestId }}"
+      },
+      "id": "e3f4a5b6-0006-4000-8000-00000000001d",
+      "name": "Tollara Job Result",
+      "type": "n8n-nodes-tollara.tollaraJobResult",
+      "typeVersion": 1,
+      "position": [2400, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconst data = result.data ?? result.body ?? {};\nreturn [{ json: { requestId: $('Tollara Invoke').first().json.requestId, statusCode: result.statusCode, jobStatus: data.status, message: data.message, result: data } }];"
+      },
+      "id": "e3f4a5b6-0006-4000-8000-00000000001e",
+      "name": "Format Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3000, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "cond-job-tollara-ok",
+              "leftValue": "={{ $json.tollaraOk }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            },
+            {
+              "id": "cond-job-completed",
+              "leftValue": "={{ ($json.data?.status ?? '').toUpperCase() }}",
+              "rightValue": "COMPLETED",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e3f4a5b6-0006-4000-8000-000000000027",
+      "name": "Job OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2700, 200]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Set Config", "type": "main", "index": 0 }]] },
+    "Set Config": { "main": [[{ "node": "Tollara Invoke", "type": "main", "index": 0 }]] },
+    "Tollara Invoke": { "main": [[{ "node": "Invoke OK?", "type": "main", "index": 0 }]] },
+    "Invoke OK?": {
+      "main": [
+        [{ "node": "Wait 10s", "type": "main", "index": 0 }],
+        [{ "node": "Format Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Wait 10s": { "main": [[{ "node": "Tollara Job Status", "type": "main", "index": 0 }]] },
+    "Tollara Job Status": { "main": [[{ "node": "Normalize Status", "type": "main", "index": 0 }]] },
+    "Normalize Status": { "main": [[{ "node": "Job Done?", "type": "main", "index": 0 }]] },
+    "Job Done?": {
+      "main": [
+        [{ "node": "Tollara Job Result", "type": "main", "index": 0 }],
+        [{ "node": "Format Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Tollara Job Result": { "main": [[{ "node": "Job OK?", "type": "main", "index": 0 }]] },
+    "Job OK?": {
+      "main": [
+        [{ "node": "Format Result", "type": "main", "index": 0 }],
+        [{ "node": "Format Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "meta": { "templateCredsSetupCompleted": false }
+}

@@ -19,8 +19,8 @@ Use this README as the public usage reference.
 
 ```toml
 [dependencies]
-tollara-service-sdk = "1.0"
-# tollara-service-sdk = { version = "1.0", features = ["http"] }
+tollara-service-sdk = "3.0"
+# tollara-service-sdk = { version = "3.0", features = ["http"] }
 ```
 
 ## Build
@@ -34,15 +34,17 @@ cargo build --features http
 
 ### Verify HMAC (no HTTP feature)
 
+Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `"3"`; **v2** when `"2"`; legacy v1 otherwise. Use `grant_access(subscription_status)` for invoke eligibility.
+
 ```rust
 use std::collections::HashMap;
 use tollara_service_sdk::{
-    verify_inbound_hmac, verify_signature_from_headers, parse_user_context,
-    InboundHmacVerify, SignedUserContext,
+    verify_inbound_hmac, verify_signature_from_headers, parse_user_context, grant_access,
+    build_gateway_user_context_string_v3, InboundHmacVerify, SignedUserContext,
 };
 
 let ok = verify_signature_from_headers(secret, &headers_map, payload);
-let ctx = parse_user_context(&headers_map);
+if grant_access(ctx.subscription_status.as_deref()) { /* invoke-eligible */ }
 ```
 
 ### HTTP clients (`--features http`)
@@ -59,10 +61,9 @@ let client = TollaraClient::try_new(TollaraClientConfig {
 
 // Or `try_from_env()` with TOLLARA_SERVICE_SECRET (and optional URL overrides).
 
-client.validate_service_key(service_key).await;
-client.estimate_usage(service_key, 1.0).await;
-client.estimate_usage_with_jwt(bearer_jwt, core_user_id, "service-uuid", 1.0).await;
-client.report_usage(user_id, service_id, 1.0).await?;
+client.validate_service_key(service_key).await; // validationSchemaVersion 3
+let est = client.estimate_usage(service_key, 1.0).await; // breakdown.remaining_credits / remaining_spending_cap
+let rep = client.report_usage(user_id, service_id, 1.0).await?; // reportSchemaVersion 2 + breakdown
 let (ok, status, body) = client.get_request_status(request_id, service_key).await?;
 let (status, body) = client
     .invoke_service(

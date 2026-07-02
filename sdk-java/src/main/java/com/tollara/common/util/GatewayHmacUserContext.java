@@ -5,11 +5,40 @@ import java.util.List;
 
 /**
  * Canonical suffix for gateway → agent inbound HMAC: appended after {@code payload + timestamp}.
- * V1 includes a quota segment; v2 uses a leading {@code "2"} and no quota (see docs/sdk-api-spec.md §4).
+ * V3 uses {@code serviceProductId} and {@code subscriptionStatus}; v2 uses a leading {@code "2"} and no quota;
+ * v1 includes a quota segment (see docs-sdk/MAIN-SDK-API-SPEC.md §4).
  */
 public final class GatewayHmacUserContext {
 
+    public static final String SIGNING_VERSION_V3 = "3";
+
     private GatewayHmacUserContext() {
+    }
+
+    /**
+     * HMAC user-context v3: literal {@code "3"} then userId, serviceProductId, roles (comma-joined if any),
+     * subscriptionStatus, billingModelType, measurementType, unitLabel. Null strings become "".
+     */
+    public static String buildV3(
+            String userId,
+            String serviceProductId,
+            List<String> roles,
+            String subscriptionStatus,
+            String billingModelType,
+            String measurementType,
+            String unitLabel) {
+        StringBuilder sb = new StringBuilder();
+        sb.append('3');
+        sb.append(userId != null ? userId : "");
+        sb.append(serviceProductId != null ? serviceProductId : "");
+        if (roles != null && !roles.isEmpty()) {
+            sb.append(String.join(",", roles));
+        }
+        sb.append(subscriptionStatus != null ? subscriptionStatus : "");
+        sb.append(billingModelType != null ? billingModelType : "");
+        sb.append(measurementType != null ? measurementType : "");
+        sb.append(unitLabel != null ? unitLabel : "");
+        return sb.toString();
     }
 
     /**

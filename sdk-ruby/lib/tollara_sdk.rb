@@ -13,54 +13,138 @@ module TollaraSdk
   DEFAULT_GATEWAY_PATH_PREFIX = "/api"
   DEFAULT_USAGE_PATH_PREFIX = "/api/usage"
 
+  ECS_CORE_PATH_PREFIX = "/core/api/v1"
+  ECS_GATEWAY_PATH_PREFIX = "/gateway/api/v1"
+  ECS_USAGE_PATH_PREFIX = "/usage/api/v1"
+
+  module PathPrefixes
+    module_function
+
+    def self.hosted_tollara_api_origin?(origin)
+      uri = URI.parse(origin.to_s.strip)
+      host = uri.host&.downcase
+      return false if host.nil? || host.empty?
+      return true if host == "api.tollara.ai" || host.end_with?(".api.tollara.ai")
+      host == "api.ppe.tollara.ai" || host.end_with?(".api.ppe.tollara.ai")
+    rescue URI::InvalidURIError
+      false
+    end
+
+    def self.resolve_origin(base_url)
+      url = base_url.to_s.strip
+      return DEFAULT_API_URL if url.empty?
+      url.sub(%r{/\z}, "")
+    end
+
+    def self.resolve_gateway_path_prefix(base_url, override = nil)
+      return override.to_s.strip unless override.nil? || override.to_s.strip.empty?
+      origin = resolve_origin(base_url)
+      hosted_tollara_api_origin?(origin) ? ECS_GATEWAY_PATH_PREFIX : DEFAULT_GATEWAY_PATH_PREFIX
+    end
+
+    def self.resolve_core_path_prefix(base_url, override = nil)
+      return override.to_s.strip unless override.nil? || override.to_s.strip.empty?
+      origin = resolve_origin(base_url)
+      hosted_tollara_api_origin?(origin) ? ECS_CORE_PATH_PREFIX : DEFAULT_CORE_PATH_PREFIX
+    end
+
+    def self.resolve_usage_path_prefix(base_url, override = nil)
+      return override.to_s.strip unless override.nil? || override.to_s.strip.empty?
+      origin = resolve_origin(base_url)
+      hosted_tollara_api_origin?(origin) ? ECS_USAGE_PATH_PREFIX : DEFAULT_USAGE_PATH_PREFIX
+    end
+  end
+
+  UsageCallbackResult = Struct.new(
+    :success, :http_status, :http_status_text, :request_url, :response_body, :network_error,
+    keyword_init: true
+  )
+
   HEADERS = {
     signature: "X-Tollara-Signature",
     timestamp: "X-Tollara-Timestamp",
     user_id: "X-Tollara-User-ID",
-    plan: "X-Tollara-Plan",
+    service_product_id: "X-Tollara-Service-Product-ID",
     roles: "X-Tollara-Roles",
-    quota_remaining: "X-Tollara-Quota-Remaining",
-    subscription_active: "X-Tollara-Subscription-Active",
+    subscription_status: "X-Tollara-Subscription-Status",
     billing_model: "X-Tollara-Billing-Model",
     measurement_type: "X-Tollara-Measurement-Type",
-    unit_label: "X-Tollara-Unit-Label"
-    signing_version: "X-Tollara-Signing-Version"
+    unit_label: "X-Tollara-Unit-Label",
+    signing_version: "X-Tollara-Signing-Version",
+    plan: "X-Tollara-Plan",
+    quota_remaining: "X-Tollara-Quota-Remaining",
+    subscription_active: "X-Tollara-Subscription-Active"
   }.freeze
+
+  SIGNING_VERSION_V3 = "3"
+  INVOKE_ELIGIBLE_STATUSES = %w[ACTIVE TRIAL CANCELLING CANCELLING_PENDING].freeze
 
   class TollaraClient
     attr_reader :api_url, :service_id, :service_secret
 
     def initialize(
       api_url: nil, core_api_url: nil, gateway_api_url: nil, usage_api_url: nil,
-      core_path_prefix: DEFAULT_CORE_PATH_PREFIX, gateway_path_prefix: DEFAULT_GATEWAY_PATH_PREFIX,
-      usage_path_prefix: DEFAULT_USAGE_PATH_PREFIX, service_id: nil, service_secret: nil
+      core_path_prefix: nil, gateway_path_prefix: nil,
+      usage_path_prefix: nil, service_id: nil, service_secret: nil
     )
       @api_url = (api_url || ENV["TOLLARA_API_URL"] || DEFAULT_API_URL).to_s.sub(%r{/\z}, "")
       @core_api_url = (core_api_url || @api_url).to_s.sub(%r{/\z}, "")
       @gateway_api_url = (gateway_api_url || @api_url).to_s.sub(%r{/\z}, "")
       @usage_api_url = (usage_api_url || @api_url).to_s.sub(%r{/\z}, "")
-      @core_path_prefix = normalize_prefix(core_path_prefix)
-      @gateway_path_prefix = normalize_prefix(gateway_path_prefix)
-      @usage_path_prefix = normalize_prefix(usage_path_prefix)
+      @core_path_prefix = normalize_prefix(PathPrefixes.resolve_core_path_prefix(@core_api_url, core_path_prefix))
+      @gateway_path_prefix = normalize_prefix(PathPrefixes.resolve_gateway_path_prefix(@gateway_api_url, gateway_path_prefix))
+      @usage_path_prefix = normalize_prefix(PathPrefixes.resolve_usage_path_prefix(@usage_api_url, usage_path_prefix))
       @service_id = (service_id || ENV["TOLLARA_SERVICE_ID"]).to_s
       @service_secret = (service_secret || ENV["TOLLARA_SERVICE_SECRET"]).to_s
       raise ArgumentError, "service_secret is required" if @service_secret.strip.empty?
     end
 
     def validate_service_key(service_key)
+      outcome = validate_service_key_with_outcome(service_key)
+      return nil unless outcome[:ok]
+      outcome[:result]
+    end
+
+    def validate_service_key_with_outcome(service_key)
+      if service_key.to_s.strip.empty?
+        return { ok: false, code: "MISSING_KEY" }
+      end
       body = { serviceKey: service_key, serviceSecret: @service_secret }
       body[:serviceId] = @service_id unless @service_id.to_s.strip.empty?
       url = "#{@core_api_url}#{@core_path_prefix}/service-keys/validate"
-      res = post_json(url, body)
-      return nil unless res.is_a?(Net::HTTPSuccess)
+      begin
+        res = post_json(url, body)
+      rescue StandardError
+        return { ok: false, code: "NETWORK" }
+      end
+      http_status = res.code.to_i
+      raw = res.body.to_s
+      unless res.is_a?(Net::HTTPSuccess)
+        unsigned_invalid = invalid_key_from_unsigned_error_body(raw, http_status)
+        return unsigned_invalid if unsigned_invalid
+        return { ok: false, code: "HTTP_ERROR", httpStatus: http_status }
+      end
       sig = res[HEADERS[:signature]]
       ts = res[HEADERS[:timestamp]]
-      return nil if sig.to_s.empty? || ts.to_s.empty?
-      raw = res.body.to_s
-      return nil unless TollaraSdk.validate_hmac_signature(sig, raw + ts, @service_secret)
+      if sig.to_s.empty? || ts.to_s.empty?
+        return { ok: false, code: "MISSING_SIGNATURE_HEADERS", httpStatus: http_status }
+      end
+      unless TollaraSdk.validate_hmac_signature(sig, raw + ts, @service_secret)
+        return { ok: false, code: "HMAC_MISMATCH", httpStatus: http_status }
+      end
       json = JSON.parse(raw) rescue nil
-      return nil unless json.is_a?(Hash) && json["valid"]
-      json
+      unless json.is_a?(Hash)
+        return { ok: false, code: "PARSE_ERROR", httpStatus: http_status }
+      end
+      unless json.key?("valid") && json["valid"] == false
+        return { ok: true, result: ServiceKeyValidationResult.from_hash(json) }
+      end
+      {
+        ok: false,
+        code: "INVALID_KEY",
+        message: json["error"],
+        httpStatus: http_status,
+      }
     end
 
     def estimate_usage(service_key, estimated_units)
@@ -77,8 +161,7 @@ module TollaraSdk
       return nil unless TollaraSdk.validate_hmac_signature(sig, raw + ts, @service_secret)
       json = JSON.parse(raw) rescue nil
       return nil unless json.is_a?(Hash)
-      json["httpStatus"] = res.code.to_i
-      json
+      UsageEstimateResult.from_hash(json, res.code.to_i)
     end
 
     def estimate_usage_with_jwt(bearer_token, user_id, service_id, estimated_units)
@@ -90,8 +173,7 @@ module TollaraSdk
       return nil if raw.strip.empty?
       json = JSON.parse(raw) rescue nil
       return nil unless json.is_a?(Hash)
-      json["httpStatus"] = res.code.to_i
-      json
+      UsageEstimateResult.from_hash(json, res.code.to_i)
     end
 
     def invoke_service(method, service_id, endpoint_id, service_key, body: nil, async: false)
@@ -126,39 +208,23 @@ module TollaraSdk
         HEADERS[:timestamp] => header_ts
       })
       raise "Usage report failed: #{res.code}" unless res.is_a?(Net::HTTPSuccess)
-      JSON.parse(res.body.to_s)
+      json = JSON.parse(res.body.to_s) rescue nil
+      return nil unless json.is_a?(Hash)
+      UsageReportResponse.from_hash(json)
     end
 
     def send_progress_update(progress_url, request_id, stage, percentage_complete, error_message = nil)
-      base, ts = split_timestamp_url(progress_url)
-      return false if ts.to_s.empty?
       body_hash = { stage: stage, percentageComplete: percentage_complete, timestamp: Time.now.utc.iso8601(3) }
       body_hash[:errorMessage] = error_message unless error_message.nil?
-      body = JSON.generate(body_hash)
-      sig = TollaraSdk.calculate_hmac_with_timestamp(body, ts, @service_secret)
-      res = request("POST", base, body, {
-        "Content-Type" => "application/json",
-        HEADERS[:signature] => sig,
-        HEADERS[:timestamp] => ts
-      })
-      res.is_a?(Net::HTTPSuccess)
+      post_signed_usage_callback(progress_url, JSON.generate(body_hash))
     end
 
     def send_completion(callback_url, request_id, status, units, result: nil, result_url: nil, content_type: nil)
-      base, ts = split_timestamp_url(callback_url)
-      return false if ts.to_s.empty?
       body_hash = { status: status.to_s.upcase, timestamp: Time.now.utc.iso8601(3), units: units }
       body_hash[:result] = result unless result.nil?
       body_hash[:resultUrl] = result_url unless result_url.nil?
       body_hash[:contentType] = content_type unless content_type.nil?
-      body = JSON.generate(body_hash)
-      sig = TollaraSdk.calculate_hmac_with_timestamp(body, ts, @service_secret)
-      res = request("POST", base, body, {
-        "Content-Type" => "application/json",
-        HEADERS[:signature] => sig,
-        HEADERS[:timestamp] => ts
-      })
-      res.is_a?(Net::HTTPSuccess)
+      post_signed_usage_callback(callback_url, JSON.generate(body_hash))
     end
 
     def get_request_status(request_id, service_key)
@@ -175,13 +241,61 @@ module TollaraSdk
 
     private
 
+    def invalid_key_from_unsigned_error_body(response_text, http_status)
+      return nil unless [401, 403].include?(http_status)
+      json = JSON.parse(response_text)
+      return nil unless json.is_a?(Hash) && json.key?("valid") && json["valid"] == false
+      {
+        ok: false,
+        code: "INVALID_KEY",
+        message: json["error"],
+        httpStatus: http_status,
+      }
+    rescue JSON::ParserError
+      nil
+    end
+
     def normalize_prefix(prefix)
       p = prefix.to_s.strip
       p = "/#{p}" unless p.start_with?("/")
       p.sub(%r{/\z}, "")
     end
 
+    def post_signed_usage_callback(url_with_query, body)
+      base, ts = split_timestamp_url(url_with_query)
+      if ts.to_s.empty?
+        status_text = url_with_query.to_s.empty? ? "Missing or invalid callback/progress URL" : "Missing timestamp query parameter in URL"
+        return UsageCallbackResult.new(success: false, http_status: 0, http_status_text: status_text, request_url: base.to_s)
+      end
+      sig = TollaraSdk.calculate_hmac_with_timestamp(body, ts, @service_secret)
+      res = request("POST", base, body, {
+        "Content-Type" => "application/json",
+        HEADERS[:signature] => sig,
+        HEADERS[:timestamp] => ts
+      })
+      response_body = res.body.to_s
+      response_body = nil if response_body.empty?
+      status_text = res.message.to_s
+      status_text = (res.is_a?(Net::HTTPSuccess) ? "OK" : "HTTP #{res.code}") if status_text.empty?
+      UsageCallbackResult.new(
+        success: res.is_a?(Net::HTTPSuccess),
+        http_status: res.code.to_i,
+        http_status_text: status_text,
+        request_url: base,
+        response_body: response_body
+      )
+    rescue StandardError => e
+      UsageCallbackResult.new(
+        success: false,
+        http_status: 0,
+        http_status_text: "Network error",
+        request_url: base.to_s,
+        network_error: e.message
+      )
+    end
+
     def split_timestamp_url(url)
+      return ["", nil] if url.nil? || url.to_s.strip.empty?
       uri = URI(url)
       ts = nil
       if uri.query
@@ -240,6 +354,18 @@ module TollaraSdk
     s
   end
 
+  def self.grant_access(subscription_status)
+    s = subscription_status.to_s.strip
+    return false if s.empty?
+    INVOKE_ELIGIBLE_STATUSES.include?(s.upcase)
+  end
+
+  def self.build_gateway_user_context_string_v3(user_id, service_product_id, roles, subscription_status, billing, measurement, unit)
+    r = roles || []
+    "3" + (user_id || "").to_s + (service_product_id || "").to_s + r.join(",") +
+      (subscription_status || "").to_s + (billing || "").to_s + (measurement || "").to_s + (unit || "").to_s
+  end
+
   def self.build_gateway_user_context_string(user_id, plan, roles, quota_remaining, subscription_active, billing, measurement, unit)
     r = roles || []
     sub = subscription_active ? "true" : "false"
@@ -252,12 +378,14 @@ module TollaraSdk
     "2" + (user_id || "").to_s + (plan || "").to_s + r.join(",") + sub + (billing || "").to_s + (measurement || "").to_s + (unit || "").to_s
   end
 
-  def self.verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining, subscription_active, billing = nil, measurement = nil, unit = nil, signing_version = nil)
+  def self.verify_signature(agent_secret, signature, timestamp, payload, user_id, plan, roles, quota_remaining, subscription_active, billing = nil, measurement = nil, unit = nil, signing_version = nil, service_product_id: nil, subscription_status: nil)
     return false if signature.to_s.empty? || timestamp.to_s.empty? || agent_secret.to_s.empty?
     r = roles || []
     q = format_quota_for_signing(quota_remaining)
     user_context_string =
-      if signing_version.to_s.strip == "2"
+      if signing_version.to_s.strip == SIGNING_VERSION_V3
+        build_gateway_user_context_string_v3(user_id, service_product_id, r, subscription_status, billing, measurement, unit)
+      elsif signing_version.to_s.strip == "2"
         build_gateway_user_context_string_v2(user_id, plan, r, subscription_active, billing, measurement, unit)
       else
         build_gateway_user_context_string(user_id, plan, r, q, subscription_active, billing, measurement, unit)
@@ -267,7 +395,7 @@ module TollaraSdk
     constant_time_equals(expected, signature)
   end
 
-  # +inbound+ is a Hash with keys :signature, :timestamp, :payload, :user_id, :plan, :roles, optional quota, :subscription_active, billing keys
+  # +inbound+ is a Hash with keys :signature, :timestamp, :payload, :user_id, optional v3/v2 fields
   def self.verify_inbound_hmac(agent_secret, inbound)
     sub = inbound[:subscription_active] == true || inbound[:subscription_active].to_s == "true" || inbound[:subscription_active].to_s == "1"
     verify_signature(
@@ -282,7 +410,10 @@ module TollaraSdk
       sub,
       inbound[:billing_model_type],
       inbound[:measurement_type],
-      inbound[:unit_label]
+      inbound[:unit_label],
+      inbound[:signing_version],
+      service_product_id: inbound[:service_product_id],
+      subscription_status: inbound[:subscription_status]
     )
   end
 
@@ -312,13 +443,15 @@ module TollaraSdk
       timestamp: ts,
       payload: payload,
       user_id: header_get_ci(headers, HEADERS[:user_id]),
-      plan: header_get_ci(headers, HEADERS[:plan]),
+      service_product_id: header_get_ci(headers, HEADERS[:service_product_id]),
       roles: roles,
+      subscription_status: header_get_ci(headers, HEADERS[:subscription_status]),
       quota_remaining: qraw,
       subscription_active: sub_active,
       billing_model_type: bm,
       measurement_type: mt,
       unit_label: ul,
+      plan: header_get_ci(headers, HEADERS[:plan]),
       signing_version: header_get_ci(headers, HEADERS[:signing_version])
     )
   end
@@ -341,13 +474,121 @@ module TollaraSdk
     ul = header_get_ci(headers, HEADERS[:unit_label]).to_s
     {
       user_id: header_get_ci(headers, HEADERS[:user_id]),
-      plan: header_get_ci(headers, HEADERS[:plan]),
+      service_product_id: empty_to_nil(header_get_ci(headers, HEADERS[:service_product_id])),
       roles: roles,
-      quota_remaining: quota,
-      subscription_active: sub_active,
+      subscription_status: empty_to_nil(header_get_ci(headers, HEADERS[:subscription_status])),
       billing_model_type: bm.empty? ? nil : bm,
       measurement_type: mt.empty? ? nil : mt,
-      unit_label: ul.empty? ? nil : ul
+      unit_label: ul.empty? ? nil : ul,
+      plan: header_get_ci(headers, HEADERS[:plan]),
+      quota_remaining: quota,
+      subscription_active: sub_active
     }
+  end
+
+  def self.empty_to_nil(s)
+    s.nil? || s.to_s.empty? ? nil : s.to_s
+  end
+
+  class UsageBreakdown
+    attr_reader :units_used, :base_units_used, :overage_units, :chargeable_overage_units,
+                :surplus_overage_units, :overage_cost, :total_overage_cost, :units_remaining,
+                :remaining_credits, :remaining_spending_cap, :total_units_used_this_cycle,
+                :over_limit, :overage, :overage_allowed
+
+    def initialize(data)
+      data = data || {}
+      @units_used = data["unitsUsed"]&.to_f
+      @base_units_used = data["baseUnitsUsed"]&.to_f
+      @overage_units = data["overageUnits"]&.to_f
+      @chargeable_overage_units = data["chargeableOverageUnits"]&.to_f
+      @surplus_overage_units = data["surplusOverageUnits"]&.to_f
+      @overage_cost = data["overageCost"]&.to_f
+      @total_overage_cost = data["totalOverageCost"]&.to_f
+      @units_remaining = data["unitsRemaining"]&.to_f
+      @remaining_credits = data["remainingCredits"]&.to_f
+      @remaining_spending_cap = data["remainingSpendingCap"]&.to_f
+      @total_units_used_this_cycle = data["totalUnitsUsedThisCycle"]&.to_f
+      @over_limit = data.key?("isOverLimit") ? !!data["isOverLimit"] : nil
+      @overage = data.key?("isOverage") ? !!data["isOverage"] : nil
+      @overage_allowed = data.key?("isOverageAllowed") ? !!data["isOverageAllowed"] : nil
+    end
+
+    def self.from_hash(data)
+      return nil if data.nil?
+      new(data)
+    end
+  end
+
+  class ServiceKeyValidationResult
+    attr_reader :user_id, :service_id, :service_key_id, :service_product_id, :roles,
+                :subscription_status, :validation_schema_version, :billing_model_type,
+                :measurement_type, :unit_label
+
+    def initialize(data)
+      @user_id = data["userId"]
+      @service_id = data["serviceId"]
+      @service_key_id = data["serviceKeyId"]
+      @service_product_id = data["serviceProductId"]
+      @roles = Array(data["roles"]).map(&:to_s)
+      @subscription_status = data["subscriptionStatus"]
+      @validation_schema_version = data["validationSchemaVersion"].to_i
+      @billing_model_type = data["billingModelType"]
+      @measurement_type = data["measurementType"]
+      @unit_label = data["unitLabel"]
+    end
+
+    def self.from_hash(data)
+      new(data)
+    end
+
+    def grant_access
+      TollaraSdk.grant_access(@subscription_status)
+    end
+  end
+
+  class UsageEstimateResult
+    attr_reader :sufficient_credits, :would_exceed_cap, :would_allow, :estimated_cost,
+                :billing_model_type, :measurement_type, :unit_label, :breakdown,
+                :estimate_schema_version, :timestamp, :http_status
+
+    def initialize(data, http_status)
+      @sufficient_credits = !!data["sufficientCredits"]
+      @would_exceed_cap = !!data["wouldExceedCap"]
+      @would_allow = !!data["wouldAllow"]
+      @estimated_cost = data["estimatedCost"]&.to_f
+      @billing_model_type = data["billingModelType"]
+      @measurement_type = data["measurementType"]
+      @unit_label = data["unitLabel"]
+      @breakdown = UsageBreakdown.from_hash(data["breakdown"])
+      @estimate_schema_version = data["estimateSchemaVersion"].to_i
+      @timestamp = data["timestamp"].to_i
+      @http_status = http_status
+    end
+
+    def self.from_hash(data, http_status)
+      new(data, http_status)
+    end
+  end
+
+  class UsageReportResponse
+    attr_reader :report_schema_version, :status, :warning, :user_id, :service_id,
+                :billing_model_type, :measurement_type, :unit_label, :breakdown
+
+    def initialize(data)
+      @report_schema_version = data["reportSchemaVersion"].to_i
+      @status = data["status"]
+      @warning = data["warning"]
+      @user_id = data["userId"]
+      @service_id = data["serviceId"]
+      @billing_model_type = data["billingModelType"]
+      @measurement_type = data["measurementType"]
+      @unit_label = data["unitLabel"]
+      @breakdown = UsageBreakdown.from_hash(data["breakdown"])
+    end
+
+    def self.from_hash(data)
+      new(data)
+    end
   end
 end
