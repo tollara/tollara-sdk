@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { validateServiceKeyWithOutcome } from '@tollara/service-sdk';
+import { validateServiceKeyWithOutcome } from '../../lib/tollaraSdk';
 import { optionalServiceId, requireCoreApiUrlWhenEndpointsEnabled, requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
 import { bearerTokenFromWebhookItem } from '../../lib/webhookPayload';
@@ -17,7 +17,8 @@ export class TollaraValidateKey implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Validate Key',
     name: 'tollaraValidateKey',
-    icon: 'file:tollara.png',
+    icon: 'file:tollara.svg',
+    usableAsTool: true,
     group: ['transform'],
     version: 4,
     description:

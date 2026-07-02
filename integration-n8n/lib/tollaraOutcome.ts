@@ -1,5 +1,5 @@
 import type { IDataObject, INodeExecutionData } from 'n8n-workflow';
-import type { ServiceKeyValidationOutcome, ValidationFailureCode } from '@tollara/service-sdk';
+import type { ServiceKeyValidationOutcome, ValidationFailureCode } from './tollaraSdk';
 import { passthroughItemWithJson, validationResultToUserContext } from './passthroughItem';
 
 /** Auth-node denial when HMAC/key is valid but subscription status does not grant invoke access. */

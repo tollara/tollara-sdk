@@ -1,6 +1,6 @@
-import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
+import { NodeOperationError, type IExecuteFunctions, type INodeExecutionData, type INodeType, type INodeTypeDescription } from 'n8n-workflow';
 
-import { reportProgress } from '@tollara/service-sdk';
+import { reportProgress } from '../../lib/tollaraSdk';
 
 import { requireServiceSecret, requireUsageApiUrlWhenEndpointsEnabled, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 
@@ -20,7 +20,8 @@ export class TollaraProgress implements INodeType {
 
     name: 'tollaraProgress',
 
-    icon: 'file:tollara.png',
+    icon: 'file:tollara.svg',
+    usableAsTool: true,
 
     group: ['transform'],
 
@@ -99,10 +100,9 @@ export class TollaraProgress implements INodeType {
 
       if (!progressUrlParam?.trim()) {
 
-        throw new Error(
-
+        throw new NodeOperationError(
+          this.getNode(),
           'Progress URL is empty. Reference an upstream node that holds progressUrl (e.g. $("Parse Async Envelope").item.json.progressUrl).',
-
         );
 
       }

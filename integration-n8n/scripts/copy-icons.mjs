@@ -3,11 +3,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const iconSrc = join(root, 'assets', 'tollara.png');
+const iconSrc = join(root, 'assets', 'tollara.svg');
 const nodesDist = join(root, 'dist', 'nodes');
 
 if (!existsSync(iconSrc)) {
-  console.error('Missing assets/tollara.png');
+  console.error('Missing assets/tollara.svg');
   process.exit(1);
 }
 
@@ -19,5 +19,5 @@ if (!existsSync(nodesDist)) {
 for (const nodeDir of readdirSync(nodesDist, { withFileTypes: true })) {
   if (!nodeDir.isDirectory()) continue;
   const destDir = join(nodesDist, nodeDir.name);
-  copyFileSync(iconSrc, join(destDir, 'tollara.png'));
+  copyFileSync(iconSrc, join(destDir, 'tollara.svg'));
 }

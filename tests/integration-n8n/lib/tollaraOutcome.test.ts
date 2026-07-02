@@ -10,7 +10,7 @@ import {
   missingKeyFailureFields,
   outcomeFieldsFromValidation,
   suggestedHttpStatusForAuthError,
-} from './tollaraOutcome';
+} from '../../../integration-n8n/lib/tollaraOutcome';
 
 describe('tollaraOutcome', () => {
   it('maps validation failure outcome', () => {

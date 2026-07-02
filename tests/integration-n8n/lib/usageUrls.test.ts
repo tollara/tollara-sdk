@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { rewriteUsageServiceUrl } from './usageUrls';
+import { rewriteUsageServiceUrl } from '../../../integration-n8n/lib/usageUrls';
 
 describe('rewriteUsageServiceUrl', () => {
   it('rewrites prod host to local usage service while keeping path and query', () => {

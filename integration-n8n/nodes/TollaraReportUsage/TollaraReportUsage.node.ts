@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
-import { reportUsage } from '@tollara/service-sdk';
+import { reportUsage } from '../../lib/tollaraSdk';
 import { requireServiceId, requireServiceSecret, requireUsageApiUrlWhenEndpointsEnabled, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { serviceIdNodeProperty, serviceSecretNodeProperty, tollaraUsageEndpointProperties } from '../../lib/nodeProperties';
 
@@ -7,7 +7,8 @@ export class TollaraReportUsage implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Report Usage',
     name: 'tollaraReportUsage',
-    icon: 'file:tollara.png',
+    icon: 'file:tollara.svg',
+    usableAsTool: true,
     group: ['transform'],
     version: 1,
     description: 'Report usage units for a user and service',

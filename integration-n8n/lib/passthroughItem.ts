@@ -1,6 +1,6 @@
 import type { IDataObject, INodeExecutionData } from 'n8n-workflow';
-import type { ServiceKeyValidationResult, UserContext } from '@tollara/service-sdk';
-import { grantAccess } from '@tollara/service-sdk';
+import type { ServiceKeyValidationResult, UserContext } from './tollaraSdk';
+import { grantAccess } from './tollaraSdk';
 
 /** Merge extra fields onto an item while preserving binary and pairedItem (Verify Request / Validate Key). */
 export function passthroughItemWithJson(

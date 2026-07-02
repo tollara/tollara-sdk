@@ -1,0 +1,49 @@
+# Publishes n8n-nodes-tollara to npm on version tag push (monorepo: integration-n8n).
+#
+# Tag convention: n8n-nodes-tollara-v0.0.4 (set by `npm run release` in integration-n8n).
+#
+# npm Trusted Publisher setup (one-time):
+#   Package: n8n-nodes-tollara
+#   Repository: tollara/tollara-sdk
+#   Workflow filename: publish.yml
+#
+# See integration-n8n/LOCAL-DEVELOPMENT.md for release steps.
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'n8n-nodes-tollara-v*'
+
+jobs:
+  publish:
+    name: Publish n8n-nodes-tollara to npm
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-n8n
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+          cache-dependency-path: integration-n8n/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Release
+        run: |
+          [ -n "$NPM_TOKEN" ] && npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          npm run release
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
-import { estimateUsage } from '@tollara/service-sdk';
+import { estimateUsage } from '../../lib/tollaraSdk';
 import { optionalServiceId, requireCoreApiUrlWhenEndpointsEnabled, requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
 
@@ -7,7 +7,8 @@ export class TollaraEstimateUsage implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Estimate Usage',
     name: 'tollaraEstimateUsage',
-    icon: 'file:tollara.png',
+    icon: 'file:tollara.svg',
+    usableAsTool: true,
     group: ['transform'],
     version: 1,
     description: 'Estimate usage cost and quota for a service key',

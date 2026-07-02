@@ -11,11 +11,11 @@ npm run build
 npm test
 ```
 
-`npm test` runs `build` then unit tests.
+`npm test` runs `build`, compiles unit tests from `../tests/integration-n8n/`, then runs them.
 
 ## Local n8n (Docker)
 
-Self-hosted n8n can load unverified community nodes. The Docker setup bind-mounts your built `integration-n8n` folder; `@tollara/service-sdk` is installed from npm (`^0.0.2`).
+Self-hosted n8n can load unverified community nodes. The Docker setup bind-mounts your built `integration-n8n` folder. `@tollara/service-sdk` is a **devDependency** only — it is bundled into `dist/lib/tollaraSdk.js` at build time for the published package.
 
 ```powershell
 cd integration-n8n
@@ -71,11 +71,23 @@ If only one node is affected: delete it on the canvas, drag a fresh Tollara node
 
 You do **not** need to delete the Docker image. Only reset the `n8n_data` volume if you want a completely fresh n8n instance (that wipes users and all workflows).
 
-## Publish to npm
+## Lint and publish to npm
 
-```powershell
+```bash
+npm run lint
 npm test
-npm publish --access public
 ```
 
-Ensure `package.json` depends on a published `@tollara/service-sdk` version (not `file:../sdk-js`).
+### Verified community node release (GitHub Actions + provenance)
+
+1. Configure npm **Trusted Publisher** for `n8n-nodes-tollara` → repo `tollara/tollara-sdk`, workflow file `publish.yml`.
+2. From `integration-n8n`, run `npm run release` — bumps version, tags `n8n-nodes-tollara-vX.Y.Z`, pushes; CI publishes with provenance.
+3. Submit at [n8n Creator Portal](https://creators.n8n.io/nodes) after the provenance publish succeeds.
+
+`@tollara/service-sdk` must remain a **devDependency** (bundled at build; no runtime `dependencies`).
+
+Scan locally (after publishing):
+
+```bash
+npx @n8n/scan-community-package n8n-nodes-tollara
+```
