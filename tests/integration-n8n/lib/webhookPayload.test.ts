@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { INodeExecutionData } from 'n8n-workflow';
-import { gatewayAsyncSigningPayload, signedPayloadFromWebhookItem } from './webhookPayload';
+import { gatewayAsyncSigningPayload, signedPayloadFromWebhookItem } from '../../../integration-n8n/lib/webhookPayload';
 
 describe('gatewayAsyncSigningPayload', () => {
   it('strips progress_url and callback_url from async gateway body', () => {

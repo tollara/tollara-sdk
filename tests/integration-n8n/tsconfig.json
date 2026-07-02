@@ -1,0 +1,13 @@
+{
+  "extends": "../../integration-n8n/tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../integration-n8n/test-dist",
+    "rootDir": "../..",
+    "baseUrl": "../../integration-n8n",
+    "paths": {
+      "n8n-workflow": ["node_modules/n8n-workflow"]
+    }
+  },
+  "include": ["lib/**/*.ts", "../../integration-n8n/lib/**/*.ts"],
+  "exclude": ["node_modules"]
+}
