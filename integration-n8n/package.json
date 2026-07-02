@@ -20,7 +20,7 @@
     "lint": "n8n-node lint",
     "lint:fix": "n8n-node lint --fix",
     "test": "npm run build && npm run build:tests && node scripts/run-tests.mjs",
-    "release": "n8n-node release",
+    "release": "node scripts/release.mjs",
     "prepublishOnly": "n8n-node prerelease",
     "apply:local-fixture": "node scripts/apply-local-fixture.mjs",
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./deploy-local.ps1",
@@ -64,8 +64,26 @@
   "release-it": {
     "git": {
       "tagName": "n8n-nodes-tollara-v${version}",
-      "commitMessage": "chore(n8n-nodes-tollara): release ${version}"
+      "commitMessage": "chore(n8n-nodes-tollara): release ${version}",
+      "requireBranch": "master",
+      "requireCleanWorkingDir": true,
+      "requireUpstream": true,
+      "requireCommits": true,
+      "commit": true,
+      "tag": true,
+      "push": true,
+      "changelog": "npx auto-changelog --stdout --unreleased --commit-limit false -u --hide-credit"
     },
-    "npm": { "publishPath": "." }
+    "github": {
+      "release": true
+    },
+    "npm": {
+      "publishPath": ".",
+      "publish": false
+    },
+    "hooks": {
+      "before:init": "npm run lint && npm run build",
+      "after:bump": "npx auto-changelog -p"
+    }
   }
 }
