@@ -1,14 +1,19 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "es2019",
+    "lib": ["es2019", "es2020", "es2022.error"],
     "module": "commonjs",
+    "moduleResolution": "node",
     "outDir": "dist",
     "rootDir": ".",
     "strict": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "declaration": false
+    "declaration": false,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["credentials/**/*.ts", "nodes/**/*.ts", "lib/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["nodes/**/*.ts", "lib/**/*.ts"],
+  "exclude": ["node_modules", "dist", "test", "scripts"]
 }

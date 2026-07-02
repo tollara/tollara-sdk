@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
-import { getRequestResult } from '@tollara/service-sdk';
+import { getRequestResult } from '../../lib/tollaraSdk';
 import { resolveGatewayApiUrl, requireGatewayApiUrlWhenEndpointsEnabled, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { tollaraGatewayEndpointProperties } from '../../lib/nodeProperties';
 import { parseJsonBody } from '../../lib/parseJsonBody';
@@ -8,7 +8,8 @@ export class TollaraJobResult implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Job Result',
     name: 'tollaraJobResult',
-    icon: 'file:tollara.png',
+    icon: 'file:tollara.svg',
+    usableAsTool: true,
     group: ['transform'],
     version: 1,
     description: 'Fetch async job result from the gateway',

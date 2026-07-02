@@ -1,6 +1,6 @@
-import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
+import { NodeOperationError, type IExecuteFunctions, type INodeExecutionData, type INodeType, type INodeTypeDescription } from 'n8n-workflow';
 
-import { CompletionStatus, reportCompletion } from '@tollara/service-sdk';
+import { CompletionStatus, reportCompletion } from '../../lib/tollaraSdk';
 
 import { requireServiceSecret, requireUsageApiUrlWhenEndpointsEnabled, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 
@@ -20,7 +20,8 @@ export class TollaraComplete implements INodeType {
 
     name: 'tollaraComplete',
 
-    icon: 'file:tollara.png',
+    icon: 'file:tollara.svg',
+    usableAsTool: true,
 
     group: ['transform'],
 
@@ -107,10 +108,9 @@ export class TollaraComplete implements INodeType {
 
       if (!callbackUrlParam?.trim()) {
 
-        throw new Error(
-
+        throw new NodeOperationError(
+          this.getNode(),
           'Callback URL is empty. Reference an upstream node that holds callbackUrl (e.g. $("Build Report").item.json.callbackUrl).',
-
         );
 
       }

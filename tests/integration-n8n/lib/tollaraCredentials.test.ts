@@ -12,7 +12,7 @@ import {
   resolveGatewayApiUrl,
   resolveUsageApiUrl,
   tollaraCredentialsFromNodeParameters,
-} from './tollaraCredentials';
+} from '../../../integration-n8n/lib/tollaraCredentials';
 
 describe('tollaraCredentials', () => {
   it('parses optional service URL overrides', () => {
