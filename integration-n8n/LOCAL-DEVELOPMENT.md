@@ -30,7 +30,7 @@ The same script is available as `docker\start.ps1` for backward compatibility.
 
 Open **http://localhost:5678**, create an owner account, then add nodes — search **Tollara**.
 
-Workflow data persists in the `n8n_data` Docker volume. The Tollara package is loaded from your repo via bind mount, not from npm.
+Workflow data persists in the `n8n_data` Docker volume. The Tollara package is loaded from your repo via bind mount, not from npm. Published npm installs include demo workflows under `example-workflows/` inside the package directory.
 
 Stop: `docker compose down` (from the `docker` folder).
 

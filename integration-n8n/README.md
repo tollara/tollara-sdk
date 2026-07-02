@@ -29,11 +29,14 @@ Use these when n8n is the **service backend** (proxied webhook or non-proxied AP
 |------|---------|
 | **Tollara Verify Request** (v4) | After a Webhook node: verify gateway HMAC and subscription access. Outputs **Allowed** or **Denied** (`tollaraErrorCode`, `tollaraHttpStatus`). Enable **Raw Body** on the Webhook. |
 | **Tollara Validate Key** (v4) | Validate a caller’s service key (typical non-proxied pattern). **Allowed** / **Denied** / **Error** (503 for seller misconfig or Core unavailable). |
+| **Tollara Estimate Usage** | After auth: check whether the caller has quota/cap for **N units** before expensive work (`wouldAllow`, `estimatedCost`, `breakdown`). Especially useful on **non-proxied** backends; optional on proxied when you bill variable units (tokens, time) before reporting. |
 | **Tollara Progress** | Send async job progress to the `progressUrl` from the gateway invoke response. |
 | **Tollara Complete** | Send async completion to the `callbackUrl` from the gateway invoke response. |
 | **Tollara Report Usage** | Report billable units to the Usage API (non-proxied backends). |
 
 **Typical proxied async backend:** Webhook → **Verify Request** → [your logic] → **Progress** → [your logic] → **Complete**
+
+**Typical non-proxied backend:** Webhook → **Validate Key** → **Estimate Usage** → [your logic] → **Report Usage**
 
 ### Subscriber nodes
 
@@ -42,21 +45,29 @@ Use these when n8n **consumes** a Tollara listing (you hold a service key for th
 | Node | Purpose |
 |------|---------|
 | **Tollara Invoke** | Call a listed endpoint (sync or async). Emits `tollaraOk`, `statusCode`, parsed `data`, and async `requestId` / URLs when applicable. |
-| **Tollara Estimate Usage** | Pre-flight quota/cost check before invoke. Branch on `wouldAllow`. |
+| **Tollara Estimate Usage** | Optional pre-invoke check: would this call be allowed for **N units**, and what is the estimated cost? Branch on `wouldAllow` before **Invoke**.
 | **Tollara Job Status** | Poll async job status by `requestId`. |
 | **Tollara Job Result** | Fetch async job result by `requestId`. |
 
 **Typical async subscriber:** **Invoke** (async) → **Job Status** → **Job Result**
 
+**Optional pre-check:** **Estimate Usage** → IF `wouldAllow` → **Invoke** (see `subscriber-proxied-sync-agent-estimate.json`)
+
 Set **Service Key**, **Service ID**, and **Endpoint ID** on Invoke (from the listing in the Tollara app). Job Status/Result only need the service key and request ID.
 
 ## Example workflows
 
-Demo workflow JSON files are in the GitHub repo (not shipped in the npm package):
+Demo workflow JSON files are **bundled in the npm package** (generic templates with `YOUR_*` placeholders — not the maintainer `local/` folder).
 
-**[integration-n8n/example-workflows](https://github.com/maffers001/tollara-sdk/tree/master/integration-n8n/example-workflows)**
+After installing **`n8n-nodes-tollara`**, import from:
 
-Import via n8n **Workflow menu → Import from File**. Replace `YOUR_SERVICE_SECRET`, `YOUR_SERVICE_KEY`, and other placeholders before activating.
+| Install context | Path |
+|-----------------|------|
+| **n8n Community Nodes** (typical self-hosted) | `~/.n8n/nodes/node_modules/n8n-nodes-tollara/example-workflows/` |
+| Windows (Community Nodes) | `%USERPROFILE%\.n8n\nodes\node_modules\n8n-nodes-tollara\example-workflows\` |
+| npm dependency in a project | `node_modules/n8n-nodes-tollara/example-workflows/` |
+
+Use n8n **Workflow menu → Import from File** and pick a `.json` file from that folder. Replace `YOUR_SERVICE_SECRET`, `YOUR_SERVICE_KEY`, and other placeholders before activating. See `example-workflows/README.md` in the same directory for setup notes.
 
 | Workflow | Role |
 |----------|------|
@@ -68,7 +79,7 @@ Import via n8n **Workflow menu → Import from File**. Replace `YOUR_SERVICE_SEC
 | `subscriber-proxied-async-agent.json` | Subscriber — async + poll |
 | `subscriber-non-proxied-sync-agent.json` | Subscriber — direct HTTP (no gateway invoke) |
 
-Point your listing **realUrl** (backend) or subscriber **Set Config** values at your n8n or agent URLs as described in each workflow’s sticky notes and the [example-workflows README](https://github.com/tollara/tollara-sdk/blob/master/integration-n8n/example-workflows/README.md).
+Point your listing **realUrl** (backend) or subscriber **Set Config** values at your n8n or agent URLs as described in each workflow’s sticky notes and the bundled `example-workflows/README.md`.
 
 ## API endpoints
 
