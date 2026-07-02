@@ -8,18 +8,24 @@ export {
   getUserContext,
   buildGatewayUserContextString,
   buildGatewayUserContextStringV2,
+  buildGatewayUserContextStringV3,
+  grantAccess,
   type UserContext,
   type VerifySignatureInput,
   type SignedUserContext,
   type InboundHmacRequest,
   type HeaderBag,
 } from './verifier';
+export { type UsageBreakdown, parseUsageBreakdown } from './usageBreakdown';
 export {
   validateServiceKey,
+  validateServiceKeyWithOutcome,
   estimateUsage,
   estimateUsageWithJwt,
   createValidationCache,
   type ServiceKeyValidationResult,
+  type ServiceKeyValidationOutcome,
+  type ValidationFailureCode,
   type UsageEstimateResult,
 } from './validationClient';
 export { CompletionStatus } from './completionStatus';
@@ -28,11 +34,10 @@ export {
   DEFAULT_USAGE_PATH_PREFIX,
   reportProgress,
   reportCompletion,
-  reportCompletionWithResult,
-  reportCompletionFull,
   reportUsage,
   type ReportProgressParams,
   type ReportCompletionParams,
+  type UsageCallbackResult,
   type UsageReportResponse,
 } from './usageClient';
 export { getRequestStatus, getRequestResult, type GatewayPollResult } from './gatewayClient';
@@ -52,3 +57,14 @@ export {
   ENV_API_URL,
   type TollaraClientOptions,
 } from './tollaraClient';
+export {
+  ECS_CORE_PATH_PREFIX,
+  ECS_GATEWAY_PATH_PREFIX,
+  ECS_USAGE_PATH_PREFIX,
+} from './constants';
+export {
+  isHostedTollaraApiOrigin,
+  resolveCorePathPrefix,
+  resolveGatewayPathPrefix,
+  resolveUsagePathPrefix,
+} from './pathPrefixes';

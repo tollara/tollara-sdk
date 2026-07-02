@@ -80,13 +80,13 @@ sequenceDiagram
 
 **SDK value for callers (sync)**
 
-- Mainly to get quota info by calling validate key and to validate the response HMAC using SDK.
+- Mainly to check **entitlement** by calling validate key and to verify the response HMAC using the SDK.
 - Correct URL shape and path prefixes (local vs ECS-style bases) — see [sdk-api-spec.md](./sdk-api-spec.md) §1.
 - Typed helpers and shared conventions (e.g. parsing async body into object - requestId, progressUrlm callbackUrl); invoke alone can also be done with any HTTP client.
 
 ### 2.2 Optional: validate service key and get quota info
 
-Callers that need **plan, quota, or validity** before invoking (or without going through the gateway) call **core** `POST .../agent-keys/validate`. The response is **HMAC-signed**; clients that care about tampering **must** verify the signature using the **service secret** (same rules as in [sdk-api-spec.md](./sdk-api-spec.md) §2).
+Callers that need **entitlement or validity** before invoking (or without going through the gateway) call **core** `POST .../service-keys/validate`. The response is **HMAC-signed**; clients that care about tampering **must** verify the signature using the **service secret** (same rules as in [docs-sdk/MAIN-SDK-API-SPEC.md](../docs-sdk/MAIN-SDK-API-SPEC.md) §2). Success bodies use **`validationSchemaVersion: 3`** with **`serviceProductId`** and **`subscriptionStatus`**; use **`grantAccess(subscriptionStatus)`** for invoke eligibility.
 
 **SDK value:** Implements **response HMAC verification** (canonical string, constant-time compare), which is easy to get wrong when hand-rolled.
 
@@ -95,7 +95,7 @@ sequenceDiagram
   participant Caller as Caller app
   participant CORE as Core service
 
-  Caller->>CORE: POST /agent-keys/validate (serviceKey, serviceId, serviceSecret in body as required)
+  Caller->>CORE: POST /service-keys/validate (serviceKey, serviceId, serviceSecret in body as required)
   CORE-->>Caller: JSON body + X-Tollara-Signature + X-Tollara-Timestamp
   Note over Caller: SDK verifies HMAC before trusting body
 ```
@@ -159,7 +159,7 @@ sequenceDiagram
 
 ### 3.2 Inbound: non-proxied agents (direct Bearer key)
 
-Callers send **`Authorization: Bearer <serviceKey>`** to **your** server. There is **no** gateway HMAC. To obtain **user id, plan, quota, subscription** and to reject bad keys, the backend calls **core** **`POST .../agent-keys/validate`** and **must verify** the response HMAC with the **service secret** ([sdk-api-spec.md](./sdk-api-spec.md) §2). A reference pattern lives under `agents/non-proxied-agent` in this repo.
+Callers send **`Authorization: Bearer <serviceKey>`** to **your** server. There is **no** gateway HMAC. To obtain **user id, service product id, subscription status, roles**, and to reject bad keys, the backend calls **core** **`POST .../service-keys/validate`** and **must verify** the response HMAC with the **service secret** ([docs-sdk/MAIN-SDK-API-SPEC.md](../docs-sdk/MAIN-SDK-API-SPEC.md) §2). Success bodies use **`validationSchemaVersion: 3`**; use **`grantAccess(subscriptionStatus)`** for invoke eligibility. A reference pattern lives under `agents/non-proxied-agent` in this repo.
 
 ```mermaid
 sequenceDiagram

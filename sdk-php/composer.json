@@ -1,14 +1,21 @@
 {
   "name": "tollara/service-sdk",
   "description": "Tollara SDK - verify HMAC, validate keys, report usage",
-  "type": "library",
+  "version": "3.0.0",
   "license": "MIT",
   "autoload": {
     "psr-4": {
       "Tollara\\ServiceSdk\\": "src/"
     }
   },
-  "require": {
-    "php": ">=8.1"
+  "scripts": {
+    "test": [
+      "@php tests/hmac_test.php",
+      "@php tests/usage_client_test.php",
+      "@php tests/contract_test.php",
+      "@php tests/validation_outcome_test.php",
+      "@php tests/path_prefixes_test.php"
+    ]
+    ]
   }
 }

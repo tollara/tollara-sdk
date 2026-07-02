@@ -1,6 +1,6 @@
 import { TollaraHeaders } from './tollaraHeaders';
 import { calculateHmac } from './hmac';
-import { createValidationCache, estimateUsage, validateServiceKey } from './validationClient';
+import { createValidationCache, estimateUsage, validateServiceKey, validateServiceKeyWithOutcome } from './validationClient';
 
 const CORE_BASE = 'http://core.test';
 const SERVICE_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -8,22 +8,21 @@ const SERVICE_KEY_ID = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 const SERVICE_SECRET = 'test-service-secret';
 
 describe('validationClient', () => {
-  it('returns parsed validation result for signed valid response', async () => {
+  it('returns parsed v3 validation result for signed valid response', async () => {
     const responseBody = JSON.stringify({
       valid: true,
       serviceKeyId: SERVICE_KEY_ID,
       userId: 'user-123',
       serviceId: SERVICE_ID,
-      plan: 'basic',
+      serviceProductId: 'prod-uuid-1',
       roles: ['user'],
-      quotaRemaining: 100,
-      subscriptionActive: true,
-      billingModelType: null,
-      measurementType: null,
-      unitLabel: null,
+      subscriptionStatus: 'ACTIVE',
+      billingModelType: 'SUBSCRIPTION',
+      measurementType: 'PER_REQUEST',
+      unitLabel: 'request',
       timestamp: 1700000000,
       error: null,
-      validationSchemaVersion: 1,
+      validationSchemaVersion: 3,
     });
     const timestamp = '1700000000';
     const signature = calculateHmac(responseBody + timestamp, SERVICE_SECRET);
@@ -50,13 +49,14 @@ describe('validationClient', () => {
       userId: 'user-123',
       serviceId: SERVICE_ID,
       serviceKeyId: SERVICE_KEY_ID,
-      plan: 'basic',
+      serviceProductId: 'prod-uuid-1',
       roles: ['user'],
-      quotaRemaining: 100,
-      subscriptionActive: true,
-      billingModelType: null,
-      measurementType: null,
-      unitLabel: null,
+      subscriptionStatus: 'ACTIVE',
+      validationSchemaVersion: 3,
+      billingModelType: 'SUBSCRIPTION',
+      measurementType: 'PER_REQUEST',
+      unitLabel: 'request',
+      grantAccess: true,
     });
   });
 
@@ -138,19 +138,211 @@ describe('validationClient', () => {
     expect(result).toBeNull();
   });
 
-  it('estimateUsage returns parsed result for signed 200 response', async () => {
+  describe('validateServiceKeyWithOutcome', () => {
+    it('returns ok:true for signed valid response', async () => {
+      const responseBody = JSON.stringify({
+        valid: true,
+        userId: 'user-123',
+        serviceId: SERVICE_ID,
+        subscriptionStatus: 'ACTIVE',
+        validationSchemaVersion: 3,
+      });
+      const timestamp = '1700000000';
+      const signature = calculateHmac(responseBody + timestamp, SERVICE_SECRET);
+      const fetchMock: typeof fetch = async () =>
+        new Response(responseBody, {
+          status: 200,
+          headers: {
+            [TollaraHeaders.SIGNATURE]: signature,
+            [TollaraHeaders.TIMESTAMP]: timestamp,
+          },
+        });
+
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'key',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+
+      expect(outcome.ok).toBe(true);
+      if (outcome.ok) {
+        expect(outcome.result.grantAccess).toBe(true);
+      }
+    });
+
+    it('returns MISSING_KEY without HTTP call', async () => {
+      const fetchMock = jest.fn();
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: '  ',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+      expect(outcome).toEqual({ ok: false, code: 'MISSING_KEY' });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('returns HTTP_ERROR for unsigned 401 without JSON error body', async () => {
+      const fetchMock: typeof fetch = async () => new Response('unauthorized', { status: 401 });
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'bad',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+      expect(outcome).toEqual({ ok: false, code: 'HTTP_ERROR', httpStatus: 401 });
+    });
+
+    it('returns INVALID_KEY for unsigned 401 with valid:false JSON', async () => {
+      const fetchMock: typeof fetch = async () =>
+        new Response(JSON.stringify({ valid: false, error: 'Invalid service key' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'bad',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+      expect(outcome).toEqual({
+        ok: false,
+        code: 'INVALID_KEY',
+        message: 'Invalid service key',
+        httpStatus: 401,
+      });
+    });
+
+    it('returns HTTP_ERROR for 500 with valid:false JSON', async () => {
+      const fetchMock: typeof fetch = async () =>
+        new Response(JSON.stringify({ valid: false, error: 'Internal server error' }), {
+          status: 500,
+        });
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'bad',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+      expect(outcome).toEqual({ ok: false, code: 'HTTP_ERROR', httpStatus: 500 });
+    });
+
+    it('returns HMAC_MISMATCH for bad signature', async () => {
+      const responseBody = JSON.stringify({ valid: true, userId: 'u1' });
+      const fetchMock: typeof fetch = async () =>
+        new Response(responseBody, {
+          status: 200,
+          headers: {
+            [TollaraHeaders.SIGNATURE]: 'bad-signature',
+            [TollaraHeaders.TIMESTAMP]: '1700000000',
+          },
+        });
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'k',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+      expect(outcome).toEqual({ ok: false, code: 'HMAC_MISMATCH', httpStatus: 200 });
+    });
+
+    it('returns INVALID_KEY with message from signed valid:false body', async () => {
+      const responseBody = JSON.stringify({ valid: false, error: 'Key expired' });
+      const timestamp = '1700000000';
+      const signature = calculateHmac(responseBody + timestamp, SERVICE_SECRET);
+      const fetchMock: typeof fetch = async () =>
+        new Response(responseBody, {
+          status: 200,
+          headers: {
+            [TollaraHeaders.SIGNATURE]: signature,
+            [TollaraHeaders.TIMESTAMP]: timestamp,
+          },
+        });
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'expired',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+      expect(outcome).toEqual({
+        ok: false,
+        code: 'INVALID_KEY',
+        message: 'Key expired',
+        httpStatus: 200,
+      });
+    });
+
+    it('returns NETWORK on fetch failure', async () => {
+      const fetchMock: typeof fetch = async () => {
+        throw new Error('connection refused');
+      };
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'k',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+      expect(outcome).toEqual({ ok: false, code: 'NETWORK' });
+    });
+
+    it('returns ok:true with grantAccess false for EXPIRED subscription', async () => {
+      const responseBody = JSON.stringify({
+        valid: true,
+        userId: 'user-123',
+        serviceId: SERVICE_ID,
+        subscriptionStatus: 'EXPIRED',
+        validationSchemaVersion: 3,
+      });
+      const timestamp = '1700000000';
+      const signature = calculateHmac(responseBody + timestamp, SERVICE_SECRET);
+      const fetchMock: typeof fetch = async () =>
+        new Response(responseBody, {
+          status: 200,
+          headers: {
+            [TollaraHeaders.SIGNATURE]: signature,
+            [TollaraHeaders.TIMESTAMP]: timestamp,
+          },
+        });
+      const outcome = await validateServiceKeyWithOutcome({
+        baseUrl: CORE_BASE,
+        serviceKey: 'key',
+        serviceId: SERVICE_ID,
+        serviceSecret: SERVICE_SECRET,
+        fetch: fetchMock,
+      });
+      expect(outcome.ok).toBe(true);
+      if (outcome.ok) {
+        expect(outcome.result.grantAccess).toBe(false);
+        expect(outcome.result.subscriptionStatus).toBe('EXPIRED');
+      }
+    });
+  });
+
+  it('estimateUsage returns parsed v3 result for signed 200 response', async () => {
     const responseBody = JSON.stringify({
       sufficientCredits: true,
       wouldExceedCap: false,
       wouldAllow: true,
       estimatedCost: 0.1,
-      remainingCredits: null,
-      remainingSpendingCap: null,
       billingModelType: 'SUBSCRIPTION',
       measurementType: 'PER_REQUEST',
       unitLabel: 'request',
-      breakdown: null,
-      estimateSchemaVersion: 1,
+      breakdown: {
+        unitsUsed: 1,
+        unitsRemaining: 199,
+        remainingSpendingCap: 20,
+        isOverLimit: false,
+      },
+      estimateSchemaVersion: 3,
       timestamp: 1700000000,
     });
     const timestamp = '1700000000';
@@ -181,11 +373,13 @@ describe('validationClient', () => {
     expect(result).not.toBeNull();
     expect(result!.httpStatus).toBe(200);
     expect(result!.wouldAllow).toBe(true);
-    expect(result!.estimateSchemaVersion).toBe(1);
+    expect(result!.estimateSchemaVersion).toBe(3);
+    expect(result!.breakdown?.unitsRemaining).toBe(199);
+    expect(result!.breakdown?.remainingSpendingCap).toBe(20);
   });
 
   it('estimateUsage returns null when HMAC invalid', async () => {
-    const responseBody = JSON.stringify({ wouldAllow: false, estimateSchemaVersion: 1, timestamp: 1700000000 });
+    const responseBody = JSON.stringify({ wouldAllow: false, estimateSchemaVersion: 3, timestamp: 1700000000 });
     const fetchMock: typeof fetch = async () =>
       new Response(responseBody, {
         status: 200,
@@ -227,13 +421,14 @@ describe('validationClient', () => {
       userId: 'u1',
       serviceId: SERVICE_ID,
       serviceKeyId: null,
-      plan: 'basic',
+      serviceProductId: 'prod-1',
       roles: ['user'],
-      quotaRemaining: 1,
-      subscriptionActive: true,
-      billingModelType: null,
+      subscriptionStatus: 'ACTIVE',
+      validationSchemaVersion: 3,
+      billingModelType: 'SUBSCRIPTION',
       measurementType: null,
       unitLabel: null,
+      grantAccess: true,
     };
     cache.set('k', entry);
     expect(cache.get('k')).toEqual(entry);

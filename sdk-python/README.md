@@ -1,6 +1,6 @@
 # Tollara Service SDK (Python)
 
-**Package:** `tollara-service-sdk` (PyPI). **Import:** `import tollara_service_sdk`.
+**Package:** `tollara-service-sdk` (PyPI), version **3.0.0**. **Import:** `import tollara_service_sdk`.
 
 Verify HMAC on incoming gateway requests, validate service keys, run usage pre-flight (service-key **and** JWT paths), **gateway invoke**, report usage, progress/completion, and poll async job status on the gateway.
 
@@ -21,6 +21,8 @@ Use **`TollaraClient`** with one API **origin** (scheme + host, optional port).
 **Progress / completion** still use the **full** `progress_url` / `callback_url` strings from the gateway (including query params).
 
 **Usage report (§3):** JSON body includes an ISO-8601 **`timestamp`**; **`X-Tollara-Timestamp`** is **Unix epoch seconds** for signing. For `report_usage_at`, pass `timestamp` as epoch **seconds** (or omit for “now”); values above `1e11` are treated as milliseconds and converted.
+
+**Progress / completion:** sign exactly the bytes you POST. The usage service verifies HMAC against the **raw HTTP request body** (spec §3). Callbacks return **`UsageCallbackResult`** (`success`, `http_status`, `http_status_text`, `request_url`, optional `response_body` / `network_error`).
 
 Constructor arguments override environment variables when both are set.
 
@@ -54,16 +56,16 @@ pip install tollara-service-sdk[http]
 
 ### Verify inbound HMAC (agent backend)
 
-Pass a **header map** (keys matched case-insensitively) and the **raw body** the gateway signed (same bytes as in the canonical string). Header names follow `TollaraHeaders` (`X-Tollara-*`). Verification defaults to signing version **v2** (newer user-context suffix, no quota segment in the signed material).
+Pass a **header map** (keys matched case-insensitively) and the **raw body** the gateway signed (same bytes as in the canonical string). Header names follow `TollaraHeaders` (`X-Tollara-*`). Verification uses HMAC user-context **v3** when `X-Tollara-Signing-Version` is `"3"` (`serviceProductId`, `subscriptionStatus`); **v2** when `"2"`; legacy v1 when the header is absent.
 
 **Preferred:** verify and read user context in one step (`None` if the HMAC is invalid):
 
 ```python
-from tollara_service_sdk import verify_inbound_context
+from tollara_service_sdk import verify_inbound_context, grant_access
 
 ctx = verify_inbound_context(service_secret, headers, raw_body)
-if ctx is not None:
-    # ctx.user_id, ctx.plan, ...
+if ctx is not None and grant_access(ctx.subscription_status):
+    # ctx.user_id, ctx.service_product_id, ctx.subscription_status, ...
     ...
 ```
 
@@ -93,11 +95,12 @@ client = TollaraClient(
 )
 
 validation = client.validate_service_key("bearer-token")
-# validation.service_key_id — Core key id when present
+# validation.service_product_id, validation.subscription_status, validation.grant_access()
 
 estimate = client.estimate_usage("bearer-token", 1.0)
 if estimate is not None:
     allowed = estimate.would_allow
+    # estimate.breakdown.remaining_credits / remaining_spending_cap when applicable
     status = estimate.http_status
 
 # JWT usage estimate (unsigned): bearer JWT + internal Core user id + service id
@@ -108,9 +111,11 @@ if estimate is not None:
 
 usage_resp = client.report_usage(user_id, service_id, 1.0)
 
-client.send_progress_update(progress_url, request_id, "some processing info", 50)
+progress = client.send_progress_update(progress_url, request_id, "some processing info", 50)
+if not progress.success:
+    print(progress.http_status, progress.response_body)
 
-client.send_completion(
+complete = client.send_completion(
     callback_url, request_id, CompletionStatus.COMPLETED, units=1.0, result="some result"
 )
 

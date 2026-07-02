@@ -5,7 +5,6 @@ import {
   buildUsageReportUrl,
   DEFAULT_USAGE_PATH_PREFIX,
   reportCompletion,
-  reportCompletionWithResult,
   reportProgress,
   reportUsage,
 } from './usageClient';
@@ -38,9 +37,12 @@ describe('usageClient', () => {
       );
       return new Response(
         JSON.stringify({
+          reportSchemaVersion: 2,
           status: 'ok',
-          isOverLimit: false,
-          remainingRequestsPerPeriod: 1,
+          userId: 'u1',
+          serviceId: 'a1',
+          billingModelType: 'SUBSCRIPTION',
+          breakdown: { unitsRemaining: 1, isOverLimit: false },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
@@ -75,7 +77,11 @@ describe('usageClient', () => {
       expect(parsed.unitsUsed).toBe(3);
       expect(parsed.timestamp).toBe(new Date(1700000000 * 1000).toISOString());
       return new Response(
-        JSON.stringify({ status: 'ok', isOverLimit: false, remainingRequestsPerPeriod: 10 }),
+        JSON.stringify({
+          reportSchemaVersion: 2,
+          status: 'ok',
+          breakdown: { unitsRemaining: 10, isOverLimit: false },
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     });
@@ -119,7 +125,7 @@ describe('usageClient', () => {
       return new Response('', { status: 200 });
     });
 
-    const ok = await reportProgress({
+    const result = await reportProgress({
       progressUrl,
       requestId: 'req-1',
       stage: 'processing',
@@ -128,14 +134,47 @@ describe('usageClient', () => {
       fetch: fetchMock as unknown as typeof fetch,
     });
 
-    expect(ok).toBe(true);
+    expect(result.success).toBe(true);
     expect(fetchMock).toHaveBeenCalledWith(
       'http://u.test/api/usage/progress/req-1',
       expect.objectContaining({ method: 'POST' })
     );
   });
 
-  it('reportCompletionWithResult signs and posts callback payload', async () => {
+  it('reportProgress returns HTTP status and body on failure', async () => {
+    const progressUrl = 'http://u.test/api/usage/progress/req-1?timestamp=1700000000';
+    const mockFetch: typeof fetch = async () =>
+      new Response('Invalid requestId: req-1', { status: 404, statusText: 'Not Found' });
+
+    const result = await reportProgress({
+      progressUrl,
+      requestId: 'req-1',
+      stage: 'processing',
+      percentageComplete: 25,
+      serviceSecret: 'secret',
+      fetch: mockFetch,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.httpStatus).toBe(404);
+    expect(result.httpStatusText).toBe('Not Found');
+    expect(result.responseBody).toBe('Invalid requestId: req-1');
+  });
+
+  it('reportProgress handles missing URL without throwing', async () => {
+    const result = await reportProgress({
+      progressUrl: undefined as unknown as string,
+      requestId: 'req-1',
+      stage: 'processing',
+      percentageComplete: 25,
+      serviceSecret: 'secret',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.httpStatusText).toBe('Missing or invalid callback/progress URL');
+  });
+
+  it('reportCompletion signs and posts callback payload', async () => {
     const callbackUrl = 'http://u.test/api/usage/complete/req-2?timestamp=1700000001';
     const fetchMock = jest.fn(async (_input: string | URL | Request, init?: RequestInit) => {
       const rawBody = String(init?.body);
@@ -153,7 +192,7 @@ describe('usageClient', () => {
       return new Response('', { status: 200 });
     });
 
-    const ok = await reportCompletionWithResult({
+    const result = await reportCompletion({
       callbackUrl,
       requestId: 'req-2',
       status: CompletionStatus.Completed,
@@ -162,17 +201,17 @@ describe('usageClient', () => {
       serviceSecret: 'secret',
       fetch: fetchMock as unknown as typeof fetch,
     });
-    expect(ok).toBe(true);
+    expect(result.success).toBe(true);
   });
 
-  it('reportCompletion returns false when callback URL has no timestamp', async () => {
-    const ok = await reportCompletion({
+  it('reportCompletion returns failure when callback URL has no timestamp', async () => {
+    const result = await reportCompletion({
       callbackUrl: 'http://u.test/api/usage/complete/req-3',
       requestId: 'req-3',
       status: CompletionStatus.Failed,
       serviceSecret: 'secret',
       fetch: jest.fn() as unknown as typeof fetch,
     });
-    expect(ok).toBe(false);
+    expect(result.success).toBe(false);
   });
 });

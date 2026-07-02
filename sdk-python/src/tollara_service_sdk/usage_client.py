@@ -8,6 +8,8 @@ from urllib.parse import parse_qs, urlparse
 from .tollara_headers import TollaraHeaders
 from .completion_status import CompletionStatus
 from .hmac_utils import calculate_hmac_with_timestamp
+from .usage_breakdown import UsageBreakdown, parse_usage_breakdown
+from .path_prefixes import resolve_usage_path_prefix
 
 DEFAULT_USAGE_PATH_PREFIX = "/api/usage"
 
@@ -26,7 +28,7 @@ def _usage_report_iso_and_epoch_sec(timestamp: Optional[float]) -> tuple[str, st
 
 def _usage_report_url(base_url: str, usage_path_prefix: Optional[str]) -> str:
     base = base_url.rstrip("/")
-    p = (usage_path_prefix or DEFAULT_USAGE_PATH_PREFIX).strip()
+    p = resolve_usage_path_prefix(base_url, usage_path_prefix).strip()
     if not p.startswith("/"):
         p = "/" + p
     p = p.rstrip("/")
@@ -35,16 +37,30 @@ def _usage_report_url(base_url: str, usage_path_prefix: Optional[str]) -> str:
 
 @dataclass
 class UsageReportResponse:
+    report_schema_version: int
     status: Optional[str]
     warning: Optional[str]
-    is_over_limit: bool
-    remaining_requests_per_period: int
-    remaining_time_units_per_period: Optional[float]
-    remaining_spending_cap: Optional[float]
-    overage_rate: Optional[float]
+    user_id: Optional[str]
+    service_id: Optional[str]
+    billing_model_type: Optional[str]
+    measurement_type: Optional[str]
+    unit_label: Optional[str]
+    breakdown: Optional[UsageBreakdown]
 
 
-def _parse_url_params(url: str) -> tuple[str, Optional[str]]:
+@dataclass
+class UsageCallbackResult:
+    success: bool
+    http_status: int
+    http_status_text: str
+    request_url: str
+    response_body: Optional[str] = None
+    network_error: Optional[str] = None
+
+
+def _parse_url_params(url: Optional[str]) -> tuple[str, Optional[str]]:
+    if url is None:
+        return "", None
     parsed = urlparse(url)
     base = f"{parsed.scheme}://{parsed.netloc}{parsed.path}" if parsed.scheme else url.split("?")[0]
     if not parsed.query:
@@ -52,6 +68,62 @@ def _parse_url_params(url: str) -> tuple[str, Optional[str]]:
     qs = parse_qs(parsed.query)
     timestamp = (qs.get("timestamp") or [None])[0]
     return base, timestamp
+
+
+def _post_signed_usage_callback(
+    url_with_query: str,
+    body_str: str,
+    service_secret: str,
+    *,
+    session: Optional["requests.Session"] = None,
+) -> UsageCallbackResult:
+    base_url, timestamp = _parse_url_params(url_with_query)
+    if not timestamp:
+        status_text = (
+            "Missing timestamp query parameter in URL"
+            if url_with_query
+            else "Missing or invalid callback/progress URL"
+        )
+        return UsageCallbackResult(
+            success=False,
+            http_status=0,
+            http_status_text=status_text,
+            request_url=base_url,
+        )
+
+    try:
+        import requests
+    except ImportError as exc:
+        raise ImportError("usage callbacks require 'requests'. pip install requests") from exc
+
+    signature = calculate_hmac_with_timestamp(body_str, timestamp, service_secret)
+    sess = session or requests.Session()
+    try:
+        resp = sess.post(
+            base_url,
+            data=body_str,
+            headers={
+                "Content-Type": "application/json",
+                TollaraHeaders.SIGNATURE: signature,
+                TollaraHeaders.TIMESTAMP: timestamp,
+            },
+        )
+        response_body = resp.text or None
+        return UsageCallbackResult(
+            success=resp.ok,
+            http_status=resp.status_code,
+            http_status_text=resp.reason or ("OK" if resp.ok else f"HTTP {resp.status_code}"),
+            request_url=base_url,
+            response_body=response_body,
+        )
+    except requests.RequestException as exc:
+        return UsageCallbackResult(
+            success=False,
+            http_status=0,
+            http_status_text="Network error",
+            request_url=base_url,
+            network_error=str(exc),
+        )
 
 
 def report_progress(
@@ -63,76 +135,22 @@ def report_progress(
     error_message: Optional[str] = None,
     *,
     session: Optional["requests.Session"] = None,
-) -> bool:
+) -> UsageCallbackResult:
     """POST progress to usage service. Requires 'requests'."""
-    try:
-        import requests
-    except ImportError:
-        raise ImportError("report_progress requires 'requests'. pip install requests")
-    base_url, timestamp = _parse_url_params(progress_url)
-    if not timestamp:
-        return False
-    body = {"stage": stage, "percentageComplete": percentage_complete, "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+    body: Dict[str, Any] = {
+        "stage": stage,
+        "percentageComplete": percentage_complete,
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
     if error_message is not None:
         body["errorMessage"] = error_message
     body_str = json.dumps(body, separators=(",", ":"))
-    signature = calculate_hmac_with_timestamp(body_str, timestamp, service_secret)
-    sess = session or __import__("requests").Session()
-    resp = sess.post(
-        base_url,
-        data=body_str,
-        headers={
-            "Content-Type": "application/json",
-            TollaraHeaders.SIGNATURE: signature,
-            TollaraHeaders.TIMESTAMP: timestamp,
-        },
+    return _post_signed_usage_callback(
+        progress_url, body_str, service_secret, session=session
     )
-    return resp.ok
 
 
 def report_completion(
-    callback_url: str,
-    request_id: str,
-    status: CompletionStatus,
-    service_secret: str,
-    *,
-    units: float = 0.0,
-    session: Optional["requests.Session"] = None,
-) -> bool:
-    """POST completion with status and units only."""
-    return report_completion_full(
-        callback_url,
-        request_id,
-        status,
-        service_secret,
-        units=units,
-        session=session,
-    )
-
-
-def report_completion_with_result(
-    callback_url: str,
-    request_id: str,
-    status: CompletionStatus,
-    service_secret: str,
-    result: str,
-    *,
-    units: float = 0.0,
-    session: Optional["requests.Session"] = None,
-) -> bool:
-    """POST completion with inline result text."""
-    return report_completion_full(
-        callback_url,
-        request_id,
-        status,
-        service_secret,
-        result=result,
-        units=units,
-        session=session,
-    )
-
-
-def report_completion_full(
     callback_url: str,
     request_id: str,
     status: CompletionStatus,
@@ -143,15 +161,9 @@ def report_completion_full(
     content_type: Optional[str] = None,
     units: float = 0.0,
     session: Optional["requests.Session"] = None,
-) -> bool:
-    try:
-        import requests
-    except ImportError:
-        raise ImportError("report_completion_full requires 'requests'. pip install requests")
-    base_url, timestamp = _parse_url_params(callback_url)
-    if not timestamp:
-        return False
-    body = {
+) -> UsageCallbackResult:
+    """POST completion to usage service. Requires 'requests'."""
+    body: Dict[str, Any] = {
         "status": status.api_value,
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "units": units,
@@ -163,18 +175,9 @@ def report_completion_full(
     if content_type is not None:
         body["contentType"] = content_type
     body_str = json.dumps(body, separators=(",", ":"))
-    signature = calculate_hmac_with_timestamp(body_str, timestamp, service_secret)
-    sess = session or requests.Session()
-    resp = sess.post(
-        base_url,
-        data=body_str,
-        headers={
-            "Content-Type": "application/json",
-            TollaraHeaders.SIGNATURE: signature,
-            TollaraHeaders.TIMESTAMP: timestamp,
-        },
+    return _post_signed_usage_callback(
+        callback_url, body_str, service_secret, session=session
     )
-    return resp.ok
 
 
 def report_usage(
@@ -232,20 +235,16 @@ def report_usage_at(
     )
     resp.raise_for_status()
     data = resp.json()
+    breakdown_raw = data.get("breakdown")
+    breakdown = parse_usage_breakdown(breakdown_raw) if isinstance(breakdown_raw, dict) else None
     return UsageReportResponse(
+        report_schema_version=int(data.get("reportSchemaVersion", 0)),
         status=data.get("status"),
         warning=data.get("warning"),
-        is_over_limit=bool(data.get("isOverLimit")),
-        remaining_requests_per_period=int(data.get("remainingRequestsPerPeriod", 0)),
-        remaining_time_units_per_period=_opt_float(data.get("remainingTimeUnitsPerPeriod")),
-        remaining_spending_cap=_opt_float(data.get("remainingSpendingCap")),
-        overage_rate=_opt_float(data.get("overageRate")),
+        user_id=data.get("userId"),
+        service_id=data.get("serviceId"),
+        billing_model_type=data.get("billingModelType"),
+        measurement_type=data.get("measurementType"),
+        unit_label=data.get("unitLabel"),
+        breakdown=breakdown,
     )
-
-
-def _opt_float(v: Any) -> Optional[float]:
-    if v is None:
-        return None
-    if isinstance(v, (int, float)):
-        return float(v)
-    return None

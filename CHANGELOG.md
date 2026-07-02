@@ -1,5 +1,37 @@
 # Changelog
 
+## npm `@tollara/service-sdk` / `n8n-nodes-tollara` 0.0.2
+
+Independent npm semver (not tied to HMAC `validationSchemaVersion` or `estimateSchemaVersion`).
+
+### `@tollara/service-sdk` 0.0.2
+
+- `validateServiceKeyWithOutcome` with canonical failure codes (§2.1.1).
+- Hosted API auto-prefix for `api.tollara.ai`, PPE, and branded `*.api.tollara.ai` (ECS `/gateway/api/v1`, `/core/api/v1`, `/usage/api/v1`).
+- `INVALID_KEY` mapping for unsigned 401/403 validate responses.
+
+### `n8n-nodes-tollara` 0.0.2
+
+- Auth nodes (Allowed / Denied outputs), structured `tollaraOk` on invoke/estimate/job nodes.
+- Example workflows with explicit error paths; local fixture templating (`apply:local-fixture`).
+
+---
+
+## Platform contract 3.0.0 — Validation HMAC v3 + unified usage responses (breaking)
+
+Coordinated breaking release with platform (core, gateway, usage).
+
+### Breaking changes
+
+- **Validate v3:** Remove `plan`, `quotaRemaining`, `subscriptionActive`. Add `serviceProductId`, `subscriptionStatus`, `validationSchemaVersion: 3`. Use `grantAccess(subscriptionStatus)` for `ACTIVE`, `TRIAL`, `CANCELLING`, `CANCELLING_PENDING`.
+- **Gateway HMAC v3:** `buildV3` / `buildGatewayUserContextStringV3`; headers `X-Tollara-Service-Product-ID`, `X-Tollara-Subscription-Status`; signing version `3`. Remove reliance on `X-Tollara-Plan`, `X-Tollara-Subscription-Active`.
+- **Estimate v3:** `estimateSchemaVersion: 3`; remove top-level `remainingCredits` and `remainingSpendingCap`; read from `breakdown` (including `breakdown.remainingCredits` for PREPAID).
+- **Report v2:** `reportSchemaVersion: 2` with `userId`, `serviceId`, billing identity, and `breakdown` only.
+
+See [docs-sdk/MAIN-SDK-API-SPEC.md](docs-sdk/MAIN-SDK-API-SPEC.md) §2–§4, §6.
+
+---
+
 ## 2.0.0 — Tollara rebrand (breaking)
 
 **AgentVend.ai is now Tollara.ai.** This is a coordinated breaking release with the platform (gateway, core, usage).

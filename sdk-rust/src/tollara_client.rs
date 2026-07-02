@@ -1,6 +1,9 @@
 //! Unified HTTP client aligned with Java `TollaraClient` (env vars, path prefixes, split bases).
 
 use crate::gateway_client;
+use crate::path_prefixes::{
+    resolve_core_path_prefix, resolve_gateway_path_prefix, resolve_usage_path_prefix,
+};
 use crate::usage_client;
 use crate::validation_client;
 
@@ -15,6 +18,7 @@ pub const DEFAULT_API_URL: &str = "https://api.tollara.ai";
 
 pub const DEFAULT_CORE_PATH_PREFIX: &str = "/api/v1";
 pub const DEFAULT_GATEWAY_PATH_PREFIX: &str = "/api";
+pub const DEFAULT_USAGE_PATH_PREFIX: &str = "/api/usage";
 
 fn trim_trailing_slashes(s: &str) -> String {
     let mut t = s.trim().to_string();
@@ -105,14 +109,18 @@ impl TollaraClient {
             Some(&resolved),
         ));
 
-        let core_prefix = config
-            .core_path_prefix
-            .as_deref()
-            .unwrap_or(DEFAULT_CORE_PATH_PREFIX);
-        let gw_prefix = config
-            .gateway_path_prefix
-            .as_deref()
-            .unwrap_or(DEFAULT_GATEWAY_PATH_PREFIX);
+        let core_prefix = resolve_core_path_prefix(
+            Some(&core_base),
+            DEFAULT_API_URL,
+            DEFAULT_CORE_PATH_PREFIX,
+            config.core_path_prefix.as_deref(),
+        );
+        let gw_prefix = resolve_gateway_path_prefix(
+            Some(&gw_base),
+            DEFAULT_API_URL,
+            DEFAULT_GATEWAY_PATH_PREFIX,
+            config.gateway_path_prefix.as_deref(),
+        );
 
         let service_secret = first_non_blank(
             config.service_secret.as_deref(),
@@ -158,6 +166,20 @@ impl TollaraClient {
             &self.usage_base,
             self.usage_path_prefix.as_deref(),
         )
+    }
+
+    pub async fn validate_service_key_with_outcome(
+        &self,
+        service_key: &str,
+    ) -> validation_client::ServiceKeyValidationOutcome {
+        validation_client::validate_service_key_with_outcome(
+            &self.http,
+            &self.core_root,
+            service_key,
+            &self.service_secret,
+            self.service_id.as_deref(),
+        )
+        .await
     }
 
     pub async fn validate_service_key(
@@ -277,7 +299,7 @@ impl TollaraClient {
         stage: &str,
         percentage_complete: i32,
         error_message: Option<&str>,
-    ) -> bool {
+    ) -> usage_client::UsageCallbackResult {
         usage_client::report_progress(
             &self.http,
             progress_url,
@@ -296,7 +318,10 @@ impl TollaraClient {
         request_id: &str,
         status: usage_client::CompletionStatus,
         units: f64,
-    ) -> bool {
+        result: Option<&str>,
+        result_url: Option<&str>,
+        content_type: Option<&str>,
+    ) -> usage_client::UsageCallbackResult {
         usage_client::report_completion(
             &self.http,
             callback_url,
@@ -304,50 +329,9 @@ impl TollaraClient {
             status,
             &self.service_secret,
             units,
-        )
-        .await
-    }
-
-    pub async fn send_completion_with_result(
-        &self,
-        callback_url: &str,
-        request_id: &str,
-        status: usage_client::CompletionStatus,
-        result: &str,
-        units: f64,
-    ) -> bool {
-        usage_client::report_completion_with_result(
-            &self.http,
-            callback_url,
-            request_id,
-            status,
-            &self.service_secret,
-            result,
-            units,
-        )
-        .await
-    }
-
-    pub async fn send_completion_full(
-        &self,
-        callback_url: &str,
-        request_id: &str,
-        status: usage_client::CompletionStatus,
-        result: Option<&str>,
-        result_url: Option<&str>,
-        content_type: Option<&str>,
-        units: f64,
-    ) -> bool {
-        usage_client::report_completion_full(
-            &self.http,
-            callback_url,
-            request_id,
-            status,
-            &self.service_secret,
             result,
             result_url,
             content_type,
-            units,
         )
         .await
     }

@@ -56,4 +56,24 @@ describe('gatewayInvoke', () => {
     expect(r?.asyncEnvelope?.callbackUrl).toBe('https://u/c');
     expect(r?.asyncEnvelope?.progressUrl).toBe('https://g/p');
   });
+
+  it('uses ECS gateway path prefix for hosted api.tollara.ai origin', async () => {
+    const fetchMock = jest.fn(async (input: string | URL | Request) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      expect(url).toBe(
+        'https://api.tollara.ai/gateway/api/v1/service/s1/endpoint/e1/invoke/async',
+      );
+      return new Response('{}', { status: 500 });
+    });
+    await invokeService({
+      baseUrl: 'https://api.tollara.ai',
+      method: 'POST',
+      serviceId: 's1',
+      endpointId: 'e1',
+      serviceKey: SERVICE_KEY,
+      body: '{}',
+      async: true,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+  });
 });

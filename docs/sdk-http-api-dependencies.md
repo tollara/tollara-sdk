@@ -6,8 +6,8 @@ Use this list when changing Tollara Gateway, Core, or Usage HTTP APIs so corresp
 
 | # | Service | Method | Path (after configured base + prefix) | Role |
 |---|---------|--------|----------------------------------------|------|
-| 1 | Core | `POST` | `/agent-keys/validate` | Validate service key; JSON body `serviceKey`, optional `serviceId`, `serviceSecret`. Response body + `X-Tollara-Timestamp` HMAC-verified with `serviceSecret`. |
-| 2 | Core | `POST` | `/agent-keys/estimate-usage` | Usage pre-flight; body includes `serviceKey`, optional `serviceId`/`serviceSecret`, `estimatedUnits`. HMAC on response when signature headers present; statuses **200 / 403 / 429** handled. |
+| 1 | Core | `POST` | `/service-keys/validate` | Validate service key; JSON body `serviceKey`, optional `serviceId`, `serviceSecret`. Response body + `X-Tollara-Timestamp` HMAC-verified with `serviceSecret`. Success uses **`validationSchemaVersion: 3`** (`serviceProductId`, `subscriptionStatus`; no `plan` / `quotaRemaining` / `subscriptionActive`). |
+| 2 | Core | `POST` | `/service-keys/estimate-usage` | Usage pre-flight; body includes `serviceKey`, optional `serviceId`/`serviceSecret`, `estimatedUnits`. Response uses **`estimateSchemaVersion: 3`**; balances/caps on **`breakdown`** only. HMAC on response when signature headers present; statuses **200 / 403 / 429** handled. |
 | 3 | Usage | `POST` | `/report` (default prefix `/api/usage` → `/api/usage/report`) | Signed usage report; body fields per SDK models; `X-Tollara-Signature` / `X-Tollara-Timestamp` on request. |
 | 4 | Usage | `POST` | **Full `progressUrl`** from platform (path shape `{usagePrefix}/progress/{requestId}` when relative to usage base) | Progress update; SDK reads `signature` + `timestamp` from query string, recomputes HMAC, sends headers. |
 | 5 | Usage | `POST` | **Full `callbackUrl`** from platform (path shape `{usagePrefix}/complete/{requestId}` when relative) | Completion; same signing pattern as progress. |
@@ -18,4 +18,4 @@ Use this list when changing Tollara Gateway, Core, or Usage HTTP APIs so corresp
 
 **Also in repo:** **integration-n8n** may call invoke with a fixed URL layout; keep it aligned with the gateway prefix table in the canonical spec.
 
-**Backward-compatibility hotspots:** validate/estimate JSON fields and HMAC rules ([sdk-api-spec.md](sdk-api-spec.md) §2, §4); usage report/progress/complete JSON and signing; gateway polling response bodies (opaque but status codes matter).
+**Backward-compatibility hotspots:** validate/estimate v3 JSON fields and HMAC rules ([docs-sdk/MAIN-SDK-API-SPEC.md](../docs-sdk/MAIN-SDK-API-SPEC.md) §2, §4); usage report v2 JSON and signing; gateway HMAC v3 user-context string; gateway polling response bodies (opaque but status codes matter).

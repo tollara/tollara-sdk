@@ -17,7 +17,7 @@ public class TollaraClientTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestUris.Add(request.RequestUri!.ToString());
-            var json = """{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}""";
+            var json = """{"reportSchemaVersion":2,"status":"ok","warning":null,"userId":"user-1","serviceId":"550e8400-e29b-41d4-a716-446655440000","billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":{"unitsUsed":1,"unitsRemaining":99,"remainingSpendingCap":20,"totalUnitsUsedThisCycle":1,"isOverLimit":false,"isOverage":false,"isOverageAllowed":true}}""";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json"),
@@ -53,7 +53,7 @@ public class TollaraClientTests
 
         await client.GetRequestStatusAsync("job-1", ServiceKey);
 
-        Assert.Equal("https://api.tollara.ai/api/requests/job-1/status", handler.LastUri);
+        Assert.Equal("https://api.tollara.ai/gateway/api/v1/requests/job-1/status", handler.LastUri);
     }
 
     [Fact]
@@ -100,6 +100,7 @@ public class TollaraClientTests
         var report = await client.ReportUsageAsync("user-1", ServiceId, 1m);
 
         Assert.Equal("ok", report.Status);
+        Assert.Equal(2, report.ReportSchemaVersion);
         Assert.Single(handler.RequestUris);
         Assert.Equal("http://localhost:59902/api/usage/report", handler.RequestUris[0]);
     }

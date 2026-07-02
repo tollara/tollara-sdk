@@ -23,7 +23,7 @@ async fn validate_service_key_returns_result_when_core_returns_200_with_valid_hm
     let core_base = format!("{}/api/v1", server.url());
 
     // Use exact string so HMAC matches (no serialization reorder)
-    let body_str = r#"{"valid":true,"userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","plan":"basic","roles":["user"],"quotaRemaining":100,"subscriptionActive":true,"timestamp":1700000000,"error":null}"#;
+    let body_str = r#"{"valid":true,"serviceKeyId":"6ba7b810-9dad-11d1-80b4-00c04fd430c8","userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","serviceProductId":"7c9e6679-7425-40de-944b-e07fc1f90ae7","roles":["user"],"subscriptionStatus":"ACTIVE","billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","timestamp":1700000000,"error":null,"validationSchemaVersion":3}"#;
     let timestamp = "1700000000";
     let canonical = format!("{}{}", body_str, timestamp);
     let signature = calculate_hmac(&canonical, AGENT_SECRET);
@@ -51,10 +51,11 @@ async fn validate_service_key_returns_result_when_core_returns_200_with_valid_hm
     let r = result.unwrap();
     assert_eq!(r.user_id.as_deref(), Some("user-123"));
     assert_eq!(r.service_id.as_deref(), Some(AGENT_ID));
-    assert_eq!(r.plan.as_deref(), Some("basic"));
+    assert_eq!(r.service_product_id.as_deref(), Some("7c9e6679-7425-40de-944b-e07fc1f90ae7"));
+    assert_eq!(r.subscription_status.as_deref(), Some("ACTIVE"));
+    assert_eq!(r.validation_schema_version, Some(3));
     assert_eq!(r.roles, &["user"]);
-    assert_eq!(r.quota_remaining, Some(100.0));
-    assert!(r.subscription_active);
+    assert!(r.grant_access());
 }
 
 #[tokio::test]
@@ -87,7 +88,7 @@ async fn validate_service_key_returns_none_when_hmac_invalid() {
     let mut server = mockito::Server::new();
     let core_base = format!("{}/api/v1", server.url());
 
-    let body_str = r#"{"valid":true,"userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","plan":"basic","roles":[],"quotaRemaining":100,"subscriptionActive":true,"timestamp":1700000000,"error":null}"#;
+    let body_str = r#"{"valid":true,"userId":"user-123","serviceId":"550e8400-e29b-41d4-a716-446655440000","serviceProductId":"7c9e6679-7425-40de-944b-e07fc1f90ae7","roles":[],"subscriptionStatus":"ACTIVE","timestamp":1700000000,"error":null,"validationSchemaVersion":3}"#;
 
     let _mock = server
         .mock("POST", "/api/v1/service-keys/validate")
@@ -111,6 +112,191 @@ async fn validate_service_key_returns_none_when_hmac_invalid() {
     assert!(result.is_none());
 }
 
+#[tokio::test]
+async fn validate_service_key_with_outcome_returns_missing_key_without_http() {
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client,
+        "http://unused/api/v1",
+        "   ",
+        AGENT_SECRET,
+        Some(AGENT_ID),
+    )
+    .await;
+    assert!(!outcome.ok());
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::MissingKey);
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+async fn validate_service_key_with_outcome_returns_invalid_key_on_unsigned_401() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/validate")
+        .with_status(401)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"valid":false,"error":"Invalid service key"}"#)
+        .create();
+
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client, &core_base, "bad", AGENT_SECRET, Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::InvalidKey);
+            assert_eq!(f.message.as_deref(), Some("Invalid service key"));
+            assert_eq!(f.http_status, Some(401));
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
+async fn validate_service_key_with_outcome_returns_http_error_on_401_without_json_body() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/validate")
+        .with_status(401)
+        .with_body("unauthorized")
+        .create();
+
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client, &core_base, "bad", AGENT_SECRET, Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::HttpError);
+            assert_eq!(f.http_status, Some(401));
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
+async fn validate_service_key_with_outcome_returns_hmac_mismatch() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+    let body_str = r#"{"valid":true,"userId":"u1"}"#;
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/validate")
+        .with_status(200)
+        .with_header("X-Tollara-Signature", "bad-signature")
+        .with_header("X-Tollara-Timestamp", "1700000000")
+        .with_body(body_str)
+        .create();
+
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client, &core_base, "k", AGENT_SECRET, Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::HmacMismatch);
+            assert_eq!(f.http_status, Some(200));
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
+async fn validate_service_key_with_outcome_returns_invalid_key_with_message() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+    let body_str = r#"{"valid":false,"error":"Key expired"}"#;
+    let timestamp = "1700000000";
+    let signature = calculate_hmac(&format!("{}{}", body_str, timestamp), AGENT_SECRET);
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/validate")
+        .with_status(200)
+        .with_header("X-Tollara-Signature", &signature)
+        .with_header("X-Tollara-Timestamp", timestamp)
+        .with_body(body_str)
+        .create();
+
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client, &core_base, "expired", AGENT_SECRET, Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::InvalidKey);
+            assert_eq!(f.message.as_deref(), Some("Key expired"));
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
+async fn validate_service_key_with_outcome_returns_network_on_connection_failure() {
+    let client = Client::new();
+    let outcome = validation_client::validate_service_key_with_outcome(
+        &client,
+        "http://127.0.0.1:1/api/v1",
+        "k",
+        AGENT_SECRET,
+        Some(AGENT_ID),
+    )
+    .await;
+    match outcome {
+        validation_client::ServiceKeyValidationOutcome::Failure(f) => {
+            assert_eq!(f.code, validation_client::ValidationFailureCode::Network);
+        }
+        _ => panic!("expected failure"),
+    }
+}
+
+#[tokio::test]
+async fn estimate_usage_returns_v3_breakdown_when_core_returns_200_with_valid_hmac() {
+    let mut server = mockito::Server::new();
+    let core_base = format!("{}/api/v1", server.url());
+
+    let body_str = r#"{"sufficientCredits":true,"wouldExceedCap":false,"wouldAllow":true,"estimatedCost":0.1,"billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":{"unitsRemaining":199,"remainingSpendingCap":20,"isOverLimit":false},"estimateSchemaVersion":3,"timestamp":1700000000}"#;
+    let timestamp = "1700000000";
+    let canonical = format!("{}{}", body_str, timestamp);
+    let signature = calculate_hmac(&canonical, AGENT_SECRET);
+
+    let _mock = server
+        .mock("POST", "/api/v1/service-keys/estimate-usage")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_header("X-Tollara-Signature", &signature)
+        .with_header("X-Tollara-Timestamp", timestamp)
+        .with_body(body_str)
+        .create();
+
+    let client = Client::new();
+    let result = validation_client::estimate_usage(
+        &client,
+        &core_base,
+        AGENT_KEY,
+        AGENT_SECRET,
+        Some(AGENT_ID),
+        1.0,
+    )
+    .await;
+
+    assert!(result.is_some());
+    let r = result.unwrap();
+    assert_eq!(r.estimate_schema_version, Some(3));
+    assert_eq!(r.http_status, 200);
+    let cap = r
+        .breakdown
+        .as_ref()
+        .and_then(|b| b.remaining_spending_cap);
+    assert_eq!(cap, Some(20.0));
+}
+
 // ---------- Usage client (Usage API §3) ----------
 
 #[tokio::test]
@@ -123,7 +309,7 @@ async fn report_usage_sends_signed_request_and_returns_response() {
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
-            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":99}"#,
+            r#"{"reportSchemaVersion":2,"status":"ok","warning":null,"userId":"user-1","serviceId":"agent-1","billingModelType":"SUBSCRIPTION","measurementType":"PER_REQUEST","unitLabel":"request","breakdown":{"unitsUsed":1,"unitsRemaining":99,"remainingSpendingCap":20,"totalUnitsUsedThisCycle":1,"isOverLimit":false,"isOverage":false,"isOverageAllowed":true}}"#,
         )
         .create();
 
@@ -143,8 +329,8 @@ async fn report_usage_sends_signed_request_and_returns_response() {
     assert!(result.is_ok());
     let r = result.unwrap();
     assert_eq!(r.status.as_deref(), Some("ok"));
-    assert!(!r.is_over_limit);
-    assert_eq!(r.remaining_requests_per_period, 99);
+    assert_eq!(r.report_schema_version, Some(2));
+    assert_eq!(r.breakdown.as_ref().and_then(|b| b.units_remaining), Some(99.0));
 }
 
 #[tokio::test]
@@ -157,7 +343,7 @@ async fn report_usage_respects_custom_usage_path_prefix() {
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
-            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}"#,
+            r#"{"reportSchemaVersion":2,"status":"ok","breakdown":{"unitsRemaining":1}}"#,
         )
         .create();
 
@@ -252,7 +438,7 @@ async fn tollara_client_report_usage_uses_default_usage_prefix() {
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
-            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}"#,
+            r#"{"reportSchemaVersion":2,"status":"ok","breakdown":{"unitsRemaining":1}}"#,
         )
         .create();
 
@@ -280,7 +466,7 @@ async fn tollara_client_custom_usage_path_prefix() {
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(
-            r#"{"status":"ok","isOverLimit":false,"remainingRequestsPerPeriod":1}"#,
+            r#"{"reportSchemaVersion":2,"status":"ok","breakdown":{"unitsRemaining":1}}"#,
         )
         .create();
 
@@ -337,26 +523,28 @@ async fn report_progress_posts_to_progress_url_with_signature() {
         .create();
 
     let client = Client::new();
-    let ok = usage_client::report_progress_simple(
+    let result = usage_client::report_progress(
         &client,
         &progress_url,
         "req-123",
         "processing",
         50,
         AGENT_SECRET,
+        None,
     )
     .await;
 
-    assert!(ok);
+    assert!(result.success);
+    assert_eq!(result.http_status, 200);
 }
 
 #[tokio::test]
-async fn report_progress_returns_false_when_url_missing_timestamp() {
+async fn report_progress_returns_failure_when_url_missing_timestamp() {
     let mut server = mockito::Server::new();
     let progress_url = format!("{}/api/usage/progress/req-1", server.url());
 
     let client = Client::new();
-    let ok = usage_client::report_progress(
+    let result = usage_client::report_progress(
         &client,
         &progress_url,
         "req-1",
@@ -367,7 +555,55 @@ async fn report_progress_returns_false_when_url_missing_timestamp() {
     )
     .await;
 
-    assert!(!ok);
+    assert!(!result.success);
+    assert_eq!(result.http_status, 0);
+}
+
+#[tokio::test]
+async fn report_progress_handles_missing_url_without_throwing() {
+    let client = Client::new();
+    let result = usage_client::report_progress(
+        &client,
+        "",
+        "req-1",
+        "processing",
+        25,
+        AGENT_SECRET,
+        None,
+    )
+    .await;
+
+    assert!(!result.success);
+    assert_eq!(result.http_status_text, "Missing or invalid callback/progress URL");
+}
+
+#[tokio::test]
+async fn report_progress_returns_http_status_and_body_on_failure() {
+    let mut server = mockito::Server::new();
+    let progress_path = "/api/usage/progress/req-1";
+    let progress_url = format!("{}{}?timestamp=1700000000", server.url(), progress_path);
+
+    let _mock = server
+        .mock("POST", progress_path)
+        .with_status(404)
+        .with_body("Invalid requestId: req-1")
+        .create();
+
+    let client = Client::new();
+    let result = usage_client::report_progress(
+        &client,
+        &progress_url,
+        "req-1",
+        "processing",
+        25,
+        AGENT_SECRET,
+        None,
+    )
+    .await;
+
+    assert!(!result.success);
+    assert_eq!(result.http_status, 404);
+    assert_eq!(result.response_body.as_deref(), Some("Invalid requestId: req-1"));
 }
 
 #[tokio::test]
@@ -383,37 +619,43 @@ async fn report_completion_posts_to_callback_url_with_signature() {
         .create();
 
     let client = Client::new();
-    let ok = usage_client::report_completion_with_result(
+    let result = usage_client::report_completion(
         &client,
         &callback_url,
         "req-456",
         CompletionStatus::Completed,
         AGENT_SECRET,
-        "done",
         1.0,
+        Some("done"),
+        None,
+        None,
     )
     .await;
 
-    assert!(ok);
+    assert!(result.success);
 }
 
 #[tokio::test]
-async fn report_completion_returns_false_when_url_missing_timestamp() {
+async fn report_completion_returns_failure_when_url_missing_timestamp() {
     let mut server = mockito::Server::new();
     let callback_url = format!("{}/api/usage/complete/req-1", server.url());
 
     let client = Client::new();
-    let ok = usage_client::report_completion(
+    let result = usage_client::report_completion(
         &client,
         &callback_url,
         "req-1",
         CompletionStatus::Failed,
         AGENT_SECRET,
         0.0,
+        None,
+        None,
+        None,
     )
     .await;
 
-    assert!(!ok);
+    assert!(!result.success);
+    assert_eq!(result.http_status, 0);
 }
 
 #[tokio::test]

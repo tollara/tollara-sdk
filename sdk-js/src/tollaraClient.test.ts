@@ -49,9 +49,9 @@ describe('TollaraClient', () => {
       expect(u).toBe(`${base}/api/usage/report`);
       return new Response(
         JSON.stringify({
+          reportSchemaVersion: 2,
           status: 'ok',
-          isOverLimit: false,
-          remainingRequestsPerPeriod: 1,
+          breakdown: { unitsRemaining: 1, isOverLimit: false },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
@@ -72,10 +72,10 @@ describe('TollaraClient', () => {
       valid: true,
       userId: 'user-1',
       serviceId: SERVICE_ID,
-      plan: 'basic',
+      serviceProductId: 'prod-1',
       roles: ['user'],
-      quotaRemaining: 5,
-      subscriptionActive: true,
+      subscriptionStatus: 'ACTIVE',
+      validationSchemaVersion: 3,
     });
     const ts = '1700000000';
     const signature = calculateHmac(responseBody + ts, SERVICE_SECRET);

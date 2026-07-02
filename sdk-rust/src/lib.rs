@@ -2,16 +2,19 @@
 
 mod headers;
 mod hmac;
+mod path_prefixes;
 
 pub use headers::{
-    BILLING_MODEL, MEASUREMENT_TYPE, PLAN, QUOTA_REMAINING, ROLES, SIGNATURE, SUBSCRIPTION_ACTIVE,
-    TIMESTAMP, UNIT_LABEL, USER_ID,
+    BILLING_MODEL, MEASUREMENT_TYPE, PLAN, QUOTA_REMAINING, ROLES, SERVICE_PRODUCT_ID, SIGNATURE,
+    SIGNING_VERSION, SIGNING_VERSION_V3, SUBSCRIPTION_ACTIVE, SUBSCRIPTION_STATUS, TIMESTAMP,
+    UNIT_LABEL, USER_ID,
 };
 pub use hmac::{
-    build_gateway_user_context_string, calculate_hmac, calculate_hmac_with_timestamp,
-    constant_time_equals, validate_hmac_signature, verify_inbound_hmac, verify_signature_from_headers,
-    verify_signature_from_headers_and_get_user_context, parse_user_context, InboundHmacVerify,
-    SignedUserContext, UserContext,
+    build_gateway_user_context_string, build_gateway_user_context_string_v2,
+    build_gateway_user_context_string_v3, calculate_hmac, calculate_hmac_with_timestamp,
+    constant_time_equals, grant_access, validate_hmac_signature, verify_inbound_hmac,
+    verify_signature_from_headers, verify_signature_from_headers_and_get_user_context,
+    parse_user_context, InboundHmacVerify, SignedUserContext, UserContext,
 };
 
 #[cfg(feature = "http")]

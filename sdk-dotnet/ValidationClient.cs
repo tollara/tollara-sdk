@@ -8,73 +8,164 @@ namespace Tollara;
 public record ServiceKeyValidationResult(
     string? UserId,
     string? ServiceId,
-    string? Plan,
+    string? ServiceProductId,
     IReadOnlyList<string> Roles,
-    decimal? QuotaRemaining,
-    bool SubscriptionActive,
+    string? SubscriptionStatus,
+    int? ValidationSchemaVersion,
     string? BillingModelType,
     string? MeasurementType,
     string? UnitLabel,
-    Guid? ServiceKeyId);
+    Guid? ServiceKeyId)
+{
+    public bool GrantAccess() => Verifier.GrantAccess(SubscriptionStatus);
 
-/// <summary>Wire result for Core service-key usage estimate (signed JSON).</summary>
+    public static bool GrantAccess(string? subscriptionStatus) => Verifier.GrantAccess(subscriptionStatus);
+}
+
+/// <summary>Wire result for Core usage estimate endpoints (see docs-sdk/MAIN-SDK-API-SPEC.md §2.3).</summary>
 public record UsageEstimateResult(
     bool SufficientCredits,
     bool WouldExceedCap,
     bool WouldAllow,
     decimal? EstimatedCost,
-    decimal? RemainingCredits,
-    decimal? RemainingSpendingCap,
     string? BillingModelType,
     string? MeasurementType,
     string? UnitLabel,
-    System.Text.Json.JsonElement? Breakdown,
+    UsageBreakdown? Breakdown,
     int EstimateSchemaVersion,
     long Timestamp,
     int HttpStatus);
 
+/// <summary>Canonical failure codes for validate outcome (§2.1.1).</summary>
+public enum ValidationFailureCode
+{
+    MISSING_KEY,
+    NETWORK,
+    HTTP_ERROR,
+    MISSING_SIGNATURE_HEADERS,
+    HMAC_MISMATCH,
+    INVALID_KEY,
+    PARSE_ERROR,
+}
+
+public record ServiceKeyValidationFailure(
+    ValidationFailureCode Code,
+    string? Message = null,
+    int? HttpStatus = null);
+
+public abstract record ServiceKeyValidationOutcome
+{
+    public sealed record Success(ServiceKeyValidationResult Result) : ServiceKeyValidationOutcome;
+    public sealed record Failure(ServiceKeyValidationFailure Error) : ServiceKeyValidationOutcome;
+
+    public bool Ok => this is Success;
+}
+
 public static class ValidationClient
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     /// <summary>Validate using the SDK default API origin and Core path prefix (same as <see cref="TollaraClient"/>).</summary>
     public static Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string serviceKey, string? serviceId,
         string serviceSecret, CancellationToken ct = default) =>
         ValidateServiceKeyAsync(http, DefaultCoreServiceRoot(), serviceKey, serviceId, serviceSecret, ct);
 
+    /// <summary>Validate with structured outcome (§2.1.1).</summary>
+    public static Task<ServiceKeyValidationOutcome> ValidateServiceKeyWithOutcomeAsync(HttpClient http, string serviceKey,
+        string? serviceId, string serviceSecret, CancellationToken ct = default) =>
+        ValidateServiceKeyWithOutcomeAsync(http, DefaultCoreServiceRoot(), serviceKey, serviceId, serviceSecret, ct);
+
     /// <summary>Validate against an explicit Core service base (include path prefix, e.g. custom or local stack).</summary>
-    public static async Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string coreServiceUrl,
+    public static async Task<ServiceKeyValidationOutcome> ValidateServiceKeyWithOutcomeAsync(HttpClient http, string coreServiceUrl,
         string serviceKey, string? serviceId, string serviceSecret, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(serviceKey))
+            return new ServiceKeyValidationOutcome.Failure(new ServiceKeyValidationFailure(ValidationFailureCode.MISSING_KEY));
+
         var url = coreServiceUrl.TrimEnd('/') + "/service-keys/validate";
         var body = new { serviceKey, serviceId, serviceSecret };
         var bodyStr = JsonSerializer.Serialize(body);
         var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(bodyStr, Encoding.UTF8, "application/json") };
-        var res = await http.SendAsync(req, ct);
-        if (!res.IsSuccessStatusCode) return null;
+        HttpResponseMessage res;
+        try
+        {
+            res = await http.SendAsync(req, ct);
+        }
+        catch (HttpRequestException)
+        {
+            return new ServiceKeyValidationOutcome.Failure(new ServiceKeyValidationFailure(ValidationFailureCode.NETWORK));
+        }
+
+        var httpStatus = (int)res.StatusCode;
         var responseText = await res.Content.ReadAsStringAsync(ct);
+        if (!res.IsSuccessStatusCode)
+        {
+            var unsignedInvalid = TryInvalidKeyFromUnsignedErrorBody(responseText, httpStatus);
+            if (unsignedInvalid != null)
+                return new ServiceKeyValidationOutcome.Failure(unsignedInvalid);
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.HTTP_ERROR, HttpStatus: httpStatus));
+        }
+
         var signature = res.Headers.TryGetValues(TollaraHeaders.Signature, out var sig) ? string.Join("", sig) : null;
         var timestamp = res.Headers.TryGetValues(TollaraHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
-        if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
-        if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret)) return null;
-        var doc = JsonDocument.Parse(responseText);
+        if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp))
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.MISSING_SIGNATURE_HEADERS, HttpStatus: httpStatus));
+
+        if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret))
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.HMAC_MISMATCH, HttpStatus: httpStatus));
+
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(responseText);
+        }
+        catch (JsonException)
+        {
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.PARSE_ERROR, HttpStatus: httpStatus));
+        }
+
         var root = doc.RootElement;
-        if (root.TryGetProperty("valid", out var v) && !v.GetBoolean()) return null;
+        if (root.TryGetProperty("valid", out var v) && !v.GetBoolean())
+        {
+            var message = ReadString(root, "error");
+            return new ServiceKeyValidationOutcome.Failure(
+                new ServiceKeyValidationFailure(ValidationFailureCode.INVALID_KEY, message, httpStatus));
+        }
+
         var roles = root.TryGetProperty("roles", out var r) ? r.EnumerateArray().Select(x => x.GetString() ?? "").ToList() : new List<string>();
         Guid? serviceKeyId = null;
         if (root.TryGetProperty("serviceKeyId", out var sk) && sk.ValueKind == JsonValueKind.String &&
             Guid.TryParse(sk.GetString(), out var skGuid))
             serviceKeyId = skGuid;
-        return new ServiceKeyValidationResult(
+
+        var result = new ServiceKeyValidationResult(
             root.TryGetProperty("userId", out var uid) ? uid.GetString() : null,
             root.TryGetProperty("serviceId", out var sid) ? sid.GetString() : serviceId,
-            root.TryGetProperty("plan", out var p) ? p.GetString() : null,
+            ReadString(root, "serviceProductId"),
             roles,
-            root.TryGetProperty("quotaRemaining", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetDecimal() : (decimal?)null,
-            root.TryGetProperty("subscriptionActive", out var sa) && sa.GetBoolean(),
-            root.TryGetProperty("billingModelType", out var bm) && bm.ValueKind == JsonValueKind.String ? bm.GetString() : null,
-            root.TryGetProperty("measurementType", out var mt) && mt.ValueKind == JsonValueKind.String ? mt.GetString() : null,
-            root.TryGetProperty("unitLabel", out var ul) && ul.ValueKind == JsonValueKind.String ? ul.GetString() : null,
+            ReadString(root, "subscriptionStatus"),
+            root.TryGetProperty("validationSchemaVersion", out var vsv) && vsv.TryGetInt32(out var vv) ? vv : null,
+            ReadString(root, "billingModelType"),
+            ReadString(root, "measurementType"),
+            ReadString(root, "unitLabel"),
             serviceKeyId
         );
+        return new ServiceKeyValidationOutcome.Success(result);
+    }
+
+    /// <summary>Validate against an explicit Core service base (include path prefix, e.g. custom or local stack).</summary>
+    public static async Task<ServiceKeyValidationResult?> ValidateServiceKeyAsync(HttpClient http, string coreServiceUrl,
+        string serviceKey, string? serviceId, string serviceSecret, CancellationToken ct = default)
+    {
+        var outcome = await ValidateServiceKeyWithOutcomeAsync(http, coreServiceUrl, serviceKey, serviceId, serviceSecret, ct);
+        return outcome is ServiceKeyValidationOutcome.Success s ? s.Result : null;
     }
 
     /// <summary>Estimate usage using the SDK default Core root (same as <see cref="TollaraClient"/>).</summary>
@@ -102,26 +193,7 @@ public static class ValidationClient
         var timestamp = res.Headers.TryGetValues(TollaraHeaders.Timestamp, out var ts) ? string.Join("", ts) : null;
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(timestamp)) return null;
         if (!Hmac.ValidateHmacWithTimestamp(signature, responseText, timestamp, serviceSecret)) return null;
-        using var doc = JsonDocument.Parse(responseText);
-        var root = doc.RootElement;
-        JsonElement? breakdown = null;
-        if (root.TryGetProperty("breakdown", out var br) && br.ValueKind == JsonValueKind.Object)
-            breakdown = br.Clone();
-        return new UsageEstimateResult(
-            root.TryGetProperty("sufficientCredits", out var sc) && sc.GetBoolean(),
-            root.TryGetProperty("wouldExceedCap", out var wec) && wec.GetBoolean(),
-            root.TryGetProperty("wouldAllow", out var wa) && wa.GetBoolean(),
-            ReadDecimal(root, "estimatedCost"),
-            ReadDecimal(root, "remainingCredits"),
-            ReadDecimal(root, "remainingSpendingCap"),
-            ReadString(root, "billingModelType"),
-            ReadString(root, "measurementType"),
-            ReadString(root, "unitLabel"),
-            breakdown,
-            root.TryGetProperty("estimateSchemaVersion", out var esv) && esv.TryGetInt32(out var ev) ? ev : 0,
-            root.TryGetProperty("timestamp", out var tsv) && tsv.TryGetInt64(out var tl) ? tl : 0L,
-            code
-        );
+        return ParseEstimateResult(responseText, code);
     }
 
     /// <summary>Core JWT usage estimate (§2.2). Response is not HMAC-signed.</summary>
@@ -147,26 +219,49 @@ public static class ValidationClient
             code != (int)HttpStatusCode.TooManyRequests) return null;
         var responseText = await res.Content.ReadAsStringAsync(ct);
         if (string.IsNullOrWhiteSpace(responseText)) return null;
+        return ParseEstimateResult(responseText, code);
+    }
+
+    private static UsageEstimateResult? ParseEstimateResult(string responseText, int httpStatus)
+    {
         using var doc = JsonDocument.Parse(responseText);
         var root = doc.RootElement;
-        JsonElement? breakdown = null;
+        UsageBreakdown? breakdown = null;
         if (root.TryGetProperty("breakdown", out var br) && br.ValueKind == JsonValueKind.Object)
-            breakdown = br.Clone();
+            breakdown = JsonSerializer.Deserialize<UsageBreakdown>(br.GetRawText(), JsonOptions);
         return new UsageEstimateResult(
             root.TryGetProperty("sufficientCredits", out var sc) && sc.GetBoolean(),
             root.TryGetProperty("wouldExceedCap", out var wec) && wec.GetBoolean(),
             root.TryGetProperty("wouldAllow", out var wa) && wa.GetBoolean(),
             ReadDecimal(root, "estimatedCost"),
-            ReadDecimal(root, "remainingCredits"),
-            ReadDecimal(root, "remainingSpendingCap"),
             ReadString(root, "billingModelType"),
             ReadString(root, "measurementType"),
             ReadString(root, "unitLabel"),
             breakdown,
             root.TryGetProperty("estimateSchemaVersion", out var esv) && esv.TryGetInt32(out var ev) ? ev : 0,
             root.TryGetProperty("timestamp", out var tsv) && tsv.TryGetInt64(out var tl) ? tl : 0L,
-            code
+            httpStatus
         );
+    }
+
+    private static ServiceKeyValidationFailure? TryInvalidKeyFromUnsignedErrorBody(string responseText, int httpStatus)
+    {
+        if (httpStatus is not (401 or 403)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(responseText);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("valid", out var valid) && valid.ValueKind == JsonValueKind.False)
+            {
+                var message = ReadString(root, "error");
+                return new ServiceKeyValidationFailure(ValidationFailureCode.INVALID_KEY, message, httpStatus);
+            }
+        }
+        catch (JsonException)
+        {
+            // not JSON
+        }
+        return null;
     }
 
     private static decimal? ReadDecimal(JsonElement root, string name)
@@ -184,7 +279,9 @@ public static class ValidationClient
     }
 
     private static string DefaultCoreServiceRoot() =>
-        JoinBaseAndPrefix(TollaraClient.DefaultApiUrl, TollaraClient.DefaultCorePathPrefix);
+        JoinBaseAndPrefix(
+            TollaraClient.DefaultApiUrl,
+            PathPrefixes.ResolveCorePathPrefix(TollaraClient.DefaultApiUrl, null));
 
     private static string JoinBaseAndPrefix(string baseUrl, string pathPrefix)
     {
