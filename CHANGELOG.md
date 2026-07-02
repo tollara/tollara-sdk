@@ -1,5 +1,14 @@
 # Changelog
 
+## `n8n-nodes-tollara` 0.0.3
+
+- Public README: backend vs subscriber node grouping; simplified production API guidance.
+- Example workflow links point to GitHub (workflows are not in the npm tarball).
+- Maintainer docs moved to `LOCAL-DEVELOPMENT.md`.
+- Depends on `@tollara/service-sdk` `^0.0.2` from npm (no `file:../sdk-js`).
+
+---
+
 ## npm `@tollara/service-sdk` / `n8n-nodes-tollara` 0.0.2
 
 Independent npm semver (not tied to HMAC `validationSchemaVersion` or `estimateSchemaVersion`).

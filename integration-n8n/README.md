@@ -1,126 +1,83 @@
 # n8n Community Nodes – Tollara
 
-n8n nodes for Tollara: verify inbound HMAC from the n8n Webhook node, gateway invoke, async job polling, progress/complete, validate service key, report usage, and estimate usage.
+n8n nodes for [Tollara](https://tollara.ai): verify inbound gateway traffic, invoke listed services, poll async jobs, and report usage.
 
-**Package:** `n8n-nodes-tollara`
+**Package:** [`n8n-nodes-tollara`](https://www.npmjs.com/package/n8n-nodes-tollara) (uses [`@tollara/service-sdk`](https://www.npmjs.com/package/@tollara/service-sdk))
 
 ## Install in n8n
 
-1. Install this package: `cd integration-n8n && npm install && npm run build`
-2. In n8n: Settings → Community Nodes → Install `n8n-nodes-tollara` (or install from local path).
+Self-hosted n8n only (Community Nodes must be enabled). n8n Cloud may block unverified community packages.
 
-The `@tollara/service-sdk` dependency is installed from npm automatically.
+1. Open **Settings → Community Nodes**.
+2. Install **`n8n-nodes-tollara`**.
+3. Search the node picker for **Tollara**.
+
+No separate n8n credential is required — set **Service Secret** (and other fields) on each node.
 
 ## Nodes
 
-- **Tollara Verify Request** (v4) – **Allowed** / **Denied**. Throws on missing **Service Secret**. Denied items include `tollaraErrorCode`, `tollaraErrorMessage`, and `tollaraHttpStatus` (401 or 403).
-- **Tollara Invoke** – Invoke a service endpoint (sync or async). Emits `tollaraOk`, `statusCode`, and parsed `data`. Branch on `tollaraOk` for subscriber error paths.
-- **Tollara Job Status** – Poll async job status by request ID.
-- **Tollara Job Result** – Fetch async job result by request ID.
-- **Tollara Progress** – Send a progress update (use the `progressUrl` from an async invoke response).
-- **Tollara Complete** – Send completion (use the `callbackUrl` from an async invoke response).
-- **Tollara Validate Key** (v4) – **Allowed** / **Denied** / **Error**. **Throws** on static misconfig (missing **Service Secret**, or **Set API Endpoints** without **Core API URL**). **Denied** = caller fault (bad key, no access). **Error** = runtime seller/infra (Core down, wrong service secret on request) — wire to Respond 503. Failure items include `tollaraHttpStatus`.
-- **Tollara Report Usage** – Report usage units for a user and service.
-- **Tollara Estimate Usage** – Estimate usage cost and quota for a service key.
+Tollara integrations fall into two roles:
+
+- **Backend (seller)** — your n8n workflow **receives** traffic from the Tollara gateway (Webhook) or validates direct callers, then runs your logic and reports usage or async progress.
+- **Subscriber (buyer)** — your workflow **calls** another party’s listed service via the gateway (invoke, estimate, poll async jobs).
+
+### Backend nodes
+
+Use these when n8n is the **service backend** (proxied webhook or non-proxied API).
+
+| Node | Purpose |
+|------|---------|
+| **Tollara Verify Request** (v4) | After a Webhook node: verify gateway HMAC and subscription access. Outputs **Allowed** or **Denied** (`tollaraErrorCode`, `tollaraHttpStatus`). Enable **Raw Body** on the Webhook. |
+| **Tollara Validate Key** (v4) | Validate a caller’s service key (typical non-proxied pattern). **Allowed** / **Denied** / **Error** (503 for seller misconfig or Core unavailable). |
+| **Tollara Progress** | Send async job progress to the `progressUrl` from the gateway invoke response. |
+| **Tollara Complete** | Send async completion to the `callbackUrl` from the gateway invoke response. |
+| **Tollara Report Usage** | Report billable units to the Usage API (non-proxied backends). |
+
+**Typical proxied async backend:** Webhook → **Verify Request** → [your logic] → **Progress** → [your logic] → **Complete**
+
+### Subscriber nodes
+
+Use these when n8n **consumes** a Tollara listing (you hold a service key for that product).
+
+| Node | Purpose |
+|------|---------|
+| **Tollara Invoke** | Call a listed endpoint (sync or async). Emits `tollaraOk`, `statusCode`, parsed `data`, and async `requestId` / URLs when applicable. |
+| **Tollara Estimate Usage** | Pre-flight quota/cost check before invoke. Branch on `wouldAllow`. |
+| **Tollara Job Status** | Poll async job status by `requestId`. |
+| **Tollara Job Result** | Fetch async job result by `requestId`. |
+
+**Typical async subscriber:** **Invoke** (async) → **Job Status** → **Job Result**
+
+Set **Service Key**, **Service ID**, and **Endpoint ID** on Invoke (from the listing in the Tollara app). Job Status/Result only need the service key and request ID.
 
 ## Example workflows
 
-Import-ready demo workflows live in [`example-workflows/`](example-workflows/README.md):
+Demo workflow JSON files are in the GitHub repo (not shipped in the npm package):
 
-| Workflow | Mode |
+**[integration-n8n/example-workflows](https://github.com/maffers001/tollara-sdk/tree/master/integration-n8n/example-workflows)**
+
+Import via n8n **Workflow menu → Import from File**. Replace `YOUR_SERVICE_SECRET`, `YOUR_SERVICE_KEY`, and other placeholders before activating.
+
+| Workflow | Role |
 |----------|------|
-| `backend-url-metadata-sync.json` | Proxied sync backend (optional n8n seller demo) |
-| `backend-topic-brief-async.json` | Proxied async backend (optional n8n seller demo) |
-| `backend-echo-non-proxied.json` | Non-proxied backend (optional n8n seller demo) |
-| `subscriber-proxied-sync-agent.json` | Subscriber — proxied sync agent (`agents/proxied-agent`) |
-| `subscriber-proxied-sync-agent-estimate.json` | Subscriber — estimate + proxied sync agent |
-| `subscriber-proxied-async-agent.json` | Subscriber — proxied async agent + poll |
-| `subscriber-non-proxied-sync-agent.json` | Subscriber — direct non-proxied agent |
+| `backend-url-metadata-sync.json` | Backend — proxied sync |
+| `backend-topic-brief-async.json` | Backend — proxied async |
+| `backend-echo-non-proxied.json` | Backend — non-proxied |
+| `subscriber-proxied-sync-agent.json` | Subscriber — proxied sync |
+| `subscriber-proxied-sync-agent-estimate.json` | Subscriber — estimate + invoke |
+| `subscriber-proxied-async-agent.json` | Subscriber — async + poll |
+| `subscriber-non-proxied-sync-agent.json` | Subscriber — direct HTTP (no gateway invoke) |
 
-**Caller async:** Tollara Invoke (async) → Tollara Job Status → Tollara Job Result
+Point your listing **realUrl** (backend) or subscriber **Set Config** values at your n8n or agent URLs as described in each workflow’s sticky notes and the [example-workflows README](https://github.com/tollara/tollara-sdk/blob/master/integration-n8n/example-workflows/README.md).
 
-**Backend async:** Webhook → Tollara Verify Request → [your logic] → Tollara Progress → Tollara Complete
+## API endpoints
 
-Enable **Raw Body** on the Webhook node for reliable HMAC verification. Point your Tollara service at the Webhook production URL.
+**Production:** leave **Set API Endpoints** disabled on each node.
 
-## API endpoints (optional)
+**Non-production / custom hosts:** enable **Set API Endpoints** on nodes that call Tollara APIs and set the gateway, core, and usage base URLs for your environment.
 
-**Production:** leave **Set API Endpoints** disabled on each node. The SDK uses `https://api.tollara.ai` with **ECS path prefixes** automatically (`/gateway/api/v1`, `/core/api/v1`, `/usage/api/v1`). No n8n credential is required.
+Set **Service Secret** and **Service ID** on each node where those fields appear.
 
-**Custom / local dev:** on nodes that call Tollara APIs, enable **Set API Endpoints** and set service **origins** only (e.g. `http://host.docker.internal:8083`) — the SDK adds Docker path prefixes (`/api`, `/api/v1`, `/api/usage`).
+## Developing this package
 
-Set **Service Secret** and **Service ID** on each Tollara node (required where those fields appear).
-
-## Build
-
-```bash
-npm install
-npm run build
-```
-
-## Local testing (Docker)
-
-Self-hosted n8n can install unverified community nodes from npm (unlike n8n Cloud).
-
-**Local dev (no npm publish):** the Docker setup bind-mounts your built `integration-n8n` folder and `sdk-js` (for the `file:../sdk-js` dependency). One command builds everything and redeploys n8n:
-
-```powershell
-cd integration-n8n
-.\deploy-local.ps1
-```
-
-Or:
-
-```powershell
-cd integration-n8n
-npm run deploy:local
-```
-
-Options: `-RunTests` (run unit tests before deploy), `-SkipPull` (skip `docker compose pull`).
-
-The same script is also available as `docker\start.ps1` for backward compatibility.
-
-Open **http://localhost:5678**, create an owner account, then add nodes — search **Tollara**.
-
-Workflow data persists in the `n8n_data` Docker volume. The Tollara package is loaded from your repo via bind mount, not from npm.
-
-Stop: `docker compose down` (from the `docker` folder).
-
-### Local fixture from e2e setup (agent-hub)
-
-After running `agent-hub` `:e2e-tests-java:n8nIntegrationSetup -PrunE2eTests`:
-
-```powershell
-cd integration-n8n
-npm run apply:local-fixture -- --fixture ..\agent-hub\e2e-tests-java\build\n8n-integration\local-fixture.json
-```
-
-Import workflows from **`example-workflows/local/`** instead of the generic `example-workflows/` copies. Set `N8N_LOCAL_FIXTURE_PATH` to skip `--fixture`.
-
-### Troubleshooting: broken Tollara nodes after import
-
-If Tollara nodes appear in the node picker but imported workflows show **“Install this node to use it”**:
-
-1. Run **`.\deploy-local.ps1`** (not just `npm run build`) — this rebuilds, restarts n8n, and syncs the community-node registry.
-2. **Delete** the broken workflow and **import again** from `example-workflows/`. n8n strips node parameters when the package failed to load on the first import.
-3. Replace **`YOUR_SERVICE_SECRET`** (and **`YOUR_SERVICE_ID`** on Validate Key) on each Tollara node. Enable **Set API Endpoints** only if you use custom API URLs.
-
-Cause: the package must expose a root **`index.js`** (referenced by `package.json` `"main"`). Without it, n8n lists nodes in Settings but does not load them at runtime.
-
-### Troubleshooting: red exclamation on Tollara nodes
-
-Tollara nodes do **not** use n8n credentials (v0.0.16+). If you still see **Set Credential**, **Unnamed credential**, or a warning until you create a credential, your workflow has stale data from an older package version.
-
-**Fix:**
-
-1. Run **`.\deploy-local.ps1`** to load **v0.0.16+**
-2. **Delete** the workflow and re-import from `example-workflows/` (do not import over an existing copy)
-3. Set **Service Secret** on each Tollara node
-4. You can **delete** any old **Tollara Environment** credentials from Settings → Credentials — they are no longer used
-5. Hard-refresh the browser (Ctrl+F5)
-
-If only one node is affected: delete it on the canvas, drag a fresh Tollara node from the picker, reconnect wires, and paste parameters back.
-
-If one node is still broken after that: delete it on the canvas, drag a fresh **Tollara …** node from the node picker (same name), reconnect wires, and paste parameters from the example JSON.
-
-You do **not** need to delete the Docker image. Only reset the `n8n_data` volume if you want a completely fresh n8n instance (that wipes users and all workflows).
+Maintainers: build, test, Docker-based local n8n, and e2e fixture workflows are documented in [LOCAL-DEVELOPMENT.md](LOCAL-DEVELOPMENT.md).

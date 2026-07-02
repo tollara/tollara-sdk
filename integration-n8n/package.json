@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-tollara",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "n8n community nodes for Tollara: Verify Request, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
   "keywords": [
     "n8n-community-node-package",
@@ -51,7 +51,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@tollara/service-sdk": "file:../sdk-js"
+    "@tollara/service-sdk": "^0.0.2"
   },
   "peerDependencies": {
     "n8n-workflow": "*"
