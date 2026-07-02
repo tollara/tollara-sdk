@@ -20,7 +20,7 @@ This document specifies the exact HTTP APIs that the Tollara SDK calls. Base URL
 
 Full URL = `{baseUrl}{pathPrefix}{path}`. Example: Core validate = `{coreBaseUrl}/api/v1/service-keys/validate` (default) or `{coreBaseUrl}/core/api/v1/service-keys/validate` (ECS).
 
-**Hosted API auto-prefix (sdk-js 3.0+, all SDKs):** When the API origin is `api.tollara.ai`, `api.ppe.tollara.ai`, or branded `*.api.tollara.ai`, SDKs use ECS path prefixes automatically unless explicit `*PathPrefix` overrides are set. Local Docker origins (`localhost`, `host.docker.internal`, etc.) keep default `/api`, `/api/v1`, `/api/usage`.
+**Hosted API auto-prefix (sdk-js 0.0.2+, all SDKs):** When the API origin is `api.tollara.ai`, `api.ppe.tollara.ai`, or branded `*.api.tollara.ai`, SDKs use ECS path prefixes automatically unless explicit `*PathPrefix` overrides are set. Local Docker origins (`localhost`, `host.docker.internal`, etc.) keep default `/api`, `/api/v1`, `/api/usage`.
 
 **Docker / no servlet context-path:** Some core deployments use `context-path: /`. In that case paths are still exposed as `/api/v1/service-keys/validate`, `/api/v1/service-keys/estimate-usage`, etc. (single segment after the host:port base URL). Do not duplicate `/api/v1` if your configured `coreBaseUrl` already ends with it.
 
