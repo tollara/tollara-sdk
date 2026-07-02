@@ -1,6 +1,6 @@
 # Tollara SDK (JavaScript/TypeScript)
 
-**Package:** `@tollara/service-sdk` (version **3.0.0** in this repo)
+**Package:** `@tollara/service-sdk` (version **0.0.2** in this repo)
 
 Verify inbound HMAC, validate **service keys**, run usage pre-flight (service-key **and** JWT paths), **gateway invoke** (sync/async), report usage, progress, completion, and poll async job status.
 

@@ -2,7 +2,7 @@
 
 Import via n8n: **Workflow menu → Import from File**.
 
-Requires **`n8n-nodes-tollara@3.3.1+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
+Requires **`n8n-nodes-tollara@0.0.2+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
 
 ## Local fixture (after e2e setup)
 

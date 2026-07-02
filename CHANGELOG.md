@@ -1,6 +1,23 @@
 # Changelog
 
-## 3.0.0 — Validation HMAC v3 + unified usage responses (breaking)
+## npm `@tollara/service-sdk` / `n8n-nodes-tollara` 0.0.2
+
+Independent npm semver (not tied to HMAC `validationSchemaVersion` or `estimateSchemaVersion`).
+
+### `@tollara/service-sdk` 0.0.2
+
+- `validateServiceKeyWithOutcome` with canonical failure codes (§2.1.1).
+- Hosted API auto-prefix for `api.tollara.ai`, PPE, and branded `*.api.tollara.ai` (ECS `/gateway/api/v1`, `/core/api/v1`, `/usage/api/v1`).
+- `INVALID_KEY` mapping for unsigned 401/403 validate responses.
+
+### `n8n-nodes-tollara` 0.0.2
+
+- Auth nodes (Allowed / Denied outputs), structured `tollaraOk` on invoke/estimate/job nodes.
+- Example workflows with explicit error paths; local fixture templating (`apply:local-fixture`).
+
+---
+
+## Platform contract 3.0.0 — Validation HMAC v3 + unified usage responses (breaking)
 
 Coordinated breaking release with platform (core, gateway, usage).
 
