@@ -2,9 +2,9 @@
 
 ## `n8n-nodes-tollara` 0.0.3
 
-- Public README: backend vs subscriber node grouping; simplified production API guidance.
-- Example workflow links point to GitHub (workflows are not in the npm tarball).
-- Maintainer docs moved to `LOCAL-DEVELOPMENT.md`.
+- Bundle `example-workflows/*.json` and `example-workflows/README.md` in the npm tarball.
+- README: backend vs subscriber node grouping; import paths under `node_modules/n8n-nodes-tollara/example-workflows/`; simplified production API guidance.
+- Maintainer docs in `LOCAL-DEVELOPMENT.md`.
 - Depends on `@tollara/service-sdk` `^0.0.2` from npm (no `file:../sdk-js`).
 
 ---

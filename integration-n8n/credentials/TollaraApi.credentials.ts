@@ -10,7 +10,7 @@ export class TollaraApi implements ICredentialType {
 
   displayName = 'Tollara Environment';
 
-  documentationUrl = 'https://github.com/tollara/tollara-sdk';
+  documentationUrl = 'https://www.npmjs.com/package/n8n-nodes-tollara';
 
   properties: INodeProperties[] = [
     {

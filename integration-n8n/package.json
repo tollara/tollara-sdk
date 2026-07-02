@@ -25,7 +25,9 @@
   },
   "files": [
     "dist",
-    "index.js"
+    "index.js",
+    "example-workflows/*.json",
+    "example-workflows/README.md"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
