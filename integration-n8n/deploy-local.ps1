@@ -1,4 +1,4 @@
-# Build sdk-js + integration-n8n and deploy to local n8n Docker (one command).
+# Build integration-n8n and deploy to local n8n Docker (one command).
 #
 # Usage (from integration-n8n):
 #   .\deploy-local.ps1
@@ -17,7 +17,6 @@ $ErrorActionPreference = 'Stop'
 
 $integrationRoot = $PSScriptRoot
 $dockerRoot = Join-Path $integrationRoot 'docker'
-$sdkRoot = Join-Path (Join-Path $integrationRoot '..') 'sdk-js'
 $containerName = 'tollara-n8n-dev'
 
 function Invoke-NpmStep {
@@ -60,11 +59,7 @@ function Wait-ContainerRunning {
 
 Write-Host "Tollara n8n local deploy"
 Write-Host "  integration-n8n: $integrationRoot"
-Write-Host "  sdk-js:          $sdkRoot"
 Write-Host "  docker:          $dockerRoot"
-
-Invoke-NpmStep -Label 'Installing @tollara/service-sdk dependencies' -WorkingDirectory $sdkRoot -Arguments @('install', '--no-fund', '--no-audit')
-Invoke-NpmStep -Label 'Building @tollara/service-sdk' -WorkingDirectory $sdkRoot -Arguments @('run', 'build')
 
 Invoke-NpmStep -Label 'Installing n8n-nodes-tollara dependencies' -WorkingDirectory $integrationRoot -Arguments @('install', '--no-fund', '--no-audit')
 Invoke-NpmStep -Label 'Building n8n-nodes-tollara' -WorkingDirectory $integrationRoot -Arguments @('run', 'build')
@@ -132,7 +127,7 @@ Write-Host ""
 Write-Host '==> Verifying community package loads in container'
 docker exec $containerName node /home/node/.n8n/nodes/node_modules/n8n-nodes-tollara/scripts/verify-package-load.mjs
 if ($LASTEXITCODE -ne 0) {
-    throw 'Community package verification failed — check index.js, dist/, and @tollara/service-sdk mount'
+    throw 'Community package verification failed — check index.js, dist/, and @tollara/service-sdk dependency'
 }
 
 Write-Host ""

@@ -2,7 +2,9 @@
 
 Import via n8n: **Workflow menu → Import from File**.
 
-Requires **`n8n-nodes-tollara@0.0.2+`** installed. Use **`npm run deploy:local`** from `integration-n8n` (build + restart n8n + registry sync). **`npm run build` alone is not enough.**
+Requires **`n8n-nodes-tollara@0.0.3+`** installed via n8n Community Nodes.
+
+For **local Docker** development (bind-mount, fixture templating, `deploy:local`), see [../LOCAL-DEVELOPMENT.md](../LOCAL-DEVELOPMENT.md).
 
 ## Local fixture (after e2e setup)
 
@@ -15,7 +17,7 @@ Requires **`n8n-nodes-tollara@0.0.2+`** installed. Use **`npm run deploy:local`*
 
 The committed files in this directory keep `YOUR_*` placeholders for production/generic use.
 
-## Error paths (v3.3.0+)
+## Error paths (0.0.3+)
 
 Backend webhooks: **Denied** / **Error** items include `tollaraHttpStatus` (401 / 403 / 503) for **Respond to Webhook**. Subscriber workflows branch on `tollaraOk` / `wouldAllow` → **Format Error**.
 
