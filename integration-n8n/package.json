@@ -36,6 +36,7 @@
     "prepublishOnly": "n8n-node prerelease",
     "apply:local-fixture": "node scripts/apply-local-fixture.mjs",
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./deploy-local.ps1",
+    "deploy:npm": "powershell -ExecutionPolicy Bypass -File ./deploy-npm.ps1",
     "repair:workflows": "powershell -ExecutionPolicy Bypass -File ./docker/strip-stale-credentials.ps1"
   },
   "files": [
