@@ -72,6 +72,9 @@
   "peerDependencies": {
     "n8n-workflow": "*"
   },
+  "publishConfig": {
+    "provenance": true
+  },
   "release-it": {
     "git": {
       "tagName": "n8n-nodes-tollara-v${version}",

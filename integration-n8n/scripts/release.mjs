@@ -12,7 +12,14 @@ function run(cmd, args, env = {}) {
     shell: process.platform === 'win32',
     env: { ...process.env, ...env },
   });
-  process.exit(result.status ?? 1);
+  return result.status ?? 1;
+}
+
+function runOrExit(cmd, args, env = {}) {
+  const code = run(cmd, args, env);
+  if (code !== 0) {
+    process.exit(code);
+  }
 }
 
 function detectPackageManager() {
@@ -25,12 +32,13 @@ const pm = detectPackageManager();
 const publishFromLocal = process.argv.includes('--publish');
 
 if (process.env.GITHUB_ACTIONS) {
-  run(pm, ['run', 'lint']);
-  run(pm, ['run', 'build']);
-  run('npm', ['publish'], {
+  runOrExit(pm, ['run', 'lint']);
+  runOrExit(pm, ['run', 'build']);
+  runOrExit('npm', ['publish'], {
     RELEASE_MODE: 'true',
     NPM_CONFIG_PROVENANCE: 'true',
   });
+  process.exit(0);
 }
 
 if (publishFromLocal) {
@@ -55,4 +63,4 @@ if (!process.env.GITHUB_TOKEN && !process.env.GH_TOKEN) {
   releaseItArgs.push('--github.release=false');
 }
 
-run(pm, releaseItArgs, { RELEASE_MODE: 'true' });
+runOrExit(pm, releaseItArgs, { RELEASE_MODE: 'true' });
