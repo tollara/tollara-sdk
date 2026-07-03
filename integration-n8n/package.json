@@ -19,7 +19,7 @@
     "directory": "integration-n8n"
   },
   "engines": {
-    "node": ">=20.15.0"
+    "node": ">=22.0.0"
   },
   "main": "index.js",
   "scripts": {
