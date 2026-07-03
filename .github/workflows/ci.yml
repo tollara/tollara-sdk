@@ -38,6 +38,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: integration-openclaw/package-lock.json
       - run: cd sdk-js && npm ci && npm run build
       - run: cd integration-openclaw && npm ci && npm run build
 
