@@ -1,17 +1,26 @@
 {
   "name": "n8n-nodes-tollara",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "n8n community nodes for Tollara: Verify Request, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
-  "keywords": ["n8n-community-node-package", "n8n", "tollara"],
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "tollara"
+  ],
   "license": "MIT",
   "homepage": "https://github.com/tollara/tollara-sdk/tree/master/integration-n8n",
-  "author": { "name": "Tollara", "email": "engineering@tollara.ai" },
+  "author": {
+    "name": "Tollara",
+    "email": "engineering@tollara.ai"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/tollara/tollara-sdk.git",
     "directory": "integration-n8n"
   },
-  "engines": { "node": ">=20.15.0" },
+  "engines": {
+    "node": ">=20.15.0"
+  },
   "main": "index.js",
   "scripts": {
     "build": "node scripts/clean-dist.mjs && tsc && node scripts/bundle-sdk.mjs && node scripts/copy-icons.mjs",
@@ -60,7 +69,9 @@
     "release-it": "^20.0.0",
     "typescript": "^5.3.3"
   },
-  "peerDependencies": { "n8n-workflow": "*" },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
   "release-it": {
     "git": {
       "tagName": "n8n-nodes-tollara-v${version}",
