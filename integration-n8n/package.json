@@ -101,7 +101,7 @@
       "publish": false
     },
     "hooks": {
-      "before:init": "npm run lint && npm run build",
+      "before:init": "npm run build && npm run lint",
       "after:bump": "npx auto-changelog -p"
     }
   }

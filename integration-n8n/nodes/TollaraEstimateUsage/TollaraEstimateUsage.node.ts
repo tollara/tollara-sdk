@@ -2,7 +2,7 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 import { estimateUsage } from '../../lib/tollaraSdk';
 import { getTollaraApiCredential, optionalServiceId, requireCoreApiUrlWhenEndpointsEnabled, resolveCoreApiUrl, resolveServiceKey, resolveServiceSecret, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
-import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
+import { TOLLARA_DOCUMENTATION_URL } from '../../lib/tollaraConstants';
 
 export class TollaraEstimateUsage implements INodeType {
   description: INodeTypeDescription = {
@@ -15,7 +15,13 @@ export class TollaraEstimateUsage implements INodeType {
     description: 'Estimate usage cost and quota for a service key',
     documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Estimate Usage' },
-    credentials: [tollaraOptionalCredential],
+    credentials: [
+      {
+        name: 'tollaraApi',
+        required: false,
+        testedBy: 'tollaraValidateKey',
+      },
+    ],
     inputs: ['main'],
     outputs: ['main'],
     properties: [

@@ -2,7 +2,7 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 import { validateServiceKeyWithOutcome } from '../../lib/tollaraSdk';
 import { optionalServiceId, getTollaraApiCredential, requireCoreApiUrlWhenEndpointsEnabled, resolveCoreApiUrl, resolveServiceSecret, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
-import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
+import { TOLLARA_DOCUMENTATION_URL } from '../../lib/tollaraConstants';
 import { bearerTokenFromWebhookItem } from '../../lib/webhookPayload';
 import {
   accessDeniedItem,
@@ -26,7 +26,13 @@ export class TollaraValidateKey implements INodeType {
       'Validate a service key (typical after Webhook). Allowed = key valid and subscription grants access; Denied = caller auth failure; Error = runtime validation failure (respond 503).',
     documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Validate Key' },
-    credentials: [tollaraOptionalCredential],
+    credentials: [
+      {
+        name: 'tollaraApi',
+        required: false,
+        testedBy: 'tollaraValidateKey',
+      },
+    ],
     inputs: ['main'],
     outputs: ['main', 'main', 'main'],
     outputNames: ['Allowed', 'Denied', 'Error'],

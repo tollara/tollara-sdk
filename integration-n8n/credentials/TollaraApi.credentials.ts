@@ -1,12 +1,13 @@
 import type { ICredentialType, INodeProperties } from 'n8n-workflow';
-import { TOLLARA_DOCUMENTATION_URL } from '../lib/tollaraConstants';
 
 export class TollaraApi implements ICredentialType {
   name = 'tollaraApi';
 
   displayName = 'Tollara API';
 
-  documentationUrl = TOLLARA_DOCUMENTATION_URL;
+  documentationUrl = 'https://github.com/tollara/tollara-sdk/tree/master/integration-n8n';
+
+  icon = 'file:tollara.svg' as const;
 
   properties: INodeProperties[] = [
     {

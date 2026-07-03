@@ -6,7 +6,7 @@ import { requireUsageApiUrlWhenEndpointsEnabled, resolveServiceSecret, resolveUs
 
 import { serviceSecretNodeProperty, tollaraUsageEndpointProperties } from '../../lib/nodeProperties';
 
-import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
+import { TOLLARA_DOCUMENTATION_URL } from '../../lib/tollaraConstants';
 
 import { passthroughItemWithJson } from '../../lib/passthroughItem';
 
@@ -35,7 +35,13 @@ export class TollaraProgress implements INodeType {
 
     defaults: { name: 'Tollara Progress' },
 
-    credentials: [tollaraOptionalCredential],
+    credentials: [
+      {
+        name: 'tollaraApi',
+        required: false,
+        testedBy: 'tollaraValidateKey',
+      },
+    ],
 
     inputs: ['main'],
 

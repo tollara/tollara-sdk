@@ -2,7 +2,7 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 import { reportUsage } from '../../lib/tollaraSdk';
 import { requireServiceId, requireUsageApiUrlWhenEndpointsEnabled, resolveServiceSecret, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { serviceIdNodeProperty, serviceSecretNodeProperty, tollaraUsageEndpointProperties } from '../../lib/nodeProperties';
-import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
+import { TOLLARA_DOCUMENTATION_URL } from '../../lib/tollaraConstants';
 
 export class TollaraReportUsage implements INodeType {
   description: INodeTypeDescription = {
@@ -15,7 +15,13 @@ export class TollaraReportUsage implements INodeType {
     description: 'Report usage units for a user and service',
     documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Report Usage' },
-    credentials: [tollaraOptionalCredential],
+    credentials: [
+      {
+        name: 'tollaraApi',
+        required: false,
+        testedBy: 'tollaraValidateKey',
+      },
+    ],
     inputs: ['main'],
     outputs: ['main'],
     properties: [

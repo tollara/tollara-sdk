@@ -16,6 +16,11 @@ if (!existsSync(nodesDist)) {
   process.exit(1);
 }
 
+const credentialsDist = join(root, 'dist', 'credentials');
+if (existsSync(credentialsDist)) {
+  copyFileSync(iconSrc, join(credentialsDist, 'tollara.svg'));
+}
+
 for (const nodeDir of readdirSync(nodesDist, { withFileTypes: true })) {
   if (!nodeDir.isDirectory()) continue;
   const destDir = join(nodesDist, nodeDir.name);

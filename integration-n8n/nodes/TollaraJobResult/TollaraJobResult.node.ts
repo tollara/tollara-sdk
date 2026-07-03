@@ -2,7 +2,7 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 import { getRequestResult } from '../../lib/tollaraSdk';
 import { resolveGatewayApiUrl, requireGatewayApiUrlWhenEndpointsEnabled, resolveServiceKey, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { tollaraGatewayEndpointProperties } from '../../lib/nodeProperties';
-import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
+import { TOLLARA_DOCUMENTATION_URL } from '../../lib/tollaraConstants';
 import { parseJsonBody } from '../../lib/parseJsonBody';
 
 export class TollaraJobResult implements INodeType {
@@ -16,7 +16,13 @@ export class TollaraJobResult implements INodeType {
     description: 'Fetch async job result for a Tollara invoke request',
     documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Job Result' },
-    credentials: [tollaraOptionalCredential],
+    credentials: [
+      {
+        name: 'tollaraApi',
+        required: false,
+        testedBy: 'tollaraValidateKey',
+      },
+    ],
     inputs: ['main'],
     outputs: ['main'],
     properties: [

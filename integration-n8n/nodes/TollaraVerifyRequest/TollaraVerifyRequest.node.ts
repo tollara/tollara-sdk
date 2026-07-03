@@ -2,7 +2,7 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 import { verifySignatureFromHeaders, getUserContext } from '../../lib/tollaraSdk';
 import { resolveServiceSecret } from '../../lib/tollaraCredentials';
 import { serviceSecretNodeProperty } from '../../lib/nodeProperties';
-import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
+import { TOLLARA_DOCUMENTATION_URL } from '../../lib/tollaraConstants';
 import { headersFromWebhookItem, signedPayloadFromWebhookItem } from '../../lib/webhookPayload';
 import { passthroughItemWithJson, headerUserContextToPassthrough } from '../../lib/passthroughItem';
 import { accessDeniedItem, authFailureItem, hmacFailureFields } from '../../lib/tollaraOutcome';
@@ -19,7 +19,13 @@ export class TollaraVerifyRequest implements INodeType {
       'Verify Tollara HMAC and subscription access on Webhook output. Allowed = proceed; Denied = invalid HMAC or inactive subscription.',
     documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Verify Request' },
-    credentials: [tollaraOptionalCredential],
+    credentials: [
+      {
+        name: 'tollaraApi',
+        required: false,
+        testedBy: 'tollaraValidateKey',
+      },
+    ],
     inputs: ['main'],
     outputs: ['main', 'main'],
     outputNames: ['Allowed', 'Denied'],
