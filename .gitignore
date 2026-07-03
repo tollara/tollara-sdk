@@ -226,3 +226,5 @@ mtcode/
 
 # Local maintainer docs (kept on disk, not in repo)
 docs/
+.cursor/plans/
+docs-sdk/rename_agent_service_entities_1546cd46.plan.md

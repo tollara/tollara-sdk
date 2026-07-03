@@ -14,13 +14,13 @@ Use **`TollaraClient`** with one API origin.
 
 | Setting | Default | Notes |
 |--------|---------|--------|
-| API origin | **`https://api.tollara.ai`** (`TollaraClient.DEFAULT_API_URL`) | Override with `Builder.apiUrl(...)`, or env **`TOLLARA_API_URL`** for staging/tests — no trailing slash required |
-| Service ID | From env **`TOLLARA_SERVICE_ID`**, or `Builder.serviceId(...)` | Optional if Core can infer the service from the key |
-| Service secret | From env **`TOLLARA_SERVICE_SECRET`**, or `Builder.serviceSecret(...)` | **Required** (Usage HMAC + Core response verification) |
+| API origin | Built-in production default (`TollaraClient.DEFAULT_API_URL`) | Works out of the box — no configuration required |
+| Service ID | From env **`TOLLARA_SERVICE_ID`**, or `Builder.serviceId(...)` | Optional if the platform can infer the service from the key |
+| Service secret | From env **`TOLLARA_SERVICE_SECRET`**, or `Builder.serviceSecret(...)` | **Required** (usage HMAC + response verification) |
 
 **Progress / completion** still use the **full** `progressUrl` / `callbackUrl` strings from the gateway (including query params).
 
-**Usage report signing (Usage §3):** the JSON body includes an ISO-8601 **`timestamp`** field; **`X-Tollara-Timestamp`** is **Unix epoch seconds** (same value concatenated to the raw body string for HMAC). Progress/completion use the **timestamp from the URL** query string for signing, as returned by the platform. **Sign exactly the bytes you POST** — the usage service verifies progress/completion HMAC against the raw HTTP request body (see spec §3).
+**Usage report signing:** the JSON body includes an ISO-8601 **`timestamp`** field; **`X-Tollara-Timestamp`** is **Unix epoch seconds** (same value concatenated to the raw body string for HMAC). Progress/completion use the **timestamp from the URL** query string for signing, as returned by the platform. **Sign exactly the bytes you POST** — progress and completion HMAC is verified against the raw HTTP request body.
 
 Progress and completion return **`UsageCallbackResult`** (`success`, `httpStatus`, `httpStatusText`, `requestUrl`, optional `responseBody` / `networkError`) instead of a bare boolean.
 
@@ -30,11 +30,10 @@ Builder values win when both are set; otherwise the SDK reads:
 
 | Variable | Purpose |
 |----------|---------|
-| **`TOLLARA_API_URL`** | Optional. Overrides the default production API origin when set. |
 | **`TOLLARA_SERVICE_ID`** | Service UUID if you omit `serviceId(...)` (optional) |
 | **`TOLLARA_SERVICE_SECRET`** | Service shared secret if you omit `serviceSecret(...)` (**required** one way or the other) |
 
-In code, names are also available as `TollaraClient.ENV_API_URL`, `ENV_SERVICE_ID`, and `ENV_SERVICE_SECRET`. The default base URL is `TollaraClient.DEFAULT_API_URL`.
+In code, names are also available as `TollaraClient.ENV_SERVICE_ID` and `ENV_SERVICE_SECRET`.
 
 ## Install
 
@@ -171,8 +170,7 @@ import com.tollara.client.model.UsageReportResponse;
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
 
-// Default API origin is production; set .apiUrl(...) or TOLLARA_API_URL only to override.
-// .serviceSecret(...) (or TOLLARA_SERVICE_SECRET) is required.
+// serviceSecret (or TOLLARA_SERVICE_SECRET) is required.
 TollaraClient client = TollaraClient.builder()
     .serviceId(serviceId)
     // Shared secret: signs outbound Usage calls and verifies Core validate responses (required).

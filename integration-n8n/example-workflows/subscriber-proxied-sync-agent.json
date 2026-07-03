@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Subscriber — Proxied sync agent\n\nInvokes **proxied-agent** (`agents/proxied-agent`, Docker `:9090`) via the **gateway** — no n8n backend workflow required.\n\n**Listing endpoint:** proxied, sync, POST, `realUrl` = `http://host.docker.internal:9090/api/test/sync`, service secret = agent `AGENT_SECRET`.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `YOUR_SERVICE_ID`, `YOUR_PROXIED_SYNC_ENDPOINT_ID`.\n\n**Local Docker:** enable **Set API Endpoints** on **Tollara Invoke** → Gateway URL `http://host.docker.internal:8083`.\n\n**Prerequisites:** gateway, core, usage + `proxied-service-local` (`docker-compose.e2e-agents.yml --profile local`).",
+        "content": "## Subscriber — Proxied sync\n\nInvokes a **proxied sync** listing via Tollara.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `YOUR_SERVICE_ID`, `YOUR_PROXIED_SYNC_ENDPOINT_ID`.\n\nSet **Service Secret** on Tollara nodes (or use a **Tollara API** credential).",
         "height": 280,
         "width": 520
       },

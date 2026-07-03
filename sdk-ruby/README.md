@@ -4,15 +4,14 @@
 
 HMAC helpers, inbound verification, and a **`TollaraClient`** for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
-## Configuration (base URLs)
+## Configuration
 
-Use the Tollara API origin **`https://api.tollara.ai`** by default; set `TOLLARA_API_URL` only when you need a non-production origin.
+**`TollaraClient`** uses built-in production defaults. Set **`TOLLARA_SERVICE_ID`** and **`TOLLARA_SERVICE_SECRET`** for your service.
 
 ## Environment variables
 
-- `TOLLARA_API_URL` (optional override)
-- `TOLLARA_SERVICE_ID` (optional depending on Core)
-- `TOLLARA_SERVICE_SECRET` (required for HMAC and Core response verification)
+- `TOLLARA_SERVICE_ID` (optional depending on flow)
+- `TOLLARA_SERVICE_SECRET` (required for HMAC and response verification)
 
 ### Verify HMAC and trusted user context in one call
 

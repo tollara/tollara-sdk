@@ -1,7 +1,8 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { reportUsage } from '../../lib/tollaraSdk';
-import { requireServiceId, requireServiceSecret, requireUsageApiUrlWhenEndpointsEnabled, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { requireServiceId, requireUsageApiUrlWhenEndpointsEnabled, resolveServiceSecret, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { serviceIdNodeProperty, serviceSecretNodeProperty, tollaraUsageEndpointProperties } from '../../lib/nodeProperties';
+import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
 
 export class TollaraReportUsage implements INodeType {
   description: INodeTypeDescription = {
@@ -12,7 +13,9 @@ export class TollaraReportUsage implements INodeType {
     group: ['transform'],
     version: 1,
     description: 'Report usage units for a user and service',
+    documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Report Usage' },
+    credentials: [tollaraOptionalCredential],
     inputs: ['main'],
     outputs: ['main'],
     properties: [
@@ -26,7 +29,7 @@ export class TollaraReportUsage implements INodeType {
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
-    const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
+    const serviceSecret = await resolveServiceSecret(this, this.getNodeParameter('serviceSecret', 0) as string);
     requireUsageApiUrlWhenEndpointsEnabled(this);
     const usageApiUrl = resolveUsageApiUrl(credentialsParsed);
     const userId = this.getNodeParameter('userId', 0) as string;

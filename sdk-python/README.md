@@ -14,15 +14,15 @@ Use **`TollaraClient`** with one API **origin** (scheme + host, optional port).
 
 | Setting | Default | Notes |
 |--------|---------|--------|
-| API origin | **`https://api.tollara.ai`** (`TollaraClient.DEFAULT_API_URL`) | Override with `api_url=...`, or env **`TOLLARA_API_URL`** for staging/tests — no trailing slash required |
-| Service identity | From env **`TOLLARA_SERVICE_ID`**, or `service_id=...` | Optional if Core can infer the service from the key |
-| Service secret | From env **`TOLLARA_SERVICE_SECRET`**, or `service_secret=...` | **Required** (Usage HMAC + Core response verification) |
+| API origin | Built-in production default (`TollaraClient.DEFAULT_API_URL`) | Works out of the box — no configuration required |
+| Service identity | From env **`TOLLARA_SERVICE_ID`**, or `service_id=...` | Optional if the platform can infer the service from the key |
+| Service secret | From env **`TOLLARA_SERVICE_SECRET`**, or `service_secret=...` | **Required** (usage HMAC + response verification) |
 
 **Progress / completion** still use the **full** `progress_url` / `callback_url` strings from the gateway (including query params).
 
-**Usage report (§3):** JSON body includes an ISO-8601 **`timestamp`**; **`X-Tollara-Timestamp`** is **Unix epoch seconds** for signing. For `report_usage_at`, pass `timestamp` as epoch **seconds** (or omit for “now”); values above `1e11` are treated as milliseconds and converted.
+**Usage report:** JSON body includes an ISO-8601 **`timestamp`**; **`X-Tollara-Timestamp`** is **Unix epoch seconds** for signing. For `report_usage_at`, pass `timestamp` as epoch **seconds** (or omit for “now”); values above `1e11` are treated as milliseconds and converted.
 
-**Progress / completion:** sign exactly the bytes you POST. The usage service verifies HMAC against the **raw HTTP request body** (spec §3). Callbacks return **`UsageCallbackResult`** (`success`, `http_status`, `http_status_text`, `request_url`, optional `response_body` / `network_error`).
+**Progress / completion:** sign exactly the bytes you POST. HMAC is verified against the **raw HTTP request body**. Callbacks return **`UsageCallbackResult`** (`success`, `http_status`, `http_status_text`, `request_url`, optional `response_body` / `network_error`).
 
 Constructor arguments override environment variables when both are set.
 
@@ -30,11 +30,10 @@ Constructor arguments override environment variables when both are set.
 
 | Variable | Purpose |
 |----------|---------|
-| **`TOLLARA_API_URL`** | Optional. Overrides the default production API origin when set (staging, local stacks, tests). |
 | **`TOLLARA_SERVICE_ID`** | Service UUID if you omit `service_id=...` (optional) |
 | **`TOLLARA_SERVICE_SECRET`** | Service secret if you omit `service_secret=...` (**required** one way or the other) |
 
-In code, names are also available as `TollaraClient.ENV_API_URL`, `ENV_SERVICE_ID`, and `ENV_SERVICE_SECRET`. The default base URL is `TollaraClient.DEFAULT_API_URL`.
+In code, names are also available as `TollaraClient.ENV_SERVICE_ID` and `ENV_SERVICE_SECRET`.
 
 ## Requirements
 
@@ -87,7 +86,6 @@ For full control, build `InboundHmacRequest` with `SignedUserContext` and call `
 ```python
 from tollara_service_sdk import TollaraClient, CompletionStatus
 
-# Default API origin is production; pass api_url=... or set TOLLARA_API_URL only to override.
 # service_secret is required (here or via TOLLARA_SERVICE_SECRET).
 client = TollaraClient(
     service_id=service_id,

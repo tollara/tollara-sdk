@@ -1,7 +1,8 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { invokeService, type GatewayHttpMethod } from '../../lib/tollaraSdk';
-import { resolveGatewayApiUrl, requireGatewayApiUrlWhenEndpointsEnabled, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { resolveGatewayApiUrl, requireGatewayApiUrlWhenEndpointsEnabled, resolveServiceKey, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { tollaraGatewayEndpointProperties } from '../../lib/nodeProperties';
+import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
 import { parseJsonBody } from '../../lib/parseJsonBody';
 import { invokeOk } from '../../lib/tollaraOutcome';
 
@@ -13,8 +14,10 @@ export class TollaraInvoke implements INodeType {
     usableAsTool: true,
     group: ['transform'],
     version: 1,
-    description: 'Invoke an agent on the gateway',
+    description: 'Invoke a listed Tollara service (sync or async)',
+    documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Invoke' },
+    credentials: [tollaraOptionalCredential],
     inputs: ['main'],
     outputs: ['main'],
     properties: [
@@ -51,7 +54,7 @@ export class TollaraInvoke implements INodeType {
     const gatewayApiUrl = resolveGatewayApiUrl(credentialsParsed);
     const method = this.getNodeParameter('httpMethod', 0) as GatewayHttpMethod;
     const isAsync = this.getNodeParameter('async', 0) as boolean;
-    const serviceKey = this.getNodeParameter('serviceKey', 0) as string;
+    const serviceKey = await resolveServiceKey(this, this.getNodeParameter('serviceKey', 0) as string);
     const serviceId = this.getNodeParameter('serviceId', 0) as string;
     const endpointId = this.getNodeParameter('endpointId', 0) as string;
     const bodyStr = this.getNodeParameter('body', 0, '') as string;

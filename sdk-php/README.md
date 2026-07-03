@@ -4,14 +4,13 @@
 
 HMAC signing, **inbound gateway verification**, and a **`TollaraClient`** for validate/estimate/invoke/usage/progress/completion/gateway polling.
 
-## Configuration (base URLs)
+## Configuration
 
-Use the Tollara API origin **`https://api.tollara.ai`** by default. Set **`TOLLARA_API_URL`** only when you need a non-production override.
+**`TollaraClient`** uses built-in production defaults. Set **`TOLLARA_SERVICE_ID`** and **`TOLLARA_SERVICE_SECRET`** for your service.
 
 ## Environment variables
 
-- `TOLLARA_API_URL` — Optional API origin override
-- `TOLLARA_SERVICE_ID` — Service UUID (optional for some Core flows)
+- `TOLLARA_SERVICE_ID` — Service UUID (optional for some flows)
 - `TOLLARA_SERVICE_SECRET` — Service secret for outbound signing and inbound HMAC verification
 
 ### Verify HMAC and trusted user context in one call

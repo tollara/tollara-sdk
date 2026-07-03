@@ -1,7 +1,8 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
 import { verifySignatureFromHeaders, getUserContext } from '../../lib/tollaraSdk';
-import { requireServiceSecret } from '../../lib/tollaraCredentials';
+import { resolveServiceSecret } from '../../lib/tollaraCredentials';
 import { serviceSecretNodeProperty } from '../../lib/nodeProperties';
+import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
 import { headersFromWebhookItem, signedPayloadFromWebhookItem } from '../../lib/webhookPayload';
 import { passthroughItemWithJson, headerUserContextToPassthrough } from '../../lib/passthroughItem';
 import { accessDeniedItem, authFailureItem, hmacFailureFields } from '../../lib/tollaraOutcome';
@@ -15,8 +16,10 @@ export class TollaraVerifyRequest implements INodeType {
     group: ['transform'],
     version: 4,
     description:
-      'Verify Tollara HMAC and subscription access on Webhook output. Allowed = proceed; Denied = invalid HMAC or inactive subscription. Throws on missing service secret (static misconfig).',
+      'Verify Tollara HMAC and subscription access on Webhook output. Allowed = proceed; Denied = invalid HMAC or inactive subscription.',
+    documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Verify Request' },
+    credentials: [tollaraOptionalCredential],
     inputs: ['main'],
     outputs: ['main', 'main'],
     outputNames: ['Allowed', 'Denied'],
@@ -34,7 +37,7 @@ export class TollaraVerifyRequest implements INodeType {
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-    const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
+    const serviceSecret = await resolveServiceSecret(this, this.getNodeParameter('serviceSecret', 0) as string);
     const rawBodyBinaryProperty = this.getNodeParameter('rawBodyBinaryProperty', 0, 'data') as string;
 
     const items = this.getInputData();

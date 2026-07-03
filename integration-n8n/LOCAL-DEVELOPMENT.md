@@ -57,14 +57,14 @@ Cause: the package must expose a root **`index.js`** (referenced by `package.jso
 
 ## Troubleshooting: red exclamation on Tollara nodes
 
-Tollara nodes do **not** use n8n credentials. If you still see **Set Credential**, **Unnamed credential**, or a warning until you create a credential, your workflow has stale data from an older package version.
+Tollara nodes support an optional **Tollara API** credential (service secret, service key, service ID). Node parameters still work when no credential is attached. If you see **Set Credential**, **Unnamed credential**, or a warning from stale **`tollaraApi`** references, your workflow may be from an older package version.
 
 **Fix:**
 
 1. Run **`.\deploy-local.ps1`** to load the current package version.
 2. **Delete** the workflow and re-import from `example-workflows/` (do not import over an existing copy).
 3. Set **Service Secret** on each Tollara node.
-4. You can **delete** any old **Tollara Environment** credentials from Settings → Credentials — they are no longer used.
+4. You can **delete** obsolete **Tollara Environment** credentials from Settings → Credentials if you migrate to **Tollara API** or node parameters.
 5. Hard-refresh the browser (Ctrl+F5).
 
 If only one node is affected: delete it on the canvas, drag a fresh Tollara node from the picker, reconnect wires, and paste parameters back.

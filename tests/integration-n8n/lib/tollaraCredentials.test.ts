@@ -101,15 +101,15 @@ describe('tollaraCredentials', () => {
     };
     assert.throws(
       () => requireCoreApiUrlWhenEndpointsEnabled(executeFunctions as never),
-      /Core API URL is required when Set API Endpoints is enabled/,
+      /Validation API URL is required when Set API Endpoints is enabled/,
     );
     assert.throws(
       () => requireUsageApiUrlWhenEndpointsEnabled(executeFunctions as never),
-      /Usage API URL is required when Set API Endpoints is enabled/,
+      /Usage reporting API URL is required when Set API Endpoints is enabled/,
     );
     assert.throws(
       () => requireGatewayApiUrlWhenEndpointsEnabled(executeFunctions as never),
-      /Gateway API URL is required when Set API Endpoints is enabled/,
+      /Invoke API URL is required when Set API Endpoints is enabled/,
     );
   });
 

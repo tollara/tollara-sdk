@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Subscriber — Proxied sync agent + Estimate Usage\n\nSame as **subscriber-proxied-sync-agent** but runs **Tollara Estimate Usage** before invoke.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `YOUR_SERVICE_ID`, `YOUR_SERVICE_SECRET`, `YOUR_PROXIED_SYNC_ENDPOINT_ID`.\n\nService secret must match listing / agent `AGENT_SECRET` (estimate hits core, not the agent directly).\n\n**Local Docker:** Gateway URL on Invoke; Core API URL on Estimate Usage (`http://host.docker.internal:8081`).",
+        "content": "## Subscriber — Proxied sync + Estimate Usage\n\nRuns **Tollara Estimate Usage** before sync invoke.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `YOUR_SERVICE_ID`, `YOUR_SERVICE_SECRET`, `YOUR_PROXIED_SYNC_ENDPOINT_ID`.",
         "height": 260,
         "width": 520
       },

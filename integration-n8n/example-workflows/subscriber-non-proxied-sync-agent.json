@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Subscriber — Non-proxied sync agent\n\nCalls **non-proxied-agent** (`agents/non-proxied-agent`, Docker `:9091`) **directly** with Bearer service key — bypasses the gateway.\n\n**Listing:** non-proxied / direct URL exposed, `realUrl` = `http://host.docker.internal:9091/api/test/sync`.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `agentUrl` (defaults to local Docker URL).\n\nNo service/endpoint IDs needed for the HTTP call (only the service key).\n\n**Prerequisites:** core, usage + `non-proxied-service-local`. Agent `AGENT_SECRET` must match listing secret.",
+        "content": "## Subscriber — Non-proxied sync\n\nCalls a **non-proxied** listing directly with Bearer service key.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `agentUrl` (direct URL from the listing).",
         "height": 260,
         "width": 520
       },
@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{\n  json: {\n    serviceKey: 'YOUR_SERVICE_KEY',\n    agentUrl: 'http://host.docker.internal:9091/api/test/sync',\n    invokeBody: JSON.stringify({ message: 'Hello from n8n non-proxied' }),\n  },\n}];"
+        "jsCode": "return [{\n  json: {\n    serviceKey: 'YOUR_SERVICE_KEY',\n    agentUrl: 'YOUR_AGENT_URL',\n    invokeBody: JSON.stringify({ message: 'Hello from n8n non-proxied' }),\n  },\n}];"
       },
       "id": "f1a2b3c4-0007-4000-8000-000000000011",
       "name": "Set Config",

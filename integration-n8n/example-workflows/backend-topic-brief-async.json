@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Backend — Topic Brief API\n\n**Tollara:** proxied **async** service (seller)\n\n**Webhook path:** `topic-brief`\n\n**Listing must be async** (`isAsync`). Caller invokes `POST …/invoke/async` with `{ \"topic\": \"Docker\" }` — **not** sync invoke.\n\n10s waits before 50%/75% progress and after 75% for visible frontend polling.\n\n**Error paths:** Verify **Denied** → 401/403 (by `tollaraErrorCode`); parse fail → 400; !progressSuccess or wiki fetch fail → **Complete Failed**; !completeSuccess → Complete Warning.\n\n**After import:** run `npm run repair:workflows` from `integration-n8n` if **Tollara Verify Request** shows a broken icon, then set **Service Secret** on every Tollara node. For local Docker, enable **Set API Endpoints** on Progress/Complete and set Usage API URL (e.g. `http://host.docker.internal:8084`).\n\nPair with **subscriber-proxied-async-agent** (or use **proxied-agent** Docker backend instead of this n8n webhook).",
+        "content": "## Backend — Topic Brief API\n\n**Webhook path:** `topic-brief`\n\n**Listing must be async** (`isAsync`). Caller invokes with `{ \"topic\": \"Docker\" }`.\n\n**Error paths:** Verify **Denied** → 401/403; parse fail → 400; progress/complete failures → error branches.\n\nSet **Service Secret** on every Tollara node after import.",
         "height": 300,
         "width": 460
       },

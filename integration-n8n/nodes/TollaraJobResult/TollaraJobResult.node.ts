@@ -1,7 +1,8 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { getRequestResult } from '../../lib/tollaraSdk';
-import { resolveGatewayApiUrl, requireGatewayApiUrlWhenEndpointsEnabled, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { resolveGatewayApiUrl, requireGatewayApiUrlWhenEndpointsEnabled, resolveServiceKey, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { tollaraGatewayEndpointProperties } from '../../lib/nodeProperties';
+import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
 import { parseJsonBody } from '../../lib/parseJsonBody';
 
 export class TollaraJobResult implements INodeType {
@@ -12,8 +13,10 @@ export class TollaraJobResult implements INodeType {
     usableAsTool: true,
     group: ['transform'],
     version: 1,
-    description: 'Fetch async job result from the gateway',
+    description: 'Fetch async job result for a Tollara invoke request',
+    documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Job Result' },
+    credentials: [tollaraOptionalCredential],
     inputs: ['main'],
     outputs: ['main'],
     properties: [
@@ -27,7 +30,7 @@ export class TollaraJobResult implements INodeType {
     const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
     requireGatewayApiUrlWhenEndpointsEnabled(this);
     const gatewayApiUrl = resolveGatewayApiUrl(credentialsParsed);
-    const serviceKey = this.getNodeParameter('serviceKey', 0) as string;
+    const serviceKey = await resolveServiceKey(this, this.getNodeParameter('serviceKey', 0) as string);
     const requestId = this.getNodeParameter('requestId', 0) as string;
 
     const result = await getRequestResult({ baseUrl: gatewayApiUrl, requestId, serviceKey });

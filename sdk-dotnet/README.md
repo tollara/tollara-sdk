@@ -10,14 +10,14 @@ On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve
 
 ## Configuration
 
-**`TollaraClient`** uses built-in defaults for production. Override the API origin for non-production or private deployments via `ApiUrl` on `TollaraClientOptions` and/or **`TOLLARA_API_URL`**. Additional constructor options exist for advanced layouts when your environment differs from the default.
+**`TollaraClient`** uses built-in production defaults. No API URL configuration is required for normal use.
 
 **Progress / completion** always use the full `progressUrl` / `callbackUrl` strings from the platform.
 
 ## HMAC (aligned with other SDKs)
 
 - **Usage service** (report / progress / completion) and **signed Core JSON responses** (validate, service-key usage estimate): canonical string = **`bodyJsonString + timestamp`** (concatenation, no separator; **`timestamp`** in **`X-Tollara-Timestamp`** is **Unix epoch seconds**). For **report**, the JSON body’s **`timestamp`** field is an **ISO-8601** instant. Then **`Base64(HMAC-SHA256(canonical, serviceSecret))`**. Use `Hmac.CalculateHmacWithTimestamp` / `Hmac.ValidateHmacWithTimestamp`.
-- **Progress / completion:** sign exactly the bytes you POST. The usage service verifies HMAC against the **raw HTTP request body** (spec §3).
+- **Progress / completion:** sign exactly the bytes you POST. HMAC is verified against the **raw HTTP request body**.
 - **JWT usage estimate**: **not** HMAC-signed; do not expect signature headers.
 - **Gateway → service inbound:** canonical = `payload + timestamp + userContextString`. Production uses **v3** via **`BuildGatewayUserContextStringV3`** when `X-Tollara-Signing-Version` is `"3"`. **v2** and legacy v1 remain for backward-compat tests only.
 
@@ -29,7 +29,7 @@ JSON `status` for async completion must be uppercase **`COMPLETED`** or **`FAILE
 
 ### Tollara client
 
-`TollaraClient.Create` honors optional **`TOLLARA_SERVICE_ID`**, required **`TOLLARA_SERVICE_SECRET`** (or options), and optional **`TOLLARA_API_URL`**.
+`TollaraClient.Create` honors optional **`TOLLARA_SERVICE_ID`** and required **`TOLLARA_SERVICE_SECRET`** (or options).
 
 ```csharp
 var client = TollaraClient.Create(new TollaraClientOptions

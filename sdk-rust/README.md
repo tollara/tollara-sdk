@@ -4,11 +4,9 @@
 
 HMAC verification, user context parsing, and (with the `http` feature) Core validation, Usage reporting, progress/completion, and gateway job polling.
 
-## Configuration (base URLs)
+## Configuration
 
-**`TollaraClient`:** the API origin defaults to **`https://api.tollara.ai`** (`DEFAULT_API_URL`). Set `api_url` or **`TOLLARA_API_URL`** only to override. Use full `progress_url` / `callback_url` for async flows.
-
-Use this README as the public usage reference.
+**`TollaraClient`** uses built-in production defaults. Use full `progress_url` / `callback_url` for async flows.
 
 ### Spec alignment (this crate)
 

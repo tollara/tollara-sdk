@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Subscriber — Proxied async agent\n\nInvokes **proxied-agent** async (`agents/proxied-agent`, Docker `:9090/api/test/async`) via gateway.\n\n**Wait 10s** → **Job Status** → **Job Result** (agent default job ~10s via `X-Run-For`).\n\n**Listing:** proxied, **async** (`isAsync`), POST, `realUrl` = `http://host.docker.internal:9090/api/test/async`.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `YOUR_SERVICE_ID`, `YOUR_PROXIED_ASYNC_ENDPOINT_ID`.\n\n**Local Docker:** **Set API Endpoints** on Invoke / Job Status / Job Result → Gateway `http://host.docker.internal:8083`.\n\n**Prerequisites:** gateway, core, usage + `proxied-service-local`. No n8n backend workflow required.",
+        "content": "## Subscriber — Proxied async\n\nInvokes a **proxied async** listing, then polls **Job Status** and **Job Result**.\n\n**Set Config:** `YOUR_SERVICE_KEY`, `YOUR_SERVICE_ID`, `YOUR_PROXIED_ASYNC_ENDPOINT_ID`.\n\nSet **Service Secret** on Tollara nodes (or use a **Tollara API** credential).",
         "height": 280,
         "width": 520
       },

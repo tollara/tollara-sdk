@@ -12,7 +12,7 @@ Self-hosted n8n only (Community Nodes must be enabled). n8n Cloud may block unve
 2. Install **`n8n-nodes-tollara`**.
 3. Search the node picker for **Tollara**.
 
-No separate n8n credential is required — set **Service Secret** (and other fields) on each node.
+No separate n8n credential is required — set **Service Secret** (and other fields) on each node, or optionally attach a **Tollara API** credential.
 
 ## Nodes
 
@@ -83,11 +83,11 @@ Point your listing **realUrl** (backend) or subscriber **Set Config** values at 
 
 ## API endpoints
 
-**Production:** leave **Set API Endpoints** disabled on each node.
+Leave **Set API Endpoints** disabled on each node for production Tollara.
 
-**Non-production / custom hosts:** enable **Set API Endpoints** on nodes that call Tollara APIs and set the gateway, core, and usage base URLs for your environment.
+For custom deployments, enable **Set API Endpoints** and set the validation, invoke, and usage reporting URLs for your environment.
 
-Set **Service Secret** and **Service ID** on each node where those fields appear.
+Set **Service Secret** and **Service ID** on each node where those fields appear (or use a **Tollara API** credential).
 
 ## Developing this package
 

@@ -1,9 +1,15 @@
-import type { IDataObject, IExecuteFunctions } from 'n8n-workflow';
+import type { ICredentialDataDecryptedObject, IDataObject, IExecuteFunctions } from 'n8n-workflow';
 
 export interface TollaraCredentials {
   coreApiUrl: string | undefined;
   usageApiUrl: string | undefined;
   gatewayApiUrl: string | undefined;
+}
+
+export interface TollaraApiCredential {
+  serviceSecret?: string;
+  serviceKey?: string;
+  serviceId?: string;
 }
 
 function trimOptional(value: string | undefined): string | undefined {
@@ -52,9 +58,9 @@ export function resolveGatewayApiUrl(credentials: TollaraCredentials): string | 
 type ApiUrlField = 'coreApiUrl' | 'usageApiUrl' | 'gatewayApiUrl';
 
 const API_URL_LABELS: Record<ApiUrlField, string> = {
-  coreApiUrl: 'Core API URL',
-  usageApiUrl: 'Usage API URL',
-  gatewayApiUrl: 'Gateway API URL',
+  coreApiUrl: 'Validation API URL',
+  usageApiUrl: 'Usage reporting API URL',
+  gatewayApiUrl: 'Invoke API URL',
 };
 
 /**
@@ -103,9 +109,62 @@ export function requireGatewayApiUrlWhenEndpointsEnabled(
 export function requireServiceSecret(nodeServiceSecret: string | undefined): string {
   const secret = nodeServiceSecret?.trim() ?? '';
   if (!secret) {
-    throw new Error('Service secret is required — set it on this node');
+    throw new Error('Service secret is required — set it on this node or in the Tollara API credential');
   }
   return secret;
+}
+
+export async function getTollaraApiCredential(
+  executeFunctions: IExecuteFunctions,
+  itemIndex = 0,
+): Promise<TollaraApiCredential | null> {
+  const nodeCredentials = executeFunctions.getNode().credentials;
+  if (!nodeCredentials?.tollaraApi) {
+    return null;
+  }
+  try {
+    const creds = (await executeFunctions.getCredentials(
+      'tollaraApi',
+      itemIndex,
+    )) as ICredentialDataDecryptedObject;
+    return {
+      serviceSecret: trimOptional(creds.serviceSecret as string | undefined),
+      serviceKey: trimOptional(creds.serviceKey as string | undefined),
+      serviceId: trimOptional(creds.serviceId as string | undefined),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Credential value wins when configured; otherwise use the node parameter. */
+export async function resolveServiceSecret(
+  executeFunctions: IExecuteFunctions,
+  nodeServiceSecret: string | undefined,
+  itemIndex = 0,
+): Promise<string> {
+  const fromCredential = (await getTollaraApiCredential(executeFunctions, itemIndex))?.serviceSecret;
+  if (fromCredential) {
+    return fromCredential;
+  }
+  return requireServiceSecret(nodeServiceSecret);
+}
+
+/** Credential value wins when configured; otherwise use the node parameter. */
+export async function resolveServiceKey(
+  executeFunctions: IExecuteFunctions,
+  nodeServiceKey: string | undefined,
+  itemIndex = 0,
+): Promise<string> {
+  const fromCredential = (await getTollaraApiCredential(executeFunctions, itemIndex))?.serviceKey;
+  if (fromCredential) {
+    return fromCredential;
+  }
+  const key = nodeServiceKey?.trim() ?? '';
+  if (!key) {
+    throw new Error('Service key is required — set it on this node or in the Tollara API credential');
+  }
+  return key;
 }
 
 export function requireServiceId(nodeServiceId: string | undefined): string {

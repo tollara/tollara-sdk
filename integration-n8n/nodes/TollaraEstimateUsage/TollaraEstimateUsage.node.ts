@@ -1,7 +1,8 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription, IDataObject } from 'n8n-workflow';
 import { estimateUsage } from '../../lib/tollaraSdk';
-import { optionalServiceId, requireCoreApiUrlWhenEndpointsEnabled, requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { getTollaraApiCredential, optionalServiceId, requireCoreApiUrlWhenEndpointsEnabled, resolveCoreApiUrl, resolveServiceKey, resolveServiceSecret, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
+import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
 
 export class TollaraEstimateUsage implements INodeType {
   description: INodeTypeDescription = {
@@ -12,7 +13,9 @@ export class TollaraEstimateUsage implements INodeType {
     group: ['transform'],
     version: 1,
     description: 'Estimate usage cost and quota for a service key',
+    documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Estimate Usage' },
+    credentials: [tollaraOptionalCredential],
     inputs: ['main'],
     outputs: ['main'],
     properties: [
@@ -27,11 +30,14 @@ export class TollaraEstimateUsage implements INodeType {
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
-    const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
+    const apiCredential = await getTollaraApiCredential(this);
+    const serviceSecret = await resolveServiceSecret(this, this.getNodeParameter('serviceSecret', 0) as string);
     requireCoreApiUrlWhenEndpointsEnabled(this);
     const coreApiUrl = resolveCoreApiUrl(credentialsParsed);
-    const serviceKey = this.getNodeParameter('serviceKey', 0) as string;
-    const serviceId = optionalServiceId(this.getNodeParameter('serviceId', 0) as string);
+    const serviceKey = await resolveServiceKey(this, this.getNodeParameter('serviceKey', 0) as string);
+    const serviceId = optionalServiceId(
+      apiCredential?.serviceId ?? (this.getNodeParameter('serviceId', 0) as string),
+    );
     const estimatedUnits = this.getNodeParameter('estimatedUnits', 0) as number;
 
     const result = await estimateUsage({

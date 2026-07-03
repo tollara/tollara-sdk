@@ -6,15 +6,9 @@ Verify inbound HMAC, validate **service keys**, run usage pre-flight (service-ke
 
 This README covers the public SDK contract and usage examples.
 
-## API origin
-
-By default, the SDK uses the production Tollara API origin. Override when needed (non-production or private deployments):
-
-- **`TollaraClient`:** pass `apiUrl`, or set **`TOLLARA_API_URL`**
-
 ## Tollara client (recommended)
 
-`TollaraClient` uses optional **`TOLLARA_SERVICE_ID`** (service UUID), required **`TOLLARA_SERVICE_SECRET`** (unless passed as `serviceSecret`), and optional **`TOLLARA_API_URL`**.
+`TollaraClient` uses optional **`TOLLARA_SERVICE_ID`** (service UUID) and required **`TOLLARA_SERVICE_SECRET`** (unless passed as `serviceSecret`).
 
 ```ts
 import { TollaraClient } from '@tollara/service-sdk';
@@ -56,20 +50,6 @@ if (ctx && grantAccess(ctx.subscriptionStatus)) { /* trusted + invoke-eligible *
 npm install @tollara/service-sdk
 ```
 
-## API highlights
-
-- `TollaraHeaders` — canonical `X-Tollara-*` names (including signing-version for gateway HMAC v3)
-- `buildGatewayUserContextStringV3` — inbound suffix helper for production gateway forwards
-- `grantAccess` — invoke eligibility from `subscriptionStatus` (validate/gateway v3)
-- `verifyInboundHmac` / `verifySignatureFromHeaders` — inbound gateway HMAC (v3 when `X-Tollara-Signing-Version` is `"3"`)
-- `getUserContext` — parses headers (case-insensitive keys)
-- `TollaraClient` — validate key, estimates, invoke, usage reporting, gateway polling
-- `validateServiceKey` / `estimateUsage` — Core **service-key** paths; response HMAC verified when headers present
-- `estimateUsageWithJwt` — Core `POST …/billing/usage/estimate` with Bearer JWT (unsigned response)
-- `invokeService` — gateway `…/service/{serviceId}/endpoint/…/invoke` and `…/invoke/async`
-- `reportUsage`, `reportProgress`, `reportCompletion` — usage service (**report** body uses ISO `timestamp`; `X-Tollara-Timestamp` = epoch **seconds** for HMAC)
-- `getRequestStatus`, `getRequestResult` — async job polling
-
 ## Examples
 
 ### Verify HMAC (backend)
@@ -96,7 +76,7 @@ const result = await validateServiceKey({
 });
 ```
 
-Optional `baseUrl` when not using the default production origin. Successful validate results include **`serviceKeyId`** when Core returns it (§2.1).
+Optional `baseUrl` when using advanced configuration. Successful validate results include **`serviceKeyId`** when the platform returns it.
 
 ### Usage estimate (caller)
 

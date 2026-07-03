@@ -14,6 +14,6 @@
     "declaration": false,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["nodes/**/*.ts", "lib/**/*.ts"],
+  "include": ["nodes/**/*.ts", "lib/**/*.ts", "credentials/**/*.ts"],
   "exclude": ["node_modules", "dist", "test", "scripts"]
 }

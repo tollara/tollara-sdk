@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-tollara",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "n8n community nodes for Tollara: Verify Request, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
   "keywords": [
     "n8n-community-node-package",
@@ -9,6 +9,9 @@
   ],
   "license": "MIT",
   "homepage": "https://github.com/tollara/tollara-sdk/tree/master/integration-n8n",
+  "bugs": {
+    "url": "https://github.com/tollara/tollara-sdk/issues"
+  },
   "author": {
     "name": "Tollara",
     "email": "engineering@tollara.ai"
@@ -45,7 +48,9 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "strict": true,
-    "credentials": [],
+    "credentials": [
+      "dist/credentials/TollaraApi.credentials.js"
+    ],
     "nodes": [
       "dist/nodes/TollaraVerifyRequest/TollaraVerifyRequest.node.js",
       "dist/nodes/TollaraInvoke/TollaraInvoke.node.js",

@@ -2,9 +2,11 @@ import { NodeOperationError, type IExecuteFunctions, type INodeExecutionData, ty
 
 import { reportProgress } from '../../lib/tollaraSdk';
 
-import { requireServiceSecret, requireUsageApiUrlWhenEndpointsEnabled, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { requireUsageApiUrlWhenEndpointsEnabled, resolveServiceSecret, resolveUsageApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 
 import { serviceSecretNodeProperty, tollaraUsageEndpointProperties } from '../../lib/nodeProperties';
+
+import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
 
 import { passthroughItemWithJson } from '../../lib/passthroughItem';
 
@@ -27,9 +29,13 @@ export class TollaraProgress implements INodeType {
 
     version: 1,
 
-    description: 'Send progress update to the usage service (async flows)',
+    description: 'Send progress update for an async Tollara invoke',
+
+    documentationUrl: TOLLARA_DOCUMENTATION_URL,
 
     defaults: { name: 'Tollara Progress' },
+
+    credentials: [tollaraOptionalCredential],
 
     inputs: ['main'],
 
@@ -73,7 +79,7 @@ export class TollaraProgress implements INodeType {
 
     const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
 
-    const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
+    const serviceSecret = await resolveServiceSecret(this, this.getNodeParameter('serviceSecret', 0) as string);
     requireUsageApiUrlWhenEndpointsEnabled(this);
 
     const items = this.getInputData();

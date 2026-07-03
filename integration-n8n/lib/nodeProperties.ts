@@ -53,7 +53,7 @@ function urlNodeProperty(
     name,
     type: 'string',
     default: '',
-    placeholder: 'https://api.tollara.ai',
+    placeholder: 'https://api.example.com',
     description,
     displayOptions: {
       show: {
@@ -64,19 +64,19 @@ function urlNodeProperty(
 }
 
 const coreApiUrlNodeProperty = urlNodeProperty(
-  'Core API URL',
+  'Validation API URL',
   'coreApiUrl',
   'Optional. Required when Set API Endpoints is enabled. Used by Validate Key and Estimate Usage.',
 );
 
 const usageApiUrlNodeProperty = urlNodeProperty(
-  'Usage API URL',
+  'Usage reporting API URL',
   'usageApiUrl',
-  'Used by Report Usage and to rewrite progress/complete URLs when gateway returns production hosts. Required when Set API Endpoints is enabled.',
+  'Used by Report Usage and to rewrite progress/complete URLs when needed. Required when Set API Endpoints is enabled.',
 );
 
 const gatewayApiUrlNodeProperty = urlNodeProperty(
-  'Gateway API URL',
+  'Invoke API URL',
   'gatewayApiUrl',
   'Optional. Used by Invoke, Job Status, and Job Result. Required when Set API Endpoints is enabled.',
 );

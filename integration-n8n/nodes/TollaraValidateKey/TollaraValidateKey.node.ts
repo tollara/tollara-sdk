@@ -1,7 +1,8 @@
 import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
 import { validateServiceKeyWithOutcome } from '../../lib/tollaraSdk';
-import { optionalServiceId, requireCoreApiUrlWhenEndpointsEnabled, requireServiceSecret, resolveCoreApiUrl, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
+import { optionalServiceId, getTollaraApiCredential, requireCoreApiUrlWhenEndpointsEnabled, resolveCoreApiUrl, resolveServiceSecret, tollaraCredentialsFromNodeParameters } from '../../lib/tollaraCredentials';
 import { optionalServiceIdNotice, serviceIdNodeProperty, serviceSecretNodeProperty, tollaraCoreEndpointProperties } from '../../lib/nodeProperties';
+import { TOLLARA_DOCUMENTATION_URL, tollaraOptionalCredential } from '../../lib/tollaraConstants';
 import { bearerTokenFromWebhookItem } from '../../lib/webhookPayload';
 import {
   accessDeniedItem,
@@ -22,8 +23,10 @@ export class TollaraValidateKey implements INodeType {
     group: ['transform'],
     version: 4,
     description:
-      'Validate a service key (typical after Webhook). Allowed = key valid and subscription grants access; Denied = caller auth failure; Error = runtime Core/network failure (respond 503). Throws on static misconfig (missing service secret, or Set API Endpoints without Core API URL).',
+      'Validate a service key (typical after Webhook). Allowed = key valid and subscription grants access; Denied = caller auth failure; Error = runtime validation failure (respond 503).',
+    documentationUrl: TOLLARA_DOCUMENTATION_URL,
     defaults: { name: 'Tollara Validate Key' },
+    credentials: [tollaraOptionalCredential],
     inputs: ['main'],
     outputs: ['main', 'main', 'main'],
     outputNames: ['Allowed', 'Denied', 'Error'],
@@ -58,9 +61,12 @@ export class TollaraValidateKey implements INodeType {
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentialsParsed = tollaraCredentialsFromNodeParameters(this);
-    const serviceSecret = requireServiceSecret(this.getNodeParameter('serviceSecret', 0) as string);
+    const apiCredential = await getTollaraApiCredential(this);
+    const serviceSecret = await resolveServiceSecret(this, this.getNodeParameter('serviceSecret', 0) as string);
     requireCoreApiUrlWhenEndpointsEnabled(this);
-    const serviceId = optionalServiceId(this.getNodeParameter('serviceId', 0) as string);
+    const serviceId = optionalServiceId(
+      apiCredential?.serviceId ?? (this.getNodeParameter('serviceId', 0) as string),
+    );
     const coreApiUrl = resolveCoreApiUrl(credentialsParsed);
     const serviceKeySource = this.getNodeParameter('serviceKeySource', 0) as string;
     const manualServiceKey = this.getNodeParameter('serviceKey', 0, '') as string;
