@@ -223,3 +223,6 @@ mtcode/
 
 # Private / local notes (do not commit)
 **/NOTES-PRIVATE.md
+
+# Local maintainer docs (kept on disk, not in repo)
+docs/

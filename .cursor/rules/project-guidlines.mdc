@@ -4,7 +4,7 @@ alwaysApply: true
 ---
 
 Please keep these guidlines in mind when operating on the SDKs.
-- This is an SDK project for Tollara which is contained in another github repo, see <project-root>/docs/sdk-repo-project-context.md
+- This is an SDK project for Tollara; maintainer context may exist locally under <project-root>/docs/ (gitignored) and <project-root>/docs-sdk/
 - SDKs cover these languages: java, python, dotnet, js, php, go, ruby and rust
 - SDK locations are as follows:
 <project-root>/sdk-java
@@ -15,7 +15,7 @@ Please keep these guidlines in mind when operating on the SDKs.
 <project-root>/sdk-go
 <project-root>/sdk-ruby
 <project-root>/sdk-rust
-- The Tollara api spec is defined here in <project-root>/docs-sdk/MAIN-SDK-API-SPEC.md
+- The Tollara API spec is defined here in <project-root>/docs-sdk/MAIN-SDK-API-SPEC.md
 - SDKs should adhere to the spec and should be consistent with each other (i.e. same behaviour and consistent names in each language sdk).
 - SDKs are published to their respective public package locations (e.g. Java to MavenCentral, DotNet to NuGet, js to NPM etc )
 - Each sdk folder has it's own sdk readme.md which is public facing, do not put any implementation details in this document. 

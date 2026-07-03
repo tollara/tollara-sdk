@@ -68,7 +68,7 @@ SDKs are versioned **1.0.0** while the product was still branded AgentVend.
 
 ### Gateway inbound HMAC
 
-- Canonical string after `payload + timestamp` includes, in order: user id, plan, roles CSV, quota string, then **`subscriptionActive`** as `"true"` or `"false"`, then **`billingModelType`**, **`measurementType`**, and **`unitLabel`** (each `""` when absent). See [docs/hmac-spec.md](docs/hmac-spec.md) and [docs/sdk-api-spec.md](docs/sdk-api-spec.md) §4.
+- Canonical string after `payload + timestamp` includes, in order: user id, plan, roles CSV, quota string, then **`subscriptionActive`** as `"true"` or `"false"`, then **`billingModelType`**, **`measurementType`**, and **`unitLabel`** (each `""` when absent).
 
 ### Added
 

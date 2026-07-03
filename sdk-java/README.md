@@ -66,8 +66,6 @@ From this directory:
 
 ## Publish to Maven Central (Sonatype Central Publisher)
 
-**Full background, Central requirements, and Gradle property reference:** [`docs/maven-central-java-sdk-publishing.md`](../docs/maven-central-java-sdk-publishing.md).
-
 **Release checklist (short):**
 
 1. Bump `version` in `build.gradle` to a **non-snapshot** release (Maven Central rejects `-SNAPSHOT` for this flow).

@@ -7,8 +7,6 @@ This monorepo provides:
 - **Caller SDKs**: Validate service keys, invoke via the gateway (sync/async).
 - **Backend support**: Verify HMAC on incoming gateway requests, extract user context, report usage and (for async) progress/completion.
 
-For API and HMAC details, see [docs/](docs/).
-
 ## SDKs and integrations
 
 | Language / integration | Install | Description |
@@ -24,14 +22,9 @@ For API and HMAC details, see [docs/](docs/).
 | **n8n** | Install community node from `integration-n8n/` | [integration-n8n/README.md](integration-n8n/README.md) |
 | **OpenClaw** | `openclaw plugins install openclaw-tollara` | [integration-openclaw/README.md](integration-openclaw/README.md) |
 
-## Documentation
-
-- [HMAC specification](docs/hmac-spec.md) — signing and verification (all SDKs).
-- [API overview](docs/api-overview.md) — gateway, core, and usage endpoints.
-
 ## Versioning
 
-See [CHANGELOG.md](CHANGELOG.md). Pre-release development uses **1.0.0**; gateway inbound HMAC uses the extended `userContextString` in [docs/hmac-spec.md](docs/hmac-spec.md).
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## Build and test (per folder)
 
