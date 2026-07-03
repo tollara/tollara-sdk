@@ -81,8 +81,11 @@ npm test
 ### Verified community node release (GitHub Actions + provenance)
 
 1. Configure npm **Trusted Publisher** for `n8n-nodes-tollara` → repo `tollara/tollara-sdk`, workflow file `publish.yml`.
-2. Check out **`master`**, then from `integration-n8n` run `npm run release` — bumps version, tags `n8n-nodes-tollara-vX.Y.Z`, pushes; CI publishes with provenance.
-3. Submit at [n8n Creator Portal](https://creators.n8n.io/nodes) after the provenance publish succeeds.
+2. Ensure **`tollara/tollara-sdk` is a public GitHub repository**. npm provenance from GitHub Actions is rejected for private repos (`422 … Unsupported GitHub Actions source repository visibility: "private"`).
+3. Check out **`master`**, then from `integration-n8n` run `npm run release` — bumps version, tags `n8n-nodes-tollara-vX.Y.Z`, pushes; CI publishes with provenance.
+4. Submit at [n8n Creator Portal](https://creators.n8n.io/nodes) after the provenance publish succeeds.
+
+If a publish fails only on provenance after lint/build succeed, make the repo public and **Re-run** the failed Publish workflow for that tag (no new version needed).
 
 `@tollara/service-sdk` must remain a **devDependency** (bundled at build; no runtime `dependencies`).
 

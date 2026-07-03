@@ -7,6 +7,8 @@
 #   Repository: tollara/tollara-sdk
 #   Workflow filename: publish.yml
 #
+# Provenance requires the GitHub source repo to be public. Private repos fail with npm 422.
+#
 # See integration-n8n/LOCAL-DEVELOPMENT.md for release steps.
 
 name: Publish
