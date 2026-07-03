@@ -51,4 +51,8 @@ if (publishFromLocal) {
   releaseItArgs.push('--npm.publish=false');
 }
 
+if (!process.env.GITHUB_TOKEN && !process.env.GH_TOKEN) {
+  releaseItArgs.push('--github.release=false');
+}
+
 run(pm, releaseItArgs, { RELEASE_MODE: 'true' });
