@@ -22,7 +22,7 @@ export class TollaraProgress implements INodeType {
 
     name: 'tollaraProgress',
 
-    icon: 'file:tollara.svg',
+    icon: 'file:tollara-brand.svg',
     usableAsTool: true,
 
     group: ['transform'],

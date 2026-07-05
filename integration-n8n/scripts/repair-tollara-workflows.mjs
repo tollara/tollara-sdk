@@ -13,11 +13,15 @@ if (!dbPath) {
   process.exit(1);
 }
 
+const NODE_TYPE_VERSIONS = {
+  'n8n-nodes-tollara.tollaraVerifyRequest': 5,
+  'n8n-nodes-tollara.tollaraValidateKey': 5,
+};
+
 const TOLLARA_DEFAULTS = {
   'n8n-nodes-tollara.tollaraVerifyRequest': {
     serviceSecret: '',
     rawBodyBinaryProperty: 'data',
-    typeVersion: 4,
   },
   'n8n-nodes-tollara.tollaraProgress': {
     serviceSecret: '',
@@ -46,7 +50,6 @@ const TOLLARA_DEFAULTS = {
     serviceId: '',
     optionalServiceIdNotice: '',
     setApiEndpoints: false,
-    typeVersion: 4,
   },
   'n8n-nodes-tollara.tollaraInvoke': {
     httpMethod: 'POST',
@@ -103,8 +106,9 @@ function repairNode(node) {
     changed = true;
   }
 
-  if (node.typeVersion !== 1) {
-    node.typeVersion = 1;
+  const expectedTypeVersion = NODE_TYPE_VERSIONS[node.type] ?? 1;
+  if (node.typeVersion !== expectedTypeVersion) {
+    node.typeVersion = expectedTypeVersion;
     changed = true;
   }
 
@@ -120,6 +124,11 @@ function repairNode(node) {
 
   if (isEmpty || missingRawBody) {
     node.parameters = { ...defaults, ...params };
+    changed = true;
+  }
+
+  if (node.parameters?.typeVersion != null) {
+    delete node.parameters.typeVersion;
     changed = true;
   }
 

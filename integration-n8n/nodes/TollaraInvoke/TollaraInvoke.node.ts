@@ -10,7 +10,7 @@ export class TollaraInvoke implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Invoke',
     name: 'tollaraInvoke',
-    icon: 'file:tollara.svg',
+    icon: 'file:tollara-brand.svg',
     usableAsTool: true,
     group: ['transform'],
     version: 1,

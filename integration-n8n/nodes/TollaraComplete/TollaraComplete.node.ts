@@ -22,7 +22,7 @@ export class TollaraComplete implements INodeType {
 
     name: 'tollaraComplete',
 
-    icon: 'file:tollara.svg',
+    icon: 'file:tollara-brand.svg',
     usableAsTool: true,
 
     group: ['transform'],

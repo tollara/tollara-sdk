@@ -9,7 +9,7 @@ export class TollaraJobResult implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Job Result',
     name: 'tollaraJobResult',
-    icon: 'file:tollara.svg',
+    icon: 'file:tollara-brand.svg',
     usableAsTool: true,
     group: ['transform'],
     version: 1,

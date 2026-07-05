@@ -13,6 +13,12 @@ npm test
 
 `npm test` runs `build`, compiles unit tests from `../tests/integration-n8n/`, then runs them.
 
+## Node icon
+
+Source: `assets/tollara.svg`, an SVG wrapper around the exact `frontend/public/brand/tollara_icon_transparent.png` image data. `npm run build` runs `scripts/sync-icons.mjs`, which copies the SVG as `tollara-brand.svg` to each `nodes/*/`, `credentials/`, and `dist/` icon location. Keep the filename as SVG because n8n community-node verification requires SVG icons.
+
+After icon changes: `npm run build`, redeploy, then **hard-refresh the browser (Ctrl+F5)** — n8n caches icons for 24h.
+
 ## Local n8n (Docker)
 
 Self-hosted n8n can load unverified community nodes. The Docker setup bind-mounts your built `integration-n8n` folder. `@tollara/service-sdk` is a **devDependency** only — it is bundled into `dist/lib/tollaraSdk.js` at build time for the published package.

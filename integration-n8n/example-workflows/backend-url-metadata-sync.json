@@ -35,7 +35,7 @@
       "id": "a1b2c3d4-0001-4000-8000-000000000011",
       "name": "Tollara Verify Request",
       "type": "n8n-nodes-tollara.tollaraVerifyRequest",
-      "typeVersion": 4,
+      "typeVersion": 5,
       "position": [240, 300]
     },
     {

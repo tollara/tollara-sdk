@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-tollara",
-  "version": "0.0.10",
+  "version": "0.0.13",
   "description": "n8n community nodes for Tollara: Verify Request, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
   "keywords": [
     "n8n-community-node-package",
@@ -26,7 +26,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "node scripts/clean-dist.mjs && tsc && node scripts/bundle-sdk.mjs && node scripts/copy-icons.mjs",
+    "build": "node scripts/clean-dist.mjs && tsc && node scripts/bundle-sdk.mjs && node scripts/sync-icons.mjs",
     "build:tests": "tsc -p ../tests/integration-n8n/tsconfig.json",
     "dev": "tsc --watch",
     "lint": "n8n-node lint",

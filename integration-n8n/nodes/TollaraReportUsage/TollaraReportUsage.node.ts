@@ -8,7 +8,7 @@ export class TollaraReportUsage implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Report Usage',
     name: 'tollaraReportUsage',
-    icon: 'file:tollara.svg',
+    icon: 'file:tollara-brand.svg',
     usableAsTool: true,
     group: ['transform'],
     version: 1,

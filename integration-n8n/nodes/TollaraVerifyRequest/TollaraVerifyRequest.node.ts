@@ -11,10 +11,10 @@ export class TollaraVerifyRequest implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Verify Request',
     name: 'tollaraVerifyRequest',
-    icon: 'file:tollara.svg',
+    icon: 'file:tollara-brand.svg',
     usableAsTool: true,
     group: ['transform'],
-    version: 4,
+    version: 5,
     description:
       'Verify Tollara HMAC and subscription access on Webhook output. Allowed = proceed; Denied = invalid HMAC or inactive subscription.',
     documentationUrl: TOLLARA_DOCUMENTATION_URL,

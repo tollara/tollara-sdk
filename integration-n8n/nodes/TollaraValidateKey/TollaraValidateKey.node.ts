@@ -18,10 +18,10 @@ export class TollaraValidateKey implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Tollara Validate Key',
     name: 'tollaraValidateKey',
-    icon: 'file:tollara.svg',
+    icon: 'file:tollara-brand.svg',
     usableAsTool: true,
     group: ['transform'],
-    version: 4,
+    version: 5,
     description:
       'Validate a service key (typical after Webhook). Allowed = key valid and subscription grants access; Denied = caller auth failure; Error = runtime validation failure (respond 503).',
     documentationUrl: TOLLARA_DOCUMENTATION_URL,
