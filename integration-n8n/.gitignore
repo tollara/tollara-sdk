@@ -1,6 +1,9 @@
 # Generated local workflows (do not commit)
 example-workflows/local/
 local-fixture.json
-dist/
+# Build output (ignored). Exception: dist/credentials/ must be in git for n8n Creator Portal vetting.
+dist/*
+!dist/credentials/
+!dist/credentials/**
 test-dist/
 node_modules/
