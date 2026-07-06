@@ -91,7 +91,7 @@ npm test
 3. Check out **`master`**, then from `integration-n8n` run `npm run release` — bumps version, tags `n8n-nodes-tollara-vX.Y.Z`, pushes; CI publishes with provenance.
 4. Submit at [n8n Creator Portal](https://creators.n8n.io/nodes) after the provenance publish succeeds.
 
-The Creator Portal checks **GitHub** (not only npm) for paths in `package.json` → `n8n.credentials`. Keep `dist/credentials/` committed (`integration-n8n/.gitignore` allows it). After changing credentials, run `npm run build` and commit the updated `dist/credentials/` files before resubmitting.
+The Creator Portal checks **GitHub** (not only npm) for paths in `package.json` → `n8n.credentials`. It clones `repository.url` at the **monorepo root** and does **not** honour `repository.directory`, so it expects `dist/credentials/` at the repo root (`tollara-sdk/dist/credentials/`), not only under `integration-n8n/`. `npm run build` runs `scripts/sync-portal-repo-credentials.mjs` to copy built credentials there — commit both `integration-n8n/dist/credentials/` and root `dist/credentials/` before resubmitting.
 
 If a publish fails only on provenance after lint/build succeed, make the repo public and **Re-run** the failed Publish workflow for that tag (no new version needed).
 
