@@ -11,7 +11,7 @@
     <Description>Tollara SDK - verify HMAC, validate keys, usage estimate, report usage, progress, completion</Description>
     <PackageTags>tollara;sdk;hmac</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/tollara/tollara-sdk/tree/master/sdk-dotnet</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/tollara/tollara-sdk/tree/main/sdk-dotnet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/tollara/tollara-sdk.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>

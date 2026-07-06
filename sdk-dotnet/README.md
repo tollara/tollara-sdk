@@ -6,7 +6,7 @@ Verify HMAC, validate service keys, run usage pre-flight (service-key **and** JW
 
 This README covers the public SDK contract and usage examples.
 
-On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve; use the [sdk-dotnet folder](https://github.com/tollara/tollara-sdk/tree/master/sdk-dotnet) in the repository for the same files with working links.
+On [nuget.org](https://www.nuget.org/), relative doc links below may not resolve; use the [sdk-dotnet folder](https://github.com/tollara/tollara-sdk/tree/main/sdk-dotnet) in the repository for the same files with working links.
 
 ## Configuration
 

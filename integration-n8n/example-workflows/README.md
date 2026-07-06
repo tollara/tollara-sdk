@@ -55,5 +55,5 @@ Backend webhooks: **Denied** / **Error** items include `tollaraHttpStatus` (401 
 
 ## More help
 
-- Node reference and install steps: [integration-n8n README on GitHub](https://github.com/tollara/tollara-sdk/tree/master/integration-n8n)
+- Node reference and install steps: [integration-n8n README on GitHub](https://github.com/tollara/tollara-sdk/tree/main/integration-n8n)
 - Tollara product: [tollara.ai](https://tollara.ai)

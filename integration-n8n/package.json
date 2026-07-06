@@ -8,7 +8,7 @@
     "tollara"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/tollara/tollara-sdk/tree/master/integration-n8n",
+  "homepage": "https://github.com/tollara/tollara-sdk/tree/main/integration-n8n",
   "bugs": {
     "url": "https://github.com/tollara/tollara-sdk/issues"
   },
@@ -85,7 +85,7 @@
     "git": {
       "tagName": "n8n-nodes-tollara-v${version}",
       "commitMessage": "chore(n8n-nodes-tollara): release ${version}",
-      "requireBranch": "master",
+      "requireBranch": "main",
       "requireCleanWorkingDir": true,
       "requireUpstream": true,
       "requireCommits": true,

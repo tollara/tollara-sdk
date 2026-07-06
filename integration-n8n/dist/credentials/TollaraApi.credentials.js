@@ -5,7 +5,7 @@ class TollaraApi {
     constructor() {
         this.name = 'tollaraApi';
         this.displayName = 'Tollara API';
-        this.documentationUrl = 'https://github.com/tollara/tollara-sdk/tree/master/integration-n8n';
+        this.documentationUrl = 'https://github.com/tollara/tollara-sdk/tree/main/integration-n8n';
         this.icon = 'file:tollara-brand.svg';
         this.properties = [
             {

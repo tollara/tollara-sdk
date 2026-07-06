@@ -5,7 +5,7 @@ export class TollaraApi implements ICredentialType {
 
   displayName = 'Tollara API';
 
-  documentationUrl = 'https://github.com/tollara/tollara-sdk/tree/master/integration-n8n';
+  documentationUrl = 'https://github.com/tollara/tollara-sdk/tree/main/integration-n8n';
 
   icon = 'file:tollara-brand.svg' as const;
 
