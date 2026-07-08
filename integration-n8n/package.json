@@ -26,7 +26,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "node scripts/clean-dist.mjs && tsc && node scripts/bundle-sdk.mjs && node scripts/sync-icons.mjs && node scripts/sync-portal-repo-credentials.mjs",
+    "build": "node scripts/clean-dist.mjs && tsc && node scripts/bundle-sdk.mjs && node scripts/sync-icons.mjs",
     "build:tests": "tsc -p ../tests/integration-n8n/tsconfig.json",
     "dev": "tsc --watch",
     "lint": "n8n-node lint",

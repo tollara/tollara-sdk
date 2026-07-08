@@ -14,10 +14,6 @@ yarn.lock
 
 # Build outputs
 dist/
-!/dist/
-/dist/*
-!/dist/credentials/
-!/dist/credentials/**
 !integration-n8n/dist/
 integration-n8n/dist/*
 !integration-n8n/dist/credentials/

@@ -1,16 +1,18 @@
-# Publishes n8n-nodes-tollara to npm on version tag push (monorepo: integration-n8n).
+# Syncs n8n-nodes-tollara to its dedicated mirror repo on version tag push.
 #
-# Tag convention: n8n-nodes-tollara-v0.0.4 (set by `npm run release` in integration-n8n).
+# The n8n Creator Portal clones the repo named in package.json.repository and
+# expects the package (package.json + dist/) at the repo ROOT; it does not honour
+# repository.directory. This monorepo can't be that root, so on each release we
+# build integration-n8n here (where sdk-js is available), then push a root-level
+# payload to tollara/n8n-nodes-tollara. That mirror repo publishes to npm with
+# provenance (see integration-n8n/mirror-template/publish.yml).
 #
-# npm Trusted Publisher setup (one-time):
-#   Package: n8n-nodes-tollara
-#   Repository: tollara/tollara-sdk
-#   Workflow filename: publish.yml
+# Tag convention: n8n-nodes-tollara-v0.0.20 (set by `npm run release`).
 #
-# Provenance requires the GitHub source repo to be public. Private repos fail with npm 422.
-#
-# See integration-n8n/LOCAL-DEVELOPMENT.md for release steps.
-
+# One-time setup (see integration-n8n/LOCAL-DEVELOPMENT.md):
+#   - Create public repo tollara/n8n-nodes-tollara.
+#   - Add secret MIRROR_PUSH_TOKEN (write access to the mirror repo) here.
+#   - Configure npm Trusted Publisher for n8n-nodes-tollara -> tollara/n8n-nodes-tollara, publish.yml.
 name: Publish
 
 on:
@@ -19,15 +21,11 @@ on:
       - 'n8n-nodes-tollara-v*'
 
 jobs:
-  publish:
-    name: Publish n8n-nodes-tollara to npm
+  sync-mirror:
+    name: Build and sync n8n-nodes-tollara to mirror repo
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: integration-n8n
 
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -37,17 +35,33 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
           cache-dependency-path: integration-n8n/package-lock.json
 
-      - name: Upgrade npm for Trusted Publishing
-        run: npm install -g npm@latest
+      - name: Install and build
+        working-directory: integration-n8n
+        run: |
+          npm ci
+          npm run build
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Build mirror payload
+        working-directory: integration-n8n
+        run: node scripts/build-mirror.mjs
 
-      - name: Publish to npm
-        run: npm run release
+      - name: Push to mirror repo
+        working-directory: integration-n8n
         env:
-          NPM_CONFIG_PROVENANCE: 'true'
+          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git clone "https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/tollara/n8n-nodes-tollara.git" mirror-repo
+          rsync -a --delete --exclude='.git' mirror/ mirror-repo/
+          cd mirror-repo
+          git add -A
+          git commit -m "release ${VERSION}" || echo "No changes to commit"
+          git push origin HEAD:main
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
