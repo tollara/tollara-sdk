@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-tollara",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "description": "n8n community nodes for Tollara: Verify Request, Invoke, Job Status/Result, Progress, Complete, Validate Key, Report Usage, Estimate Usage",
   "keywords": [
     "n8n-community-node-package",
