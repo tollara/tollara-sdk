@@ -33,6 +33,30 @@ class TollaraApi {
                 description: 'Optional service UUID when validation should target a specific service.',
             },
         ];
+        // Validates the entered Service Key against Tollara. A valid key returns
+        // { valid: true }; an invalid key returns a non-2xx status or { valid: false }.
+        this.test = {
+            request: {
+                baseURL: 'https://api.tollara.ai',
+                url: '/core/api/v1/service-keys/validate',
+                method: 'POST',
+                body: {
+                    serviceKey: '={{$credentials.serviceKey}}',
+                    serviceId: '={{$credentials.serviceId}}',
+                    serviceSecret: '={{$credentials.serviceSecret}}',
+                },
+            },
+            rules: [
+                {
+                    type: 'responseSuccessBody',
+                    properties: {
+                        key: 'valid',
+                        value: false,
+                        message: 'Service key is invalid or does not grant access',
+                    },
+                },
+            ],
+        };
     }
 }
 exports.TollaraApi = TollaraApi;

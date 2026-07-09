@@ -20,7 +20,6 @@ export class TollaraJobResult implements INodeType {
       {
         name: 'tollaraApi',
         required: false,
-        testedBy: 'tollaraValidateKey',
       },
     ],
     inputs: ['main'],

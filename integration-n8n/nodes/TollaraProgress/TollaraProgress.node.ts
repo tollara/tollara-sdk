@@ -39,7 +39,6 @@ export class TollaraProgress implements INodeType {
       {
         name: 'tollaraApi',
         required: false,
-        testedBy: 'tollaraValidateKey',
       },
     ],
 

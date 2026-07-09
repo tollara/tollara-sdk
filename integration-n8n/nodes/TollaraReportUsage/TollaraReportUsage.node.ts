@@ -19,7 +19,6 @@ export class TollaraReportUsage implements INodeType {
       {
         name: 'tollaraApi',
         required: false,
-        testedBy: 'tollaraValidateKey',
       },
     ],
     inputs: ['main'],

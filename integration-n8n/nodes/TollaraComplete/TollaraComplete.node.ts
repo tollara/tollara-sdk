@@ -39,7 +39,6 @@ export class TollaraComplete implements INodeType {
       {
         name: 'tollaraApi',
         required: false,
-        testedBy: 'tollaraValidateKey',
       },
     ],
 

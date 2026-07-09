@@ -21,7 +21,6 @@ export class TollaraInvoke implements INodeType {
       {
         name: 'tollaraApi',
         required: false,
-        testedBy: 'tollaraValidateKey',
       },
     ],
     inputs: ['main'],

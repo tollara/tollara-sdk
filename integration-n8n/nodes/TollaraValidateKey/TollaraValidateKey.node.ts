@@ -30,7 +30,6 @@ export class TollaraValidateKey implements INodeType {
       {
         name: 'tollaraApi',
         required: false,
-        testedBy: 'tollaraValidateKey',
       },
     ],
     inputs: ['main'],
