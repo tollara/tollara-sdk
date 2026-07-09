@@ -31,7 +31,7 @@ if (!existsSync(join(root, 'dist', 'credentials'))) {
 }
 
 rmSync(out, { recursive: true, force: true });
-mkdirSync(join(out, '.github', 'workflows'), { recursive: true });
+mkdirSync(out, { recursive: true });
 
 cpSync(join(root, 'dist'), join(out, 'dist'), { recursive: true });
 cpSync(join(root, 'index.js'), join(out, 'index.js'));
@@ -40,10 +40,10 @@ cpSync(join(root, 'LICENSE'), join(out, 'LICENSE'));
 cpSync(join(root, 'example-workflows'), join(out, 'example-workflows'), { recursive: true });
 rmSync(join(out, 'example-workflows', 'local'), { recursive: true, force: true });
 
-cpSync(
-  join(root, 'mirror-template', 'publish.yml'),
-  join(out, '.github', 'workflows', 'publish.yml'),
-);
+// The mirror's own .github/workflows/publish.yml is committed to the mirror repo
+// once by hand (see mirror-template/publish.yml). The sync token only has
+// Contents write and cannot push workflow files, so the sync must never touch
+// .github/ — it is excluded from the rsync in the sync workflow.
 
 // Published package.json: repository must point at the mirror root, with no
 // `directory`. Build/release tooling is dropped because the mirror only publishes

@@ -58,7 +58,9 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git clone "https://x-access-token:${MIRROR_PUSH_TOKEN}@github.com/tollara/n8n-nodes-tollara.git" mirror-repo
-          rsync -a --delete --exclude='.git' mirror/ mirror-repo/
+          # Exclude .github so the sync never touches the mirror's own publish
+          # workflow (the Contents-scoped token cannot push workflow files).
+          rsync -a --delete --exclude='.git' --exclude='.github' mirror/ mirror-repo/
           cd mirror-repo
           git add -A
           git commit -m "release ${VERSION}" || echo "No changes to commit"
