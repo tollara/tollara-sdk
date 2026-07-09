@@ -30,14 +30,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node 24 bundles npm >= 11.5.1, which supports OIDC trusted publishing and
+      # provenance out of the box. Do NOT `npm install -g npm@latest` — the in-place
+      # self-upgrade intermittently breaks provenance with "Cannot find module 'sigstore'".
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      - name: Upgrade npm for Trusted Publishing
-        run: npm install -g npm@latest
 
       - name: Publish to npm
         run: npm publish --provenance --access public
