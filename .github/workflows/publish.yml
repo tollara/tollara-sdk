@@ -62,8 +62,26 @@ jobs:
           # workflow (the Contents-scoped token cannot push workflow files).
           rsync -a --delete --exclude='.git' --exclude='.github' mirror/ mirror-repo/
           cd mirror-repo
+          # Guard: the payload we just synced must carry the version we're releasing.
+          SYNCED_VERSION="$(node -p "require('./package.json').version")"
+          if [ "${SYNCED_VERSION}" != "${VERSION}" ]; then
+            echo "::error::Mirror payload version ${SYNCED_VERSION} != release version ${VERSION}"
+            exit 1
+          fi
+          # Guard: never re-tag an existing release (would republish a stale version).
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "::error::Tag v${VERSION} already exists on the mirror repo; bump the version and re-release."
+            exit 1
+          fi
           git add -A
-          git commit -m "release ${VERSION}" || echo "No changes to commit"
+          # Guard: a release must change the tree (at minimum package.json version).
+          # No change means the payload never reached the mirror - fail instead of
+          # tagging a stale commit and republishing an old version.
+          if git diff --cached --quiet; then
+            echo "::error::No changes to sync for release ${VERSION}; refusing to tag a stale commit."
+            exit 1
+          fi
+          git commit -m "release ${VERSION}"
           git push origin HEAD:main
           git tag "v${VERSION}"
           git push origin "v${VERSION}"
